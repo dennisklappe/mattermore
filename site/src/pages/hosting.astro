@@ -36,8 +36,19 @@ const description =
           <p>We keep the layer underneath: the machine, the database, backups, TLS and upgrades. A small number of settings that would break the server if changed, the site address and the database connection among them, are pinned by us and show as read-only in your System Console.</p>
           <p>If you ever want out, we hand you the database and the files, or move the whole server to your own infrastructure. There is no lock-in to engineer around: it is Mattermost underneath, and the software is free.</p>
 
+          <h2>Work beyond the server</h2>
+          <p>The monthly fee covers running the server. Anything beyond that is real work and is quoted separately, but it is work we do:</p>
+          <ul>
+            <li>Migrating from Slack, Teams or an existing Mattermost, with history intact</li>
+            <li>Connecting it to what you already use, from GitHub and Jira to something in-house</li>
+            <li>Single sign-on against an identity provider we have not met before</li>
+            <li>Custom plugins, bots and automations</li>
+            <li>Getting your team onto it without the usual month of confusion</li>
+          </ul>
+          <p>Tell us what you need and you get a fixed quote before anything starts. No hourly surprises.</p>
+
           <h2>What it is not</h2>
-          <p>This is a small operation, not a support desk. You get help with the server, not with training your team or building integrations. If you need contractual guarantees and a response time in writing, buying Mattermost Professional is the honest answer, and it funds the upstream work this is built on.</p>
+          <p>This is a small operation, not a support desk. If you need contractual guarantees and a response time in writing, buying Mattermost Professional is the honest answer, and it funds the upstream work this is built on.</p>
 
           <h2>Self-hosting stays free</h2>
           <p>Everything here is <a href="/docs">documented</a> and the software is AGPL-3.0. Run it yourself and pay nothing. This exists for teams who would rather not.</p>
@@ -75,7 +86,7 @@ const description =
 
             <div class="field">
               <label for="hf-notes">Anything else</label>
-              <textarea id="hf-notes" name="notes" rows="4" placeholder="Migrating from an existing Mattermost? Need recording or single sign-on on day one? Say so here."></textarea>
+              <textarea id="hf-notes" name="notes" rows="4" placeholder="Migrating from Slack, Teams or an existing Mattermost? Need single sign-on or an integration building? Say so here."></textarea>
             </div>
 
             <button class="btn btn-primary" type="submit">Send the request</button>
