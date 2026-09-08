@@ -1,0 +1,783 @@
+diff --git a/README.md b/README.md
+index 3f2d00b..735dbc5 100644
+--- a/README.md
++++ b/README.md
+@@ -41,6 +41,44 @@ docker run --network=host --name calls-transcriber -e "SITE_URL=http://127.0.0.1
+ > SELECT Token FROM Sessions JOIN Bots ON Sessions.UserId = Bots.UserId AND Bots.OwnerId = 'com.mattermost.calls' ORDER BY Sessions.CreateAt DESC LIMIT 1;
+ > ```
+ 
++## Transcription backends
++
++Transcription is performed locally by [whisper.cpp](https://github.com/ggerganov/whisper.cpp) by default. The backend is selected through the `TRANSCRIBE_API` environment variable:
++
++| Value | Description |
++| --- | --- |
++| `whisper.cpp` (default) | Local whisper.cpp. Audio never leaves the container. |
++| `azure` | Azure Cognitive Services Speech. |
++| `openai/api` | A remote, OpenAI compatible `/v1/audio/transcriptions` endpoint. |
++
++### OpenAI compatible API backend
++
++> **_Warning_**
++>
++> Selecting `TRANSCRIBE_API=openai/api` **uploads the recorded call audio to a third party service**. Anyone self-hosting Mattermost to keep call content on their own infrastructure loses that guarantee the moment this backend is enabled: the audio of every participant is sent to whichever endpoint `OPENAI_API_BASE_URL` points at, subject to that provider's retention and training policies. Keep the default `whisper.cpp` backend unless you have explicitly accepted this trade-off, and point `OPENAI_API_BASE_URL` at a service you control if you need the extra accuracy without the exposure.
++
++This backend works with any service implementing OpenAI's `/v1/audio/transcriptions` endpoint (OpenAI, Groq, LocalAI, a self-hosted whisper server, ...). It is configured through the following variables, which can be passed either as environment variables on the job container or as keys of the `TRANSCRIBE_API_OPTIONS` JSON object:
++
++| Variable | Default | Description |
++| --- | --- | --- |
++| `OPENAI_API_BASE_URL` | `https://api.openai.com/v1` | The base URL of the API. `/audio/transcriptions` is appended to it. |
++| `OPENAI_API_KEY` | (empty) | The API key, sent as a `Bearer` token. Can be left empty for services that don't require authentication. It is never logged. |
++| `OPENAI_API_MODEL` | `whisper-1` | The transcription model to use (e.g. `whisper-large-v3` on Groq). |
++| `OPENAI_API_TIMEOUT_SECONDS` | `60` | Timeout for a single transcription request. |
++
++Example:
++
++```
++docker run --network=host --name calls-transcriber -e "SITE_URL=http://127.0.0.1:8065/" -e "AUTH_TOKEN=ohqd1phqtt8m3gsfg8j5ymymqy" -e "CALL_ID=9c86b3q57fgfpqr8jq3b9yjweh" -e "POST_ID=e4pdmi6rqpn7pp9sity9hiza3r" -e "TRANSCRIBE_API=openai/api" -e "OPENAI_API_KEY=sk-..." -v calls-transcriber-volume:/recs mattermost/calls-transcriber
++```
++
++> **_Note_**
++>
++> - Requests are retried on transient failures (`408`, `429`, `5xx`, network errors). Authentication and other client errors are not retried.
++> - Audio longer than the API's upload limit (25MB, about 13 minutes of 16KHz mono audio) is split into chunks and the resulting timestamps are stitched back together. Splitting happens on a fixed size boundary so it may cut through a word.
++> - Live captions always use the local whisper.cpp models, regardless of this setting.
++> - If the service ignores the `verbose_json` response format and returns only the full text, a single segment spanning the whole audio chunk is produced instead of per-sentence timestamps.
++
+ ### Development
+ 
+ Run `make help` to see available options.
+diff --git a/cmd/transcriber/apis/openai/client.go b/cmd/transcriber/apis/openai/client.go
+new file mode 100644
+index 0000000..7d89da0
+--- /dev/null
++++ b/cmd/transcriber/apis/openai/client.go
+@@ -0,0 +1,362 @@
++// Package openai implements a transcription backend for any service exposing an
++// OpenAI compatible /v1/audio/transcriptions endpoint (e.g. OpenAI, Groq,
++// LocalAI, a self-hosted whisper server).
++//
++// NOTE: using this backend means sending call audio to a third party service.
++package openai
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"log/slog"
++	"mime/multipart"
++	"net/http"
++	"net/url"
++	"strings"
++	"time"
++
++	"github.com/mattermost/calls-transcriber/cmd/transcriber/transcribe"
++)
++
++const (
++	audioSampleRate = 16000
++	audioBitDepth   = 16
++	audioChannels   = 1
++
++	// defaults
++	BaseURLDefault = "https://api.openai.com/v1"
++	ModelDefault   = "whisper-1"
++	TimeoutDefault = 60 * time.Second
++
++	transcriptionsPath = "/audio/transcriptions"
++
++	// OpenAI rejects uploads bigger than 25MB. We keep some margin for the WAV
++	// header and the multipart envelope and split anything longer in chunks.
++	maxUploadBytesDefault = 24 * 1024 * 1024
++
++	// Transient failures (e.g. rate limiting, network errors) are retried.
++	// Authentication and other client errors are not.
++	maxAttempts     = 3
++	retryBackoff    = 500 * time.Millisecond
++	maxErrBodyBytes = 1024
++)
++
++// The local whisper.cpp path returns ISO 639-1 codes while some OpenAI
++// compatible services (OpenAI itself included) return the full English name of
++// the detected language. We map back the most common ones and pass through
++// anything else.
++var langCodes = map[string]string{
++	"arabic": "ar", "bulgarian": "bg", "catalan": "ca", "chinese": "zh", "czech": "cs",
++	"danish": "da", "dutch": "nl", "english": "en", "finnish": "fi", "french": "fr",
++	"german": "de", "greek": "el", "hebrew": "he", "hindi": "hi", "hungarian": "hu",
++	"indonesian": "id", "italian": "it", "japanese": "ja", "korean": "ko", "norwegian": "no",
++	"persian": "fa", "polish": "pl", "portuguese": "pt", "romanian": "ro", "russian": "ru",
++	"slovak": "sk", "spanish": "es", "swedish": "sv", "thai": "th", "turkish": "tr",
++	"ukrainian": "uk", "vietnamese": "vi",
++}
++
++type Config struct {
++	// The base URL of the OpenAI compatible API (e.g. https://api.openai.com/v1).
++	BaseURL string
++	// The API key used to authenticate. Can be empty for self-hosted services
++	// that don't require authentication.
++	APIKey string
++	// The transcription model to use (e.g. whisper-1).
++	Model string
++	// The timeout for a single transcription request.
++	Timeout time.Duration
++}
++
++func (c Config) IsValid() error {
++	if c.BaseURL == "" {
++		return fmt.Errorf("invalid BaseURL: should not be empty")
++	}
++
++	u, err := url.Parse(c.BaseURL)
++	if err != nil {
++		return fmt.Errorf("invalid BaseURL: parsing failed: %w", err)
++	} else if u.Scheme != "http" && u.Scheme != "https" {
++		return fmt.Errorf("invalid BaseURL: invalid scheme %q", u.Scheme)
++	}
++
++	if c.Model == "" {
++		return fmt.Errorf("invalid Model: should not be empty")
++	}
++
++	if c.Timeout <= 0 {
++		return fmt.Errorf("invalid Timeout: should be a positive duration")
++	}
++
++	return nil
++}
++
++func (c *Config) SetDefaults() {
++	if c.BaseURL == "" {
++		c.BaseURL = BaseURLDefault
++	}
++
++	if c.Model == "" {
++		c.Model = ModelDefault
++	}
++
++	if c.Timeout == 0 {
++		c.Timeout = TimeoutDefault
++	}
++}
++
++// LogValue implements slog.LogValuer so that the API key is never logged.
++func (c Config) LogValue() slog.Value {
++	var apiKey string
++	if c.APIKey != "" {
++		apiKey = "<redacted>"
++	}
++
++	return slog.GroupValue(
++		slog.String("BaseURL", c.BaseURL),
++		slog.String("APIKey", apiKey),
++		slog.String("Model", c.Model),
++		slog.Duration("Timeout", c.Timeout),
++	)
++}
++
++// permanentError marks an error that won't succeed if retried.
++type permanentError struct {
++	err error
++}
++
++func (e permanentError) Error() string { return e.err.Error() }
++func (e permanentError) Unwrap() error { return e.err }
++
++type Client struct {
++	cfg Config
++	url string
++
++	httpClient *http.Client
++
++	// The maximum size of a single upload. Longer audio is split in chunks.
++	maxUploadBytes int
++}
++
++func NewClient(cfg Config) (*Client, error) {
++	cfg.SetDefaults()
++
++	if err := cfg.IsValid(); err != nil {
++		return nil, fmt.Errorf("failed to validate config: %w", err)
++	}
++
++	slog.Debug("creating transcription client", slog.Any("cfg", cfg))
++
++	return &Client{
++		cfg: cfg,
++		url: strings.TrimSuffix(cfg.BaseURL, "/") + transcriptionsPath,
++		// The timeout is enforced per request through the request's context.
++		httpClient:     &http.Client{},
++		maxUploadBytes: maxUploadBytesDefault,
++	}, nil
++}
++
++func (c *Client) Transcribe(samples []float32) ([]transcribe.Segment, string, error) {
++	if len(samples) == 0 {
++		return nil, "", fmt.Errorf("samples should not be empty")
++	}
++
++	chunkLen := c.maxUploadBytes / (audioBitDepth / 8)
++	if len(samples) > chunkLen {
++		// Splitting is done on a fixed size boundary so it may well cut through
++		// a word. There's not much we can do about it since the API enforces a
++		// maximum upload size.
++		slog.Warn("audio exceeds the maximum upload size, splitting in chunks",
++			slog.Int("samplesLen", len(samples)),
++			slog.Int("chunkLen", chunkLen))
++	}
++
++	var lang string
++	var segments []transcribe.Segment
++	for off := 0; off < len(samples); off += chunkLen {
++		chunk := samples[off:min(off+chunkLen, len(samples))]
++
++		chunkSegments, chunkLang, err := c.transcribeChunk(chunk)
++		if err != nil {
++			return nil, "", fmt.Errorf("failed to transcribe chunk: %w", err)
++		}
++
++		if lang == "" {
++			lang = chunkLang
++		}
++
++		// The returned timestamps are relative to the beginning of the chunk so
++		// we offset them to make them relative to the whole input.
++		offsetMs := int64(off / (audioSampleRate / 1000))
++		for _, s := range chunkSegments {
++			s.StartTS += offsetMs
++			s.EndTS += offsetMs
++			segments = append(segments, s)
++		}
++	}
++
++	return segments, lang, nil
++}
++
++func (c *Client) Destroy() error {
++	c.httpClient.CloseIdleConnections()
++	return nil
++}
++
++type transcriptionResponse struct {
++	Language string `json:"language"`
++	Text     string `json:"text"`
++	Segments []struct {
++		Start float64 `json:"start"`
++		End   float64 `json:"end"`
++		Text  string  `json:"text"`
++	} `json:"segments"`
++}
++
++func (c *Client) transcribeChunk(samples []float32) ([]transcribe.Segment, string, error) {
++	body, contentType, err := c.newRequestBody(samples)
++	if err != nil {
++		return nil, "", err
++	}
++
++	durMs := int64(len(samples) / (audioSampleRate / 1000))
++
++	for attempt := 1; ; attempt++ {
++		res, err := c.doRequest(body, contentType)
++		if err == nil {
++			return segmentsFromResponse(res, durMs)
++		}
++
++		var permErr permanentError
++		if errors.As(err, &permErr) || attempt == maxAttempts {
++			return nil, "", err
++		}
++
++		slog.Warn("transcription request failed, retrying",
++			slog.String("err", err.Error()),
++			slog.Int("attempt", attempt))
++
++		time.Sleep(time.Duration(attempt) * retryBackoff)
++	}
++}
++
++func (c *Client) newRequestBody(samples []float32) ([]byte, string, error) {
++	var buf bytes.Buffer
++	mw := multipart.NewWriter(&buf)
++
++	fw, err := mw.CreateFormFile("file", "audio.wav")
++	if err != nil {
++		return nil, "", fmt.Errorf("failed to create form file: %w", err)
++	}
++
++	if _, err := fw.Write(f32PCMToWAV(samples)); err != nil {
++		return nil, "", fmt.Errorf("failed to write audio data: %w", err)
++	}
++
++	if err := mw.WriteField("model", c.cfg.Model); err != nil {
++		return nil, "", fmt.Errorf("failed to write model field: %w", err)
++	}
++
++	// Needed to get segments, timestamps and the detected language back.
++	if err := mw.WriteField("response_format", "verbose_json"); err != nil {
++		return nil, "", fmt.Errorf("failed to write response_format field: %w", err)
++	}
++
++	if err := mw.Close(); err != nil {
++		return nil, "", fmt.Errorf("failed to close multipart writer: %w", err)
++	}
++
++	return buf.Bytes(), mw.FormDataContentType(), nil
++}
++
++func (c *Client) doRequest(body []byte, contentType string) (*transcriptionResponse, error) {
++	ctx, cancel := context.WithTimeout(context.Background(), c.cfg.Timeout)
++	defer cancel()
++
++	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(body))
++	if err != nil {
++		return nil, permanentError{fmt.Errorf("failed to create request: %w", err)}
++	}
++	req.Header.Set("Content-Type", contentType)
++	if c.cfg.APIKey != "" {
++		req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
++	}
++
++	res, err := c.httpClient.Do(req)
++	if err != nil {
++		return nil, fmt.Errorf("failed to send request: %w", err)
++	}
++	defer res.Body.Close()
++
++	if res.StatusCode != http.StatusOK {
++		// The error body is read back to help debugging but it's bounded as we
++		// have no control over its size.
++		data, _ := io.ReadAll(io.LimitReader(res.Body, maxErrBodyBytes))
++		err := fmt.Errorf("request failed with status %q: %s", res.Status, strings.TrimSpace(string(data)))
++		if !isRetryableStatus(res.StatusCode) {
++			return nil, permanentError{err}
++		}
++		return nil, err
++	}
++
++	var tr transcriptionResponse
++	if err := json.NewDecoder(res.Body).Decode(&tr); err != nil {
++		return nil, permanentError{fmt.Errorf("failed to decode response body: %w", err)}
++	}
++
++	return &tr, nil
++}
++
++// isRetryableStatus reports whether a request that failed with the given status
++// code is worth retrying. Authentication, authorization and malformed request
++// failures are permanent.
++func isRetryableStatus(code int) bool {
++	return code == http.StatusRequestTimeout ||
++		code == http.StatusTooManyRequests ||
++		code >= http.StatusInternalServerError
++}
++
++func segmentsFromResponse(res *transcriptionResponse, durMs int64) ([]transcribe.Segment, string, error) {
++	lang := normalizeLanguage(res.Language)
++
++	if len(res.Segments) == 0 {
++		text := strings.TrimSpace(res.Text)
++		if text == "" {
++			return nil, lang, nil
++		}
++
++		// Some OpenAI compatible services ignore the verbose_json response
++		// format and only return the full text. The best we can do in that case
++		// is a single segment spanning the whole input.
++		slog.Warn("no segments in response, falling back to a single segment")
++
++		return []transcribe.Segment{{
++			Text:    text,
++			StartTS: 0,
++			EndTS:   durMs,
++		}}, lang, nil
++	}
++
++	segments := make([]transcribe.Segment, 0, len(res.Segments))
++	for _, s := range res.Segments {
++		segments = append(segments, transcribe.Segment{
++			Text: s.Text,
++			// Timestamps are returned in seconds, ours are in milliseconds.
++			StartTS: int64(s.Start * 1000),
++			EndTS:   int64(s.End * 1000),
++		})
++	}
++
++	return segments, lang, nil
++}
++
++func normalizeLanguage(lang string) string {
++	lang = strings.ToLower(strings.TrimSpace(lang))
++	if code, ok := langCodes[lang]; ok {
++		return code
++	}
++	return lang
++}
+diff --git a/cmd/transcriber/apis/openai/client_test.go b/cmd/transcriber/apis/openai/client_test.go
+new file mode 100644
+index 0000000..204dc15
+--- /dev/null
++++ b/cmd/transcriber/apis/openai/client_test.go
+@@ -0,0 +1,229 @@
++package openai
++
++import (
++	"bytes"
++	"fmt"
++	"io"
++	"log/slog"
++	"net/http"
++	"net/http/httptest"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/mattermost/calls-transcriber/cmd/transcriber/transcribe"
++
++	"github.com/stretchr/testify/require"
++)
++
++func newTestClient(t *testing.T, url string) *Client {
++	t.Helper()
++
++	c, err := NewClient(Config{
++		BaseURL: url,
++		APIKey:  "test-api-key",
++		Model:   "whisper-1",
++		Timeout: time.Second,
++	})
++	require.NoError(t, err)
++	require.NotNil(t, c)
++
++	return c
++}
++
++func TestConfigIsValid(t *testing.T) {
++	t.Run("empty", func(t *testing.T) {
++		var cfg Config
++		require.Error(t, cfg.IsValid())
++	})
++
++	t.Run("invalid scheme", func(t *testing.T) {
++		cfg := Config{BaseURL: "ftp://example.com", Model: "whisper-1", Timeout: time.Second}
++		require.EqualError(t, cfg.IsValid(), `invalid BaseURL: invalid scheme "ftp"`)
++	})
++
++	t.Run("defaults", func(t *testing.T) {
++		var cfg Config
++		cfg.SetDefaults()
++		require.NoError(t, cfg.IsValid())
++		require.Equal(t, BaseURLDefault, cfg.BaseURL)
++		require.Equal(t, ModelDefault, cfg.Model)
++		require.Equal(t, TimeoutDefault, cfg.Timeout)
++		// An API key is not required as self-hosted services may not need one.
++		require.Empty(t, cfg.APIKey)
++	})
++}
++
++func TestConfigLogValueRedactsAPIKey(t *testing.T) {
++	var buf bytes.Buffer
++	logger := slog.New(slog.NewTextHandler(&buf, nil))
++
++	cfg := Config{BaseURL: BaseURLDefault, APIKey: "super-secret-key", Model: ModelDefault, Timeout: time.Second}
++	logger.Info("cfg", slog.Any("cfg", cfg))
++
++	require.NotContains(t, buf.String(), "super-secret-key")
++	require.Contains(t, buf.String(), "redacted")
++}
++
++func TestTranscribeSuccess(t *testing.T) {
++	var reqs atomic.Int32
++
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		reqs.Add(1)
++
++		require.Equal(t, http.MethodPost, r.Method)
++		require.Equal(t, "/v1/audio/transcriptions", r.URL.Path)
++		require.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
++
++		require.NoError(t, r.ParseMultipartForm(1<<20))
++		require.Equal(t, "whisper-1", r.FormValue("model"))
++		require.Equal(t, "verbose_json", r.FormValue("response_format"))
++
++		file, hdr, err := r.FormFile("file")
++		require.NoError(t, err)
++		defer file.Close()
++		require.Equal(t, "audio.wav", hdr.Filename)
++
++		data, err := io.ReadAll(file)
++		require.NoError(t, err)
++		// 44 bytes of WAV header plus 16-bit samples.
++		require.Equal(t, 44+16000*2, len(data))
++		require.Equal(t, "RIFF", string(data[:4]))
++
++		w.Header().Set("Content-Type", "application/json")
++		fmt.Fprint(w, `{
++			"language": "english",
++			"text": "Hello there. General Kenobi.",
++			"segments": [
++				{"start": 0.0, "end": 1.25, "text": "Hello there."},
++				{"start": 1.25, "end": 2.5, "text": "General Kenobi."}
++			]
++		}`)
++	}))
++	defer srv.Close()
++
++	c := newTestClient(t, srv.URL+"/v1")
++
++	segments, lang, err := c.Transcribe(make([]float32, 16000))
++	require.NoError(t, err)
++	require.Equal(t, int32(1), reqs.Load())
++	// The language is normalized to the ISO 639-1 code the local path returns.
++	require.Equal(t, "en", lang)
++	require.Equal(t, []transcribe.Segment{
++		{Text: "Hello there.", StartTS: 0, EndTS: 1250},
++		{Text: "General Kenobi.", StartTS: 1250, EndTS: 2500},
++	}, segments)
++
++	require.NoError(t, c.Destroy())
++}
++
++func TestTranscribeEmptySamples(t *testing.T) {
++	c := newTestClient(t, "http://localhost:1")
++	_, _, err := c.Transcribe(nil)
++	require.EqualError(t, err, "samples should not be empty")
++}
++
++func TestTranscribeAuthFailure(t *testing.T) {
++	var reqs atomic.Int32
++
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		reqs.Add(1)
++		w.WriteHeader(http.StatusUnauthorized)
++		fmt.Fprint(w, `{"error": {"message": "Incorrect API key provided."}}`)
++	}))
++	defer srv.Close()
++
++	c := newTestClient(t, srv.URL+"/v1")
++
++	_, _, err := c.Transcribe(make([]float32, 16000))
++	require.Error(t, err)
++	require.Contains(t, err.Error(), "401 Unauthorized")
++	require.Contains(t, err.Error(), "Incorrect API key provided.")
++	// Authentication failures should not be retried.
++	require.Equal(t, int32(1), reqs.Load())
++}
++
++func TestTranscribeRetriesTransientFailure(t *testing.T) {
++	var reqs atomic.Int32
++
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		if reqs.Add(1) == 1 {
++			w.WriteHeader(http.StatusTooManyRequests)
++			return
++		}
++		fmt.Fprint(w, `{"language": "en", "segments": [{"start": 0, "end": 1, "text": "ok"}]}`)
++	}))
++	defer srv.Close()
++
++	c := newTestClient(t, srv.URL+"/v1")
++
++	segments, lang, err := c.Transcribe(make([]float32, 16000))
++	require.NoError(t, err)
++	require.Equal(t, int32(2), reqs.Load())
++	require.Equal(t, "en", lang)
++	require.Equal(t, []transcribe.Segment{{Text: "ok", StartTS: 0, EndTS: 1000}}, segments)
++}
++
++func TestTranscribeTimeout(t *testing.T) {
++	var reqs atomic.Int32
++
++	blockCh := make(chan struct{})
++	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
++		reqs.Add(1)
++		select {
++		case <-blockCh:
++		case <-r.Context().Done():
++		}
++	}))
++	defer srv.Close()
++	defer close(blockCh)
++
++	c := newTestClient(t, srv.URL+"/v1")
++	c.cfg.Timeout = 100 * time.Millisecond
++
++	_, _, err := c.Transcribe(make([]float32, 16000))
++	require.Error(t, err)
++	require.Contains(t, err.Error(), "context deadline exceeded")
++	// Timeouts are transient so all the attempts should have been made.
++	require.Equal(t, int32(maxAttempts), reqs.Load())
++}
++
++func TestTranscribeChunking(t *testing.T) {
++	var reqs atomic.Int32
++
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		reqs.Add(1)
++		// Each chunk reports a segment covering its first second.
++		fmt.Fprint(w, `{"language": "english", "segments": [{"start": 0, "end": 1, "text": "chunk"}]}`)
++	}))
++	defer srv.Close()
++
++	c := newTestClient(t, srv.URL+"/v1")
++	// Two seconds worth of 16-bit samples per chunk.
++	c.maxUploadBytes = 16000 * 2 * 2
++
++	segments, lang, err := c.Transcribe(make([]float32, 16000*5))
++	require.NoError(t, err)
++	require.Equal(t, int32(3), reqs.Load())
++	require.Equal(t, "en", lang)
++	// Timestamps of the later chunks are offset by the chunk start.
++	require.Equal(t, []transcribe.Segment{
++		{Text: "chunk", StartTS: 0, EndTS: 1000},
++		{Text: "chunk", StartTS: 2000, EndTS: 3000},
++		{Text: "chunk", StartTS: 4000, EndTS: 5000},
++	}, segments)
++}
++
++func TestTranscribeNoSegmentsFallback(t *testing.T) {
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
++		fmt.Fprint(w, `{"text": " just text "}`)
++	}))
++	defer srv.Close()
++
++	c := newTestClient(t, srv.URL+"/v1")
++
++	segments, lang, err := c.Transcribe(make([]float32, 16000*2))
++	require.NoError(t, err)
++	require.Empty(t, lang)
++	require.Equal(t, []transcribe.Segment{{Text: "just text", StartTS: 0, EndTS: 2000}}, segments)
++}
+diff --git a/cmd/transcriber/apis/openai/wav.go b/cmd/transcriber/apis/openai/wav.go
+new file mode 100644
+index 0000000..3e87629
+--- /dev/null
++++ b/cmd/transcriber/apis/openai/wav.go
+@@ -0,0 +1,36 @@
++package openai
++
++import (
++	"encoding/binary"
++)
++
++// Util to wrap our float32 samples in a WAV (16-bit PCM, mono, 16KHz)
++//
++// NOTE: this is a copy of the same helper in the azure package. It's duplicated
++// on purpose to keep this package free of the Azure Speech SDK cgo dependency.
++func f32PCMToWAV(samples []float32) []byte {
++	wavHeaderLen := 44
++	wav := make([]byte, wavHeaderLen+len(samples)*2)
++	pcm := wav[wavHeaderLen:]
++
++	// WAV Header
++	copy(wav[0:], "RIFF")
++	binary.LittleEndian.PutUint32(wav[4:], uint32(len(wav)-8))
++	copy(wav[8:], "WAVEfmt ")
++	binary.LittleEndian.PutUint32(wav[16:], 16)
++	binary.LittleEndian.PutUint16(wav[20:], 1)
++	binary.LittleEndian.PutUint16(wav[22:], audioChannels)
++	binary.LittleEndian.PutUint32(wav[24:], audioSampleRate)
++	binary.LittleEndian.PutUint32(wav[28:], (audioSampleRate*audioBitDepth*audioChannels)/8)
++	binary.LittleEndian.PutUint16(wav[32:], (audioBitDepth*audioChannels)/8)
++	binary.LittleEndian.PutUint16(wav[34:], audioBitDepth)
++	copy(wav[36:], "data")
++	binary.LittleEndian.PutUint32(wav[40:], uint32(len(samples)*2))
++
++	// Convert audio samples from float32 samples to uint16 PCM
++	for i, s := range samples {
++		binary.LittleEndian.PutUint16(pcm[i*2:], uint16(s*32768.0))
++	}
++
++	return wav
++}
+diff --git a/cmd/transcriber/call/live_captions.go b/cmd/transcriber/call/live_captions.go
+index 384c9bc..ac6ad8a 100644
+--- a/cmd/transcriber/call/live_captions.go
++++ b/cmd/transcriber/call/live_captions.go
+@@ -446,7 +446,7 @@ func (t *Transcriber) handleTranscriptionRequests(num int) {
+ 
+ func (t *Transcriber) newLiveCaptionsTranscriber() (transcribe.Transcriber, error) {
+ 	switch t.cfg.TranscribeAPI {
+-	case config.TranscribeAPIAzure:
++	case config.TranscribeAPIAzure, config.TranscribeAPIOpenAIAPI:
+ 		// Only supporting WhisperCPP live captions for the time being.
+ 		fallthrough
+ 	case config.TranscribeAPIWhisperCPP:
+diff --git a/cmd/transcriber/call/tracks.go b/cmd/transcriber/call/tracks.go
+index c46e306..17fe1ec 100644
+--- a/cmd/transcriber/call/tracks.go
++++ b/cmd/transcriber/call/tracks.go
+@@ -8,11 +8,13 @@ import (
+ 	"math"
+ 	"os"
+ 	"path/filepath"
++	"strconv"
+ 	"time"
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/public"
+ 
+ 	"github.com/mattermost/calls-transcriber/cmd/transcriber/apis/azure"
++	"github.com/mattermost/calls-transcriber/cmd/transcriber/apis/openai"
+ 	"github.com/mattermost/calls-transcriber/cmd/transcriber/apis/whisper.cpp"
+ 	"github.com/mattermost/calls-transcriber/cmd/transcriber/config"
+ 	"github.com/mattermost/calls-transcriber/cmd/transcriber/ogg"
+@@ -537,6 +539,14 @@ func (t *Transcriber) newTrackTranscriber() (transcribe.Transcriber, error) {
+ 			SpeechRegion: speechRegion,
+ 			DataDir:      t.dataPath,
+ 		})
++	case config.TranscribeAPIOpenAIAPI:
++		timeoutSecs, _ := strconv.Atoi(t.cfg.APIOption("OPENAI_API_TIMEOUT_SECONDS"))
++		return openai.NewClient(openai.Config{
++			BaseURL: t.cfg.APIOption("OPENAI_API_BASE_URL"),
++			APIKey:  t.cfg.APIOption("OPENAI_API_KEY"),
++			Model:   t.cfg.APIOption("OPENAI_API_MODEL"),
++			Timeout: time.Duration(timeoutSecs) * time.Second,
++		})
+ 	default:
+ 		return nil, fmt.Errorf("transcribe API %q not implemented", t.cfg.TranscribeAPI)
+ 	}
+diff --git a/cmd/transcriber/config/config.go b/cmd/transcriber/config/config.go
+index b929049..dc5b062 100644
+--- a/cmd/transcriber/config/config.go
++++ b/cmd/transcriber/config/config.go
+@@ -53,6 +53,10 @@ const (
+ 	TranscribeAPIWhisperCPP    = "whisper.cpp"
+ 	TranscribeAPIOpenAIWhisper = "openai/whisper"
+ 	TranscribeAPIAzure         = "azure"
++	// TranscribeAPIOpenAIAPI transcribes through a remote, OpenAI compatible
++	// /v1/audio/transcriptions endpoint. NOTE: this sends call audio to a third
++	// party service.
++	TranscribeAPIOpenAIAPI = "openai/api"
+ )
+ 
+ type OutputOptions struct {
+@@ -95,13 +99,26 @@ func (p ModelSize) IsValid() bool {
+ 
+ func (a TranscribeAPI) IsValid() bool {
+ 	switch a {
+-	case TranscribeAPIWhisperCPP, TranscribeAPIOpenAIWhisper, TranscribeAPIAzure:
++	case TranscribeAPIWhisperCPP, TranscribeAPIOpenAIWhisper, TranscribeAPIAzure, TranscribeAPIOpenAIAPI:
+ 		return true
+ 	default:
+ 		return false
+ 	}
+ }
+ 
++// APIOption returns the value for the given transcribe API option. Options are
++// looked up in TranscribeAPIOptions first and fall back to the process
++// environment so that they can be passed either through the job config or
++// directly as environment variables on the job container.
++//
++// NOTE: options may hold secrets (e.g. API keys) so they should never be logged.
++func (cfg CallTranscriberConfig) APIOption(name string) string {
++	if val, ok := cfg.TranscribeAPIOptions[name].(string); ok && val != "" {
++		return val
++	}
++	return os.Getenv(name)
++}
++
+ func (cfg CallTranscriberConfig) IsValidURL() error {
+ 	if cfg.SiteURL == "" {
+ 		return fmt.Errorf("SiteURL cannot be empty")
