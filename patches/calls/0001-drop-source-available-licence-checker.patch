@@ -72,6 +72,52 @@ index 9683a0e..b807ce3 100644
  	}
  
  	mockAPI.On("GetLicense").Return(&model.License{
+diff --git a/server/license/checker.go b/server/license/checker.go
+new file mode 100644
+index 0000000..22b0810
+--- /dev/null
++++ b/server/license/checker.go
+@@ -0,0 +1,40 @@
++// Copyright (c) 2026-present Mattermore contributors. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package license
++
++import (
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++// PluginAPI is the slice of the plugin API the checker needs.
++type PluginAPI interface {
++	GetLicense() *model.License
++	GetConfig() *model.Config
++}
++
++// Checker replaces the Source Available licence checker. Mattermore ships
++// every call feature to every server, so each answer is unconditionally yes
++// and no licence is inspected.
++type Checker struct {
++	api PluginAPI
++}
++
++func NewChecker(api PluginAPI) *Checker {
++	return &Checker{api: api}
++}
++
++// RTCDAllowed reports whether an external rtcd service may be used.
++func (c *Checker) RTCDAllowed() bool { return true }
++
++// RecordingsAllowed reports whether calls may be recorded.
++func (c *Checker) RecordingsAllowed() bool { return true }
++
++// TranscriptionsAllowed reports whether recordings may be transcribed.
++func (c *Checker) TranscriptionsAllowed() bool { return true }
++
++// HostControlsAllowed reports whether the call host may manage participants.
++func (c *Checker) HostControlsAllowed() bool { return true }
++
++// GroupCallsAllowed reports whether a call may have more than two people.
++func (c *Checker) GroupCallsAllowed() bool { return true }
 diff --git a/server/plugin.go b/server/plugin.go
 index f890dff..683497b 100644
 --- a/server/plugin.go
