@@ -40,9 +40,21 @@ COPY --from=webapp --chown=2000:2000 /out /mattermost/client
 # while still verifying one that is present. RequirePluginSignature continues
 # to govern administrator uploads, which is a different trust boundary.
 #
-# The stock calls bundle is left in place deliberately: ours is version
-# 1000.12.3 and wins on version, so there is nothing to delete.
+# Upstream's own calls bundle is removed rather than left to lose on version.
+# Winning on version describes where a start ends up, not how it gets there:
+# with both bundles present the server installs upstream's first and then has
+# to remove it again to put ours in its place. That removal is not guaranteed
+# to succeed. When it fails the plugin directory is left holding an orphan
+# webapp folder, the install is abandoned, and the server comes up with NO
+# calls plugin at all, which is the one thing this image exists to provide.
+#
+#   Removing existing installation of plugin before local install (1.12.2)
+#   removePlugin: unlinkat plugins/com.mattermost.calls: directory not empty
+#
+# One bundle per plugin id means there is no replacement step to fail.
 COPY --chown=2000:2000 mattermore-calls.tar.gz /mattermost/prepackaged_plugins/mattermore-calls-linux-amd64.tar.gz
+RUN rm -f /mattermost/prepackaged_plugins/mattermost-plugin-calls-v*.tar.gz \
+          /mattermost/prepackaged_plugins/mattermost-plugin-calls-v*.tar.gz.sig
 
 # Group calls are switched on by upstream's own environment variable.
 ENV MM_CALLS_GROUP_CALLS_ALLOWED=true
