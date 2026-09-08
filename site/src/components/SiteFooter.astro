@@ -1,0 +1,16 @@
+---
+interface Props { blurb?: string }
+const {
+  blurb = 'This site lives in the <a href="https://github.com/dennisklappe/mattermore/tree/main/site">repository</a>. Corrections are welcome as a pull request.',
+} = Astro.props;
+---
+<footer class="site-foot">
+  <div class="shell">
+    <p class="foot-blurb" set:html={blurb} />
+    <p class="disclaimer">
+      Not affiliated with, endorsed by, or supported by Mattermost, Inc.
+      "Mattermost" is their trademark, used here only to describe what this
+      software is compatible with.
+    </p>
+  </div>
+</footer>
