@@ -37,21 +37,21 @@ const project = [
       </div>
 
       <nav aria-label="Features">
-        <h4>Features</h4>
+        <p class="col-label">Features</p>
         <ul>
           {features.map((f) => <li><a href={`/${f.id}`}>{f.data.label}</a></li>)}
         </ul>
       </nav>
 
       <nav aria-label="Documentation">
-        <h4>Docs</h4>
+        <p class="col-label">Docs</p>
         <ul>
           {docs.map((d) => <li><a href={d.href}>{d.label}</a></li>)}
         </ul>
       </nav>
 
       <nav aria-label="Project">
-        <h4>Project</h4>
+        <p class="col-label">Project</p>
         <ul>
           {project.map((p) => (
             <li><a href={p.href} target="_blank" rel="noopener noreferrer">{p.label}</a></li>

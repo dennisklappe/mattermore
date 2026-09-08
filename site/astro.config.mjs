@@ -15,9 +15,11 @@ export default defineConfig({
   // Links that leave the site open in a new tab. Internal navigation does not,
   // because hijacking a reader's tab for their own site is rude.
   markdown: {
-    rehypePlugins: [
-      [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
-    ],
+    unified: {
+      rehypePlugins: [
+        [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
+      ],
+    },
   },
 
   integrations: [

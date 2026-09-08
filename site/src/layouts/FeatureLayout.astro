@@ -36,7 +36,7 @@ const jsonLd =
 <Base title={`${title} | Mattermore`} description={description} ogType="article" jsonLd={jsonLd}>
   <TopBar />
 
-  <main>
+  <main id="main">
     <section class="feature-hero">
       <div class="shell">
         <p class="crumb"><a href="/#compare">Features</a> <span>/</span> {title}</p>
@@ -54,14 +54,14 @@ const jsonLd =
         <aside class="feature-aside">
           {sections.length >= 3 && (
             <nav class="feature-toc" aria-label="On this page">
-              <h4>On this page</h4>
+              <p class="col-label">On this page</p>
               <ul>
                 {sections.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}
               </ul>
             </nav>
           )}
           <nav class="feature-sibs" aria-label="Other features">
-            <h4>Also unlocked</h4>
+            <p class="col-label">Also unlocked</p>
             <ul>
               {siblings.filter((p) => p.id !== slug).map((p) => (
                 <li><a href={`/${p.id}`}>{p.data.label}</a></li>

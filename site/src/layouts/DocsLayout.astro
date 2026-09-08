@@ -22,11 +22,11 @@ const showToc = sections.length >= 3;
 <Base title={`${title} | Mattermore`} description={description} ogType="article">
   <TopBar current="docs" />
 
-  <main class="shell">
+  <main class="shell" id="main">
     <div class="doc-layout">
 
       <nav class="doc-nav" aria-label="Documentation">
-        <h4>Documentation</h4>
+        <p class="col-label">Documentation</p>
         <ol>
           {pages.map((page) => (
             <li>
@@ -48,7 +48,7 @@ const showToc = sections.length >= 3;
 
         {showToc && (
           <nav class="doc-toc" aria-label="On this page">
-            <h4>On this page</h4>
+            <p class="col-label">On this page</p>
             <ul>
               {sections.map((h) => (
                 <li><a href={`#${h.slug}`}>{h.text}</a></li>
