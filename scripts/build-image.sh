@@ -15,9 +15,12 @@ STAGE="$ROOT/build/image"
 # shellcheck source=../upstream.env
 source "$ROOT/upstream.env"
 
-engine="$(command -v podman || command -v docker)" || {
+# CI sets CONTAINER_ENGINE=docker, because the runners ship podman too and the
+# image has to land in the store the push step reads from.
+engine="${CONTAINER_ENGINE:-$(command -v podman || command -v docker)}" || {
     echo "needs podman or docker" >&2; exit 1
 }
+command -v "$engine" >/dev/null || { echo "no such engine: $engine" >&2; exit 1; }
 
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 "$ROOT/scripts/build-server.sh" "$STAGE/mattermore-server"   # also emits $STAGE/client
