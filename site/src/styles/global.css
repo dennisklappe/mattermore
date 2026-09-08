@@ -602,28 +602,55 @@ td.soon {
 /* ---- footer ------------------------------------------------------------ */
 
 .site-foot {
-    padding-block: 3rem 2.5rem;
+    margin-top: 4rem;
     border-top: 1px solid var(--line);
-    font-size: 0.93rem;
+    background: var(--bg-soft);
+    padding-block: 3.25rem 2rem;
+    font-size: 0.94rem;
 }
 
 .foot-grid {
     display: grid;
-    gap: 2rem;
-    margin-bottom: 2.5rem;
+    gap: 2.5rem 2rem;
+    grid-template-columns: 1fr;
 }
 
-@media (min-width: 48rem) {
+@media (min-width: 40rem) {
     .foot-grid {
-        grid-template-columns: 1.6fr 1fr 1fr;
-        gap: 3rem;
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .foot-brand {
+        grid-column: 1 / -1;
     }
 }
 
+@media (min-width: 64rem) {
+    .foot-grid {
+        grid-template-columns: 1.7fr repeat(3, 1fr);
+        gap: 3rem;
+    }
+
+    .foot-brand {
+        grid-column: auto;
+    }
+}
+
+.foot-brand .brand {
+    margin-bottom: 0.9rem;
+}
+
+.foot-brand p {
+    color: var(--muted);
+    max-width: 26rem;
+    margin: 0;
+}
+
 .foot-grid h4 {
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     font-weight: 600;
-    margin-bottom: 0.85rem;
+    color: var(--ink);
+    margin-bottom: 0.9rem;
 }
 
 .foot-grid ul {
@@ -640,23 +667,27 @@ td.soon {
 }
 
 .foot-grid a:hover {
-    color: var(--ink);
+    color: var(--brand-dark);
+    text-decoration: underline;
 }
 
-.foot-blurb {
-    color: var(--muted);
-    max-width: 26rem;
-    margin: 0.85rem 0 0;
-    font-size: 0.93rem;
-}
-
-.disclaimer {
-    border-top: 1px solid var(--line-soft);
+.foot-base {
+    margin-top: 3rem;
     padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 0.5rem;
     color: var(--muted);
-    font-size: 0.88rem;
-    max-width: 52rem;
+    font-size: 0.87rem;
+}
+
+.foot-base p {
     margin: 0;
+    max-width: 60rem;
+}
+
+.foot-base a {
+    color: var(--body);
 }
 
 /* ---- docs page --------------------------------------------------------- */

@@ -13,7 +13,7 @@ const jsonLd = {
       operatingSystem: 'Linux, Docker, Kubernetes',
       url: 'https://mattermore.dev/',
       description:
-        'A maintained fork of the Mattermost calls plugin that enables group calls on self-hosted Mattermost servers without a paid licence.',
+        'A fork of Mattermost that turns the paywalled features back on: group calls, video, recording, local transcription, single sign-on, guest accounts and no user limit.',
       license: 'https://www.gnu.org/licenses/agpl-3.0.html',
       isAccessibleForFree: true,
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
@@ -78,11 +78,11 @@ const jsonLd = {
 <section class="hero">
   <div class="shell">
     <h1>Mattermost, but more.</h1>
-    <p class="tagline">Group calls, video, recording, transcription and single sign-on, on your own server.</p>
+    <p class="tagline">Group calls, video, recording, transcription and SSO, on your own server.</p>
 
     <ul class="gains">
       <li><b>Every call feature, unlocked.</b> <span>Group calls, group video, recording and transcription. Stock Mattermost stops you at two people.</span></li>
-      <li><b>Sign-on, guests, and no user cap.</b> <span>Real OIDC single sign-on, guest accounts, and the 250 user limit gone.</span></li>
+      <li><b>SSO, guests, and no user cap.</b> <span>Real OIDC single sign-on, guest accounts, and the 250 user limit gone.</span></li>
       <li><b>Free and open source.</b> <span>AGPL-3.0, built in the open, and reversible in two minutes.</span></li>
     </ul>
 
@@ -93,7 +93,7 @@ const jsonLd = {
       <a class="btn btn-ghost" href="https://github.com/dennisklappe/mattermore" target="_blank" rel="noopener noreferrer">View the source</a>
     </div>
 
-    <p class="fineprint">Free and AGPL-3.0. The plugin is a drop-in replacement, reversible in two minutes.</p>
+    <p class="fineprint">Free and AGPL-3.0. Run the image, or upload just the plugin. Either way, reversible.</p>
 
     <div class="switch" id="switch">
       <div class="switch-bar">
@@ -113,7 +113,7 @@ const jsonLd = {
     <div class="section-head center">
       <h2>What you get</h2>
       <p>Same software underneath, same settings, same data. Follow any row for the detail on that feature.</p>
-      <p class="two-parts">Mattermore comes in two pieces. <strong>Mattermore Calls</strong> is a plugin you upload in two minutes, and covers everything call-related. <strong>Mattermore Server</strong> is our build of Mattermost itself, and covers sign-on, guests, users and history. Take either on its own. <a href="/docs">Both are explained in the docs</a>.</p>
+      <p class="two-parts">One image, everything on. The <strong>Mattermore</strong> server image ships with the calls plugin already prepackaged and the switches set, so running it is the whole installation. Already have Mattermost and would rather not replace it? The <a href="/install">calls plugin is a separate download</a> you upload in two minutes.</p>
     </div>
 
     <div class="table-wrap">
