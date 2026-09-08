@@ -1,14 +1,14 @@
 ---
-// Direct download links, so nobody is bounced through a marketing page to
-// fetch a client. Every URL here was checked to resolve; the Windows and Linux
-// entries point at the desktop release list because Mattermost publishes no
-// stable per-platform alias for those, only for the macOS disk image.
+import { desktopLinks, OTHER_BUILDS } from '../lib/desktop';
+
+const desktop = await desktopLinks();
+
 const apps = [
-  { id: 'macos',   label: 'macOS',   note: 'Disk image',      href: 'https://latest.mattermost.com/mattermost-desktop-dmg', direct: true },
-  { id: 'windows', label: 'Windows', note: 'Latest release',  href: 'https://github.com/mattermost/desktop/releases/latest' },
-  { id: 'linux',   label: 'Linux',   note: 'deb, rpm, AppImage', href: 'https://github.com/mattermost/desktop/releases/latest' },
-  { id: 'ios',     label: 'iPhone and iPad', note: 'App Store', href: 'https://apps.apple.com/app/mattermost/id1257222717', direct: true },
-  { id: 'android', label: 'Android', note: 'Google Play',     href: 'https://play.google.com/store/apps/details?id=com.mattermost.rn', direct: true },
+  { id: 'windows', label: 'Windows', ...desktop.windows },
+  { id: 'macos',   label: 'macOS',   ...desktop.macos },
+  { id: 'linux',   label: 'Linux',   ...desktop.linux },
+  { id: 'ios',     label: 'iPhone and iPad', href: 'https://apps.apple.com/app/mattermost/id1257222717', note: 'App Store', direct: true },
+  { id: 'android', label: 'Android', href: 'https://play.google.com/store/apps/details?id=com.mattermost.rn', note: 'Google Play', direct: true },
 ];
 ---
 <ul class="app-grid" id="app-grid">
@@ -21,6 +21,11 @@ const apps = [
     </li>
   ))}
 </ul>
+
+<p class="app-more">
+  Arm builds, AppImage and tarballs are in the
+  <a href={OTHER_BUILDS} target="_blank" rel="noopener noreferrer">release list</a>.
+</p>
 
 <script is:inline>
   // Nudge the visitor's own platform to the front. Everything stays visible,

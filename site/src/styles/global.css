@@ -1538,3 +1538,10 @@ td.soon {
 .request-card .subdomain:focus-within {
     background: #fff;
 }
+
+.app-more {
+    text-align: center;
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin-top: 1rem;
+}
