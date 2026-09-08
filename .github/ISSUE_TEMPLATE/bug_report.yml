@@ -1,0 +1,111 @@
+name: Bug report
+description: Something in Mattermore does not work the way it should.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file this. Mattermore is a rebuild of
+        upstream Calls, so the more detail you give about your server and how
+        you deployed it, the faster this can be narrowed down to a Mattermore
+        patch, a Mattermost setting, or an upstream bug.
+
+  - type: checkboxes
+    id: troubleshooting
+    attributes:
+      label: Before filing
+      options:
+        - label: I have read the troubleshooting page at https://mattermore.dev/troubleshooting
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, and what the software did instead.
+      placeholder: |
+        1. Opened a channel with four members
+        2. Clicked the call button
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: What should have happened instead.
+    validations:
+      required: true
+
+  - type: input
+    id: server-version
+    attributes:
+      label: Mattermost server version
+      description: System Console > About, or the tag of the image you run.
+      placeholder: "10.5.1"
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Mattermore plugin version
+      description: System Console > Plugins > Plugin Management, next to Calls.
+      placeholder: "1000.12.3"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment type
+      description: How the Mattermost server itself is run.
+      options:
+        - Docker Compose
+        - Kubernetes
+        - systemd
+        - Omnibus
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: group-calls-allowed
+    attributes:
+      label: Is MM_CALLS_GROUP_CALLS_ALLOWED set to true?
+      description: >
+        This environment variable has to reach the Mattermost server process,
+        not the plugin. Group calls will not start without it.
+      options:
+        - "Yes"
+        - "No"
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: server-logs
+    attributes:
+      label: Relevant server logs
+      description: >
+        Mattermost server log lines from around the time of the problem. Lines
+        mentioning com.mattermost.calls are the useful ones. Remove anything
+        private before pasting.
+      render: text
+
+  - type: textarea
+    id: browser-console
+    attributes:
+      label: Browser console output
+      description: >
+        Only if this is a user interface problem. Open the developer tools
+        console, reproduce the problem, and paste what appears.
+      render: text
+
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else
+      description: Reverse proxy, firewall, RTC port configuration, or anything else that might matter.
