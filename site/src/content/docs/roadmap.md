@@ -79,6 +79,22 @@ keyed map in both components, and write a grid that handles more than two
 people. All of it in AGPL code, and all of it now written. What it has not had
 is a browser, which is why it sits above under written rather than working.
 
+## Where group video actually stands
+
+The port is written and the transport carries what it needs, but it does not
+work yet, and that is from a real test rather than a guess.
+
+Three browsers were driven through a call with cameras on. Every client
+rendered exactly one video, its own, and the map of remote streams stayed
+empty even though two remote tracks arrived in each browser. The cause is
+attribution: each client resolved the sender of an incoming track to its own
+session, so every remote stream collapsed onto one key and overwrote the
+previous one.
+
+WebRTC itself was fine throughout. Audio group calls are unaffected and work
+today. Progress is tracked in the
+[issues](https://github.com/dennisklappe/mattermore/issues).
+
 ## Why some things stay out of reach
 
 Not every gate is liftable, and it is worth being precise about which.
