@@ -1,0 +1,11 @@
+---
+// Three circles: two people, then the third one Mattermost will not let in.
+// That third circle is the whole product, so it carries the accent colour.
+interface Props { class?: string }
+const { class: className = 'brand-mark' } = Astro.props;
+---
+<svg class={className} viewBox="0 0 42 24" aria-hidden="true" focusable="false">
+  <circle cx="9" cy="12" r="8" fill="#10161c" />
+  <circle cx="20" cy="12" r="8" fill="#10161c" stroke="#fff" stroke-width="2.5" />
+  <circle cx="31" cy="12" r="8" fill="#0c8f63" stroke="#fff" stroke-width="2.5" />
+</svg>
