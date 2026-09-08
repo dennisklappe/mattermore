@@ -9,10 +9,14 @@
 
 interface Env {
   BALIE_API_KEY: string;
+  EMAILIT_API_KEY?: string;
 }
 
 const ALLOWED = new Set(['https://mattermore.dev', 'https://www.mattermore.dev']);
 const BALIE = 'https://app.balie.net/api/v1/tickets';
+const EMAILIT = 'https://api.emailit.com/v1/emails';
+const FALLBACK_FROM = 'Mattermore <noreply@mattermore.dev>';
+const FALLBACK_TO = 'dennisklappe@gmail.com';
 
 function cors(origin: string | null): Record<string, string> {
   // Echo the origin only when we recognise it, so the header cannot be used
@@ -36,6 +40,42 @@ function json(body: unknown, status: number, origin: string | null): Response {
 
 const str = (v: unknown, max: number): string =>
   typeof v === 'string' ? v.trim().slice(0, max) : '';
+
+/**
+ * When Balie cannot take the ticket, mail the request instead. A hosting lead
+ * is worth more than a tidy pipeline, so nothing is dropped while Balie is
+ * down.
+ */
+async function mailFallback(
+  env: Env,
+  subject: string,
+  body: string,
+  replyTo: string,
+): Promise<boolean> {
+  if (!env.EMAILIT_API_KEY) return false;
+  try {
+    const res = await fetch(EMAILIT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${env.EMAILIT_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: FALLBACK_FROM,
+        to: FALLBACK_TO,
+        reply_to: replyTo,
+        subject: `[fallback] ${subject}`,
+        text: body,
+      }),
+    });
+    if (!res.ok) console.error('emailit rejected the fallback', res.status, await res.text());
+    return res.ok;
+  } catch (err) {
+    console.error('emailit unreachable', err);
+    return false;
+  }
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -74,25 +114,34 @@ export default {
       notes || '(no further detail)',
     ].join('\n');
 
-    const res = await fetch(BALIE, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.BALIE_API_KEY}`,
-      },
-      body: JSON.stringify({
-        email,
-        name: name || undefined,
-        subject: `Hosting request: ${server}`,
-        message,
-        form: 'hosting',
-        metadata: { subdomain: server, size },
-      }),
-    });
+    const subject = `Hosting request: ${server}`;
+    const detail = [`Name: ${name || 'not said'}`, `Email: ${email}`, message].join('\n');
 
-    if (!res.ok) {
+    let ok = false;
+    try {
+      const res = await fetch(BALIE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.BALIE_API_KEY}`,
+        },
+        body: JSON.stringify({
+          email,
+          name: name || undefined,
+          subject,
+          message,
+          form: 'hosting',
+          metadata: { subdomain: server, size },
+        }),
+      });
+      ok = res.ok;
       // Do not leak Balie's response to the browser, but keep it in the logs.
-      console.error('balie rejected the ticket', res.status, await res.text());
+      if (!ok) console.error('balie rejected the ticket', res.status, await res.text());
+    } catch (err) {
+      console.error('balie unreachable', err);
+    }
+
+    if (!ok && !(await mailFallback(env, subject, detail, email))) {
       return json({ error: 'upstream_failed' }, 502, origin);
     }
 
