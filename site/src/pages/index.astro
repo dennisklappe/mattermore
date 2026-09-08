@@ -87,10 +87,10 @@ const jsonLd = {
 <section class="hero">
   <div class="shell">
     <h1>Mattermost, but more.</h1>
-    <p class="tagline">Group calls, recording, transcription and SSO, on your own server.</p>
+    <p class="tagline">Group calls, video, recording, transcription and SSO, on your own server.</p>
 
     <ul class="gains">
-      <li><b>Every call feature, unlocked.</b> <span>Group calls, recording and transcription. Stock Mattermost stops you at two people.</span></li>
+      <li><b>Every call feature, unlocked.</b> <span>Group calls, group video, recording and transcription. Stock Mattermost stops you at two people.</span></li>
       <li><b>SSO, guests, and no user cap.</b> <span>Real OIDC single sign-on, guest accounts, and the 250 user limit gone.</span></li>
       <li><b>Free and open source.</b> <span>AGPL-3.0, built in the open, and reversible in two minutes.</span></li>
     </ul>
@@ -139,7 +139,7 @@ const jsonLd = {
           <tr><th scope="row">One-to-one audio calls</th><td class="yes">Included</td><td class="yes">Included</td></tr>
           <tr><th scope="row">Screen sharing</th><td class="yes">Included</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/group-calls">Group audio calls in any channel</a></th><td class="no">Needs Professional</td><td class="yes">Included</td></tr>
-          <tr class="row-link"><th scope="row"><a href="/video-calls">Group video calls</a></th><td class="no">Direct messages only</td><td class="soon">In progress</td></tr>
+          <tr class="row-link"><th scope="row"><a href="/video-calls">Group video calls</a></th><td class="no">Direct messages only</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/call-recording">Call recording</a></th><td class="no">Needs Enterprise</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/transcription">Transcription, on your own hardware</a></th><td class="no">Needs Enterprise</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/sso">Single sign-on with any OIDC provider</a></th><td class="no">Needs Professional</td><td class="yes">Included</td></tr>
@@ -218,8 +218,8 @@ MATTERMORE_VERSION=<span class="k">1000.12.3</span></code></pre>
         <p>They run as jobs in separate containers, so you also need <code>calls-offloader</code> with Docker access. The <a href="/selfhost">self-host guide</a> includes it. Transcription then runs on your own hardware.</p>
       </li>
       <li>
-        <h3>Group video does not work yet</h3>
-        <p>Upstream renders one remote participant. Mattermore is rewriting that into a real grid, but browser testing found remote video still does not render, so it is not shipped. Audio group calls are unaffected.</p>
+        <h3>Group video is new</h3>
+        <p>Upstream renders one remote participant. Mattermore rewrites that into a real grid, verified with three cameras in one call. It is far newer than the audio path, so try it before you depend on it.</p>
       </li>
       <li>
         <h3>Past about 50 people, you need rtcd</h3>
