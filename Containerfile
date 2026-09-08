@@ -16,6 +16,11 @@
 FROM docker.io/mattermost/mattermost-team-edition:latest
 
 COPY --chown=2000:2000 mattermore-server /mattermost/bin/mattermost
+
+# The guest administration screens and the licence badges live in the web app,
+# so the prebuilt one upstream ships has to be replaced or those patches do
+# nothing at all.
+COPY --chown=2000:2000 client /mattermost/client
 COPY --chown=2000:2000 mattermore-calls.tar.gz /mattermost/prepackaged_plugins/mattermore-calls-linux-amd64.tar.gz
 
 # Group calls are switched on by upstream's own environment variable.

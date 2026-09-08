@@ -20,7 +20,7 @@ engine="$(command -v podman || command -v docker)" || {
 }
 
 rm -rf "$STAGE"; mkdir -p "$STAGE"
-"$ROOT/scripts/build-server.sh" "$STAGE/mattermore-server"
+"$ROOT/scripts/build-server.sh" "$STAGE/mattermore-server"   # also emits $STAGE/client
 "$ROOT/scripts/build-calls.sh" "$STAGE"
 mv "$STAGE/mattermore-calls-$CALLS_VERSION.tar.gz" "$STAGE/mattermore-calls.tar.gz"
 cp "$ROOT/Containerfile" "$STAGE/Containerfile"
