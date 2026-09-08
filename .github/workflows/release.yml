@@ -60,6 +60,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
+        env:
+          CONTAINER_ENGINE: docker
         run: ./scripts/build-image.sh ghcr.io/${{ github.repository }}:${{ github.ref_name }}
 
       - name: Push
