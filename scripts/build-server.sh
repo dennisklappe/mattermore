@@ -8,7 +8,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT="${1:-$ROOT/dist/mattermore-server}"
+OUT="$(readlink -f "${1:-$ROOT/dist/mattermore-server}")"
 WORK="$ROOT/build/server"
 
 # shellcheck source=../upstream.env
