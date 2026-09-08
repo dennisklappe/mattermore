@@ -59,12 +59,19 @@ services:
   calls-offloader:
     image: docker.io/mattermost/calls-offloader:latest
     restart: unless-stopped
+    # It talks to the Docker socket to start jobs, and the image's own user
+    # cannot read it. Mounting that socket already grants root on the host, so
+    # running as root here gives away nothing that the mount did not.
+    user: root
     environment:
       # The service sits on the internal compose network, so it can hand out
       # its own credentials rather than making you generate a pair.
       API_SECURITY_ALLOWSELFREGISTRATION: "true"
-      # Job containers have to reach the server back on this address.
+      # Job containers join this network to reach the server back.
       DOCKER_NETWORK: mattermore_default
+      # Its working directory is read only, and the console log is the one
+      # docker compose logs shows anyway.
+      LOGGER_ENABLEFILE: "false"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - offloader:/tmp/calls-offloader-db
