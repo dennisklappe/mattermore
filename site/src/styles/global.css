@@ -985,50 +985,103 @@ td.soon {
 /* ---- feature pages ----------------------------------------------------- */
 
 .feature-hero {
-    padding-block: clamp(3rem, 7vw, 5rem) clamp(2rem, 4vw, 3rem);
+    padding-block: clamp(2.5rem, 6vw, 4rem) clamp(2rem, 4vw, 3rem);
     background:
         radial-gradient(ellipse 55% 60% at 50% 0%, var(--brand-tint) 0%, transparent 70%),
         var(--bg);
-    text-align: center;
     border-bottom: 1px solid var(--line-soft);
 }
 
 .feature-hero h1 {
-    font-size: clamp(2.1rem, 4.6vw, 3.1rem);
-    max-width: 20ch;
-    margin-inline: auto;
+    font-size: clamp(2rem, 4.4vw, 2.9rem);
+    max-width: 22ch;
 }
 
 .feature-hero .sub {
-    font-size: clamp(1.02rem, 2vw, 1.18rem);
-    max-width: 42rem;
-    margin: 1.25rem auto 0;
+    font-size: clamp(1.02rem, 2vw, 1.16rem);
+    max-width: 44rem;
+    margin: 1.1rem 0 0;
 }
 
 .feature-hero .cta {
-    margin-top: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.9rem;
+}
+
+.feature-layout {
+    display: grid;
+    gap: 2.5rem;
+    align-items: start;
+    padding-block: clamp(2.25rem, 4vw, 3rem);
+}
+
+@media (min-width: 64rem) {
+    .feature-layout {
+        grid-template-columns: minmax(0, 1fr) 15rem;
+        gap: 4rem;
+    }
+
+    .feature-aside {
+        position: sticky;
+        top: 5.5rem;
+        order: 2;
+    }
+}
+
+.feature-aside h4 {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+}
+
+.feature-aside ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem;
+    display: grid;
+    gap: 0.4rem;
+    font-size: 0.94rem;
+}
+
+.feature-aside a {
+    color: var(--body);
+    text-decoration: none;
+}
+
+.feature-aside a:hover {
+    color: var(--brand-dark);
+}
+
+.feature-toc {
+    border-left: 2px solid var(--line);
+    padding-left: 1rem;
 }
 
 .feature-body {
     max-width: 44rem;
-    margin: 0 auto;
-    padding-block: clamp(2.5rem, 5vw, 3.5rem);
+    min-width: 0;
+}
+
+.feature-body > p:first-of-type {
+    font-size: 1.1rem;
+    color: var(--ink);
 }
 
 .feature-body h2 {
-    font-size: 1.65rem;
-    margin-top: 3rem;
+    font-size: 1.55rem;
+    margin-top: 2.75rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--line-soft);
     margin-bottom: 0.85rem;
     scroll-margin-top: 5.5rem;
 }
 
-.feature-body > h2:first-child {
-    margin-top: 0;
-}
-
 .feature-body h3 {
-    margin-top: 2rem;
-    margin-bottom: 0.5rem;
+    margin-top: 1.85rem;
+    margin-bottom: 0.45rem;
     scroll-margin-top: 5.5rem;
 }
 
@@ -1071,6 +1124,7 @@ td.soon {
 
 .feature-body table {
     min-width: 0;
+    width: 100%;
     margin: 1.5rem 0;
     border: 1px solid var(--line);
     border-radius: var(--radius);
@@ -1078,48 +1132,117 @@ td.soon {
     font-size: 0.95rem;
 }
 
-.feature-more {
-    border-top: 1px solid var(--line);
-    padding-block: 2.5rem 3.5rem;
-    max-width: 44rem;
-    margin-inline: auto;
-}
-
-.feature-more h2 {
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-}
-
-.feature-more ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-}
-
-.feature-more li a,
-.feature-more li span {
-    display: inline-block;
-    padding: 0.45rem 0.9rem;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    font-size: 0.94rem;
-    text-decoration: none;
+.feature-body blockquote {
+    margin: 1.5rem 0;
+    padding: 0.15rem 0 0.15rem 1.2rem;
+    border-left: 3px solid var(--brand);
     color: var(--body);
 }
 
-.feature-more li a:hover {
-    border-color: var(--brand);
-    color: var(--brand-dark);
+/* The FAQ is everything after its own heading, so give those questions a
+ * distinct, scannable treatment without needing extra markup. */
+#frequently-asked-questions ~ h3 {
+    font-size: 1.05rem;
+    margin-top: 1.6rem;
+    padding-top: 1.4rem;
+    border-top: 1px solid var(--line-soft);
 }
 
-.feature-more li span[aria-current] {
-    background: var(--brand-tint);
-    border-color: var(--brand-tint);
-    color: var(--brand-dark);
+#frequently-asked-questions ~ h3::before {
+    content: "";
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--brand);
+    margin-right: 0.6rem;
+    vertical-align: 0.15em;
+}
+
+#frequently-asked-questions ~ p {
+    color: var(--body);
+}
+
+/* ---- ai affordance ----------------------------------------------------- */
+
+.ai-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.25rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.15rem;
+    margin-bottom: 2.25rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-soft);
+    font-size: 0.92rem;
+}
+
+.ai-bar-text strong {
+    color: var(--ink);
+    font-weight: 600;
+    margin-right: 0.4rem;
+}
+
+.ai-bar-text span {
+    color: var(--muted);
+}
+
+.ai-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ai-bar-actions a {
+    color: var(--body);
+    font-size: 0.9rem;
+}
+
+.ai-copy {
+    font: inherit;
     font-weight: 500;
+    color: #fff;
+    background: var(--brand);
+    border: 1px solid var(--brand);
+    border-radius: 7px;
+    padding: 0.4rem 0.85rem;
+    cursor: pointer;
+}
+
+.ai-copy:hover {
+    background: var(--brand-dark);
+}
+
+/* ---- closing call on a feature page ------------------------------------ */
+
+.feature-cta {
+    margin-top: 3.5rem;
+    padding: 1.75rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-soft);
+}
+
+.feature-cta h2 {
+    font-size: 1.25rem;
+    margin: 0 0 0.5rem;
+    padding: 0;
+    border: 0;
+}
+
+.feature-cta p {
+    margin-bottom: 1rem;
+    color: var(--body);
+}
+
+.feature-cta p:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 0;
 }
 
 /* The project is two deliverables now, and the comparison table has to say so. */

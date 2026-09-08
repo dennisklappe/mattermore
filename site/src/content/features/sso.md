@@ -6,7 +6,7 @@ order: 6
 ---
 
 Mattermost ships a lot of authentication code, and almost none of it is
-reachable on an unlicensed server. Anyone searching for **mattermost sso free**
+reachable on an unlicensed server. Anyone searching for mattermost sso free
 meets the same answer: buy a licence. This page sets out what upstream gates,
 why the workaround everyone tries fails with a 501, and what Mattermore does
 instead, which is not removing a check.
@@ -19,7 +19,7 @@ Authentication lives in the Mattermost server, not the Calls plugin, which makes
 single sign-on unlike [group calls](/group-calls),
 [video calls](/video-calls), [call recording](/call-recording) and
 [transcription](/transcription), where uploading a plugin bundle is the entire
-job. Getting **mattermost single sign on self hosted** without a licence means
+job. Getting mattermost single sign on self hosted without a licence means
 running Mattermore Server, our build of Mattermost itself. You would be running
 our binary instead of the official one, which changes how you handle upgrades,
 security advisories and your own trust model. Decide that deliberately.
@@ -37,7 +37,7 @@ repository entirely.
 
 That is the difference between a locked door and a missing room. With
 [guest accounts](/guest-accounts) the implementation is present and a check
-stands in front of it. With **mattermost sso** there is nothing behind the
+stands in front of it. With mattermost sso there is nothing behind the
 check to reach.
 
 ## The GitLab workaround, and why it returns 501
@@ -83,12 +83,12 @@ invisible button is not much use, so Mattermore lifts that too.
 
 ## Which identity providers this covers
 
-Any provider that speaks OpenID Connect properly: **mattermost keycloak** and
-**mattermost authentik** setups, Authelia, Microsoft Entra and Google. It also
+Any provider that speaks OpenID Connect properly: mattermost keycloak and
+mattermost authentik setups, Authelia, Microsoft Entra and Google. It also
 covers Cloudflare Access as an identity provider in front of your server, a
 common pattern for deployments that would rather not expose a login page.
 
-Because it is real **mattermost oidc** rather than a GitLab impersonation, you
+Because it is real mattermost oidc rather than a GitLab impersonation, you
 configure it the way you would configure any other OIDC client.
 
 ## What stays out of reach
