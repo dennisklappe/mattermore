@@ -1545,3 +1545,11 @@ td.soon {
     color: var(--muted);
     margin-top: 1rem;
 }
+
+.closer .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 1.75rem;
+}
