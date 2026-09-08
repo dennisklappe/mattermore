@@ -1,0 +1,68 @@
+name: Feature request
+description: Ask for a restriction to be lifted, or a capability to be added.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Mattermore only changes AGPL-3.0 code. Anything whose implementation
+        lives in Mattermost's private enterprise module cannot be shipped here:
+        that code is not published, so there is nothing to build from. Files
+        under `server/enterprise/` carry the Mattermost Source Available
+        Licence and are deliberately left untouched, because leaving them alone
+        is what makes Mattermore distributable.
+
+        What Mattermore can do is lift gates in the AGPL code, and build
+        missing capability from scratch where the transport already supports
+        it. Group video is the current example: the streams are already
+        delivered, the user interface just assumes two people.
+
+  - type: textarea
+    id: restriction
+    attributes:
+      label: What restriction or feature is involved
+      description: Name the thing. If Mattermost shows a licence prompt, quote it.
+      placeholder: "Group video calls. The call window only ever renders one remote participant."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters to you
+      description: >
+        How you would use it, and what you do instead today. Real use cases
+        decide what gets built first.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: gate-type
+    attributes:
+      label: Licence gate or technical limit?
+      description: >
+        A licence gate is a check that refuses something the code can already
+        do. A technical limit means the capability is not written yet. If you
+        do not know, say so, working that out is part of triage.
+      options:
+        - Licence gate, the code can already do it
+        - Technical limit, the capability is not implemented
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Anything that supports that
+      description: >
+        Optional. Links to upstream source, a licence check you found, an issue
+        in the upstream repository, or the exact error text.
+
+  - type: input
+    id: versions
+    attributes:
+      label: Mattermost and Mattermore versions
+      description: Optional, but it helps to know what you are running.
+      placeholder: "Mattermost 10.5.1, Mattermore 1000.12.3"
