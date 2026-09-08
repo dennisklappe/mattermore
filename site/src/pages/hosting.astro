@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import TopBar from '../components/TopBar.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import { BALIE_ENDPOINT, BALIE_PUBLIC_KEY, TURNSTILE_SITEKEY, FALLBACK_EMAIL, isBalieConfigured } from '../config/balie';
 
 const title = 'Managed Mattermore hosting';
 const description =
@@ -91,7 +92,11 @@ const description =
                 <textarea id="hf-notes" name="notes" rows="4" placeholder="Migrating from Slack, Teams or an existing Mattermost? Need single sign-on or an integration building? Say so here."></textarea>
               </div>
 
-              <button class="btn btn-primary" type="submit">Send the request</button>
+              {isBalieConfigured && (
+              <div class="cf-turnstile field" data-sitekey={TURNSTILE_SITEKEY} data-callback="balieTurnstileToken"></div>
+            )}
+
+            <button class="btn btn-primary" type="submit">Send the request</button>
               <p class="hint" id="hf-status" role="status" aria-live="polite"></p>
             </form>
           </div>
@@ -111,32 +116,101 @@ const description =
     </div>
   </main>
 
+  {isBalieConfigured && (
+    <script is:inline async defer src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+  )}
+
   <SiteFooter />
 
-  <script is:inline>
-    // No backend yet, so the form composes a mail rather than pretending to
-    // submit. Swapping this for a real endpoint means changing only this block.
+  <script is:inline define:vars={{ BALIE_ENDPOINT, BALIE_PUBLIC_KEY, FALLBACK_EMAIL, isBalieConfigured }}>
+    // Posts to Balie when a public key and Turnstile sitekey are configured.
+    // Until then it composes a mail, so the page is never broken mid-setup.
     (function () {
       var form = document.getElementById('hosting-form');
       var status = document.getElementById('hf-status');
       if (!form) return;
-      form.addEventListener('submit', function (ev) {
-        ev.preventDefault();
+
+      var turnstileToken = '';
+      window.balieTurnstileToken = function (token) { turnstileToken = token; };
+
+      function fields() {
         var f = new FormData(form);
         var sub = (f.get('subdomain') || '').toString().trim();
-        var body = [
-          'Name: ' + f.get('name'),
-          'Email: ' + f.get('email'),
-          'Server: ' + sub + '.mattermore.dev',
-          'People: ' + (f.get('size') || 'not said'),
+        return {
+          name: (f.get('name') || '').toString().trim(),
+          email: (f.get('email') || '').toString().trim(),
+          server: sub + '.mattermore.dev',
+          size: (f.get('size') || '').toString().trim(),
+          notes: (f.get('notes') || '').toString().trim(),
+        };
+      }
+
+      function body(v) {
+        return [
+          'Server: ' + v.server,
+          'People: ' + (v.size || 'not said'),
           '',
-          (f.get('notes') || '').toString(),
+          v.notes || '(no further detail)',
         ].join('\n');
-        var href = 'mailto:hosting@mattermore.dev'
-          + '?subject=' + encodeURIComponent('Mattermore hosting: ' + sub)
-          + '&body=' + encodeURIComponent(body);
-        status.textContent = 'Opening your mail app. If nothing happens, write to hosting@mattermore.dev.';
+      }
+
+      function mailFallback(v) {
+        var href = 'mailto:' + FALLBACK_EMAIL
+          + '?subject=' + encodeURIComponent('Mattermore hosting: ' + v.server)
+          + '&body=' + encodeURIComponent('Name: ' + v.name + '\nEmail: ' + v.email + '\n' + body(v));
+        status.textContent = 'Opening your mail app. If nothing happens, write to ' + FALLBACK_EMAIL + '.';
         window.location.href = href;
+      }
+
+      form.addEventListener('submit', async function (ev) {
+        ev.preventDefault();
+        var v = fields();
+
+        if (!isBalieConfigured) {
+          mailFallback(v);
+          return;
+        }
+
+        if (!turnstileToken) {
+          status.textContent = 'Waiting on the anti-spam check. Try again in a moment.';
+          return;
+        }
+
+        var button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        status.textContent = 'Sending.';
+
+        try {
+          var res = await fetch(BALIE_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + BALIE_PUBLIC_KEY },
+            body: JSON.stringify({
+              email: v.email,
+              name: v.name,
+              subject: 'Hosting request: ' + v.server,
+              message: body(v),
+              form: 'hosting',
+              turnstileToken: turnstileToken,
+              metadata: { subdomain: v.server, size: v.size },
+            }),
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (res.ok && data.ok) {
+            form.reset();
+            status.textContent = 'Sent. We will reply to ' + v.email + '.';
+          } else {
+            // Never strand the visitor on a backend problem.
+            status.textContent = 'That did not go through, opening your mail app instead.';
+            mailFallback(v);
+          }
+        } catch (err) {
+          status.textContent = 'That did not go through, opening your mail app instead.';
+          mailFallback(v);
+        } finally {
+          button.disabled = false;
+          if (window.turnstile) window.turnstile.reset();
+          turnstileToken = '';
+        }
       });
     })();
   </script>
