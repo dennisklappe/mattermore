@@ -7,7 +7,7 @@ order: 7
 
 In v11 Mattermost cut the user cap on an unlicensed self-hosted server from
 5,000 to 250, one of the most-cited reasons people left the project. This page
-explains where the **mattermost user limit** is enforced, what Mattermore
+explains where the mattermost user limit is enforced, what Mattermore
 changes, and why the 10,000 message history complaint you have read about is a
 different problem with a surprising cause.
 
@@ -39,7 +39,7 @@ user and reactivating a deactivated one. That second one catches people out.
 Deactivating a leaver frees a seat, so a server at the cap looks fine until
 someone returns from leave and cannot be switched back on.
 
-So the **mattermost team edition user cap** is not a licence check bolted onto
+So the mattermost team edition user cap is not a licence check bolted onto
 the application. It is a pair of constants consulted on the account lifecycle
 paths.
 
@@ -51,7 +51,7 @@ Version 10.6 allowed 5,000 users on an unlicensed server. Version 11 cut that to
 
 For a small company or a community server, 5,000 was effectively no limit. 250
 is a number you can hit. Plenty of organisations discovered the
-**mattermost 250 user limit** the day they tried to onboard a new intake, and a
+mattermost 250 user limit the day they tried to onboard a new intake, and a
 good number went looking for another chat server rather than a quote.
 
 ## What Mattermore changes
@@ -66,7 +66,7 @@ This is the same approach Framasoft take in Mostlymatter, which has done exactly
 this since 2024. Worth knowing: a non-profit has been shipping and running the
 change in production for years. It is not exotic.
 
-The **mattermost free user limit** on a Mattermore server is therefore a
+The mattermost free user limit on a Mattermore server is therefore a
 practical question about your database, hardware and uplink rather than a
 constant in a Go file.
 

@@ -3,20 +3,23 @@ import { getCollection } from 'astro:content';
 import Base from './Base.astro';
 import TopBar from '../components/TopBar.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import AiBar from '../components/AiBar.astro';
 
 interface Props {
   title: string;
   description: string;
   slug: string;
   faq: { question: string; answer: string }[];
+  headings: { depth: number; slug: string; text: string }[];
 }
 
-const { title, description, slug, faq } = Astro.props;
+const { title, description, slug, faq, headings } = Astro.props;
 
 const siblings = (await getCollection('features')).sort((a, b) => a.data.order - b.data.order);
+const sections = headings.filter((h) => h.depth === 2);
 
-// Structured data is derived from the page's own FAQ section, so the two
-// cannot drift apart.
+// Structured data comes from the page's own FAQ section, so the two cannot
+// drift apart.
 const jsonLd =
   faq.length > 0
     ? {
@@ -36,6 +39,7 @@ const jsonLd =
   <main>
     <section class="feature-hero">
       <div class="shell">
+        <p class="crumb"><a href="/#compare">Features</a> <span>/</span> {title}</p>
         <h1>{title}</h1>
         <p class="sub">{description}</p>
         <div class="cta">
@@ -46,24 +50,40 @@ const jsonLd =
     </section>
 
     <div class="shell">
-      <article class="feature-body">
-        <slot />
-      </article>
+      <div class="feature-layout">
+        <aside class="feature-aside">
+          {sections.length >= 3 && (
+            <nav class="feature-toc" aria-label="On this page">
+              <h4>On this page</h4>
+              <ul>
+                {sections.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}
+              </ul>
+            </nav>
+          )}
+          <nav class="feature-sibs" aria-label="Other features">
+            <h4>Also unlocked</h4>
+            <ul>
+              {siblings.filter((p) => p.id !== slug).map((p) => (
+                <li><a href={`/${p.id}`}>{p.data.label}</a></li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
 
-      <nav class="feature-more" aria-label="Other features">
-        <h2>Everything else Mattermore unlocks</h2>
-        <ul>
-          {siblings.map((page) => (
-            <li>
-              {page.id === slug ? (
-                <span aria-current="page">{page.data.label}</span>
-              ) : (
-                <a href={`/${page.id}`}>{page.data.label}</a>
-              )}
-            </li>
-          ))}
-        </ul>
-      </nav>
+        <article class="feature-body">
+          <AiBar slug={slug} />
+          <slot />
+
+          <aside class="feature-cta">
+            <h2>Try it on your own server</h2>
+            <p>Two steps on an existing Mattermost, or one image if you are starting fresh. Reversible either way.</p>
+            <p>
+              <a class="btn btn-primary" href="/install">Install guide</a>
+              <a class="btn btn-ghost" href="/selfhost">Self-host from scratch</a>
+            </p>
+          </aside>
+        </article>
+      </div>
     </div>
   </main>
 

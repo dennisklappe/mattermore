@@ -57,7 +57,7 @@ three places:
    unsupported version notice appears to anyone reaching your server.
 
 Mattermore removes them at those three points. That covers **mattermost remove
-unsupported version banner** and **mattermost hide free edition label** in one
+unsupported version banner** and mattermost hide free edition label in one
 change, because they share the same rendering surface.
 
 The change is confined to the web app: no server behaviour, no licence

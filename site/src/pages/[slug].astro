@@ -32,6 +32,7 @@ const { Content, headings } = await render(entry);
     description={entry.data.description}
     slug={entry.id}
     faq={extractFaq(entry.body ?? '')}
+    headings={headings}
   >
     <Content />
   </FeatureLayout>

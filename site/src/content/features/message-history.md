@@ -21,7 +21,7 @@ stops is reading: scrollback, search and permalinks refuse to return posts
 older than the cap, and the client shows a wall where the rest of the
 conversation used to be.
 
-So a **mattermost message history cap** is a read restriction, not a retention
+So a mattermost message history cap is a read restriction, not a retention
 policy. Data retention settings, exports and the database itself are not
 involved. Lift the restriction and the old posts reappear, because they never
 went anywhere. That is also why people find it so frustrating: a deletion is at
@@ -70,7 +70,7 @@ one:
 
 - **Entry** gives you no user cap and single sign-on, and caps history at
   10,000 messages.
-- **Team** gives you full **mattermost entry edition history** in the sense
+- **Team** gives you full mattermost entry edition history in the sense
   that it is not capped at all, plus a 250 user limit and no SSO.
 
 Neither is a clean win, and the move between them is not always deliberate.
@@ -87,7 +87,7 @@ accept it.
 The two things Entry offers that Team does not are exactly the two things
 Mattermore Server addresses: the [user limit](/user-limit) is lifted, and
 [single sign-on](/sso) is provided. Both sit on a Team Edition base that never
-had a **mattermost message limit** to begin with.
+had a mattermost message limit to begin with.
 
 So the choice stops being a trade. Full history, your users and SSO, on one
 server. See [self-hosting](/selfhost) for what running that build involves, and

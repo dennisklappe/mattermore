@@ -22,7 +22,7 @@ the media stack. The WebRTC layer, the signalling and the session handling are
 the same code used for calls with many participants. The only thing standing
 between a two-person call and a group call is a boolean.
 
-So enabling **mattermost group calls** on a self-hosted server is not a case of
+So enabling mattermost group calls on a self-hosted server is not a case of
 forcing software to do something it was not built for. It is a case of using a
 switch that upstream wrote and left reachable.
 
@@ -39,7 +39,7 @@ That second branch is present in every released version of the plugin, and it
 is read at runtime by the shipped binary. Setting the variable is enough on its
 own. Nothing needs to be recompiled to get past the check.
 
-So the honest framing of **mattermost group calls without licence** is this: the
+So the honest framing of mattermost group calls without licence is this: the
 capability is already in the software you are running. Mattermore's job is to
 make that practical and to keep it turned on.
 
@@ -73,7 +73,7 @@ afterwards are on [configuration](/configuration).
 
 ## Networking: the part that actually breaks
 
-Most failed **mattermost self hosted group call** setups are network problems,
+Most failed mattermost self hosted group call setups are network problems,
 not plugin problems.
 
 Calls media needs UDP port 8443 reachable from clients to the server, with TCP

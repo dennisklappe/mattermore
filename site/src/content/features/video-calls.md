@@ -61,7 +61,7 @@ Mattermore does two things, both in AGPL-licensed code:
 - Renders a participant grid instead of a single remote tile, and removes the
   restriction that limited video to direct messages.
 
-The result is **mattermost group video** on a self-hosted server: cameras on in
+The result is mattermost group video on a self-hosted server: cameras on in
 a channel call, several people visible at once, and screen sharing behaving as
 it does upstream.
 
@@ -77,7 +77,7 @@ Video is experimental upstream. Mattermore removes the DM restriction and fixes
 the renderer. It does not make the feature mature, and claiming otherwise would
 be dishonest.
 
-Practically: pilot **mattermost camera video call** usage with a small group
+Practically: pilot mattermost camera video call usage with a small group
 before rolling it out to an organisation, and treat audio as the reliable path.
 Audio plus screen sharing is the well-trodden configuration. Camera video is
 newer ground on both sides of the fork.
