@@ -95,7 +95,7 @@ const jsonLd = {
       <li><b>Free and open source.</b> <span>AGPL-3.0, built in the open, and reversible in two minutes.</span></li>
     </ul>
 
-    <p class="sub">Mattermost open sourced this software and then put parts of it behind a licence. Mattermore turns those parts back on, changing only AGPL code, and keeps up with upstream releases.</p>
+    <p class="sub">Mattermost open sourced this software, then put parts of it behind a licence. Mattermore turns those parts back on.</p>
 
     <div class="cta">
       <a class="btn btn-primary" href="/install">Install in five minutes</a>
@@ -121,7 +121,7 @@ const jsonLd = {
   <div class="shell">
     <div class="section-head center">
       <h2>What you get</h2>
-      <p>Same software underneath, same settings, same data. Follow any row for the detail on that feature.</p>
+      <p>Same software underneath. Follow any row for the detail.</p>
       <p class="two-parts">One image, everything on. The <strong>Mattermore</strong> server image ships with the calls plugin already prepackaged and the switches set, so running it is the whole installation. Already have Mattermost and would rather not replace it? The <a href="/install">calls plugin is a separate download</a> you upload in two minutes.</p>
     </div>
 
@@ -156,14 +156,13 @@ const jsonLd = {
   <div class="shell">
     <div class="section-head">
       <h2>How it works</h2>
-      <p>Nothing here is hidden or clever. You can check each piece against upstream source before you put this near a server people depend on.</p>
+      <p>Nothing hidden. Check every piece against upstream source before trusting it.</p>
     </div>
 
     <div class="split">
       <div class="split-text">
         <h3>Upstream already ships the switch</h3>
-        <p>Group calls are gated by a single function. It checks your licence, and then it checks an environment variable that Mattermost added themselves.</p>
-        <p>Mattermore does not patch this file. It carries the Mattermost Source Available Licence, and the functions it declares delegate to an AGPL package that Mattermore does change. That distinction is the project's whole legal position, so <a href="/licensing">it is set out in full</a> rather than glossed over.</p>
+        <p>Group calls are gated by one function, which also reads an environment variable Mattermost added themselves. The file carries the Source Available Licence and is never patched; the AGPL package it calls is. <a href="/licensing">The full position</a>.</p>
       </div>
       <pre class="snippet"><code><span class="k">func</span> (e *LicenseChecker) GroupCallsAllowed() <span class="k">bool</span> {
     <span class="k">return</span> e.isAtLeastProfessionalLicensed() ||
@@ -174,8 +173,7 @@ const jsonLd = {
     <div class="split flip">
       <div class="split-text">
         <h3>The bundle keeps upgrades from undoing it</h3>
-        <p>Calls ships prepackaged with the Mattermost server, and on startup the server reinstalls its own copy over yours whenever the prepackaged version is higher. Set the variable on its own and a routine upgrade can quietly hand you official Calls back.</p>
-        <p>Mattermore versions itself above anything Mattermost will ship, so the swap survives.</p>
+        <p>Calls ships prepackaged, and the server reinstalls its own copy over yours when the version is higher. Mattermore versions itself above anything Mattermost ships, so a routine upgrade cannot quietly undo it.</p>
       </div>
       <pre class="snippet"><code><span class="c"># upstream.env</span>
 UPSTREAM_TAG=v1.12.3
@@ -185,8 +183,7 @@ MATTERMORE_VERSION=<span class="k">1000.12.3</span></code></pre>
     <div class="split flip">
       <div class="split-text">
         <h3>Where nothing exists, we write it</h3>
-        <p>Single sign-on was not a check to remove. Mattermost keeps its OpenID Connect provider in a private module, so Team Edition has no implementation at all and the server answers logins with a 501.</p>
-        <p>So Mattermore contributes one. A standards-compliant OIDC provider implementing Mattermost's own interface, with discovery, standard claims, and identity taken from the userinfo response rather than an unverified token. Our code, AGPL, works with Keycloak, Authentik, Entra or Cloudflare Access.</p>
+        <p>Single sign-on was not a check to remove: Mattermost keeps its OIDC provider private, so Team Edition answers logins with a 501. Mattermore contributes one instead. Our code, AGPL, works with Keycloak, Authentik, Entra or Cloudflare Access.</p>
       </div>
       <pre class="snippet"><code><span class="c">// server/channels/app/oauthproviders/openid</span>
 <span class="k">func</span> (p *OpenIDProvider) GetSSOSettings(
@@ -199,8 +196,7 @@ MATTERMORE_VERSION=<span class="k">1000.12.3</span></code></pre>
     <div class="split">
       <div class="split-text">
         <h3>Upstream fixes arrive by bumping one line</h3>
-        <p>The repository holds patches, not a diverged branch. Continuous integration checks out the upstream tag, applies them, and builds. A daily job watches for new upstream releases, checks the patches still apply, and opens an issue.</p>
-        <p>A security fix upstream is a one-variable change here, so Mattermore can follow within a day instead of drifting years behind.</p>
+        <p>Patches against a pinned tag, not a diverged branch. A daily job watches upstream and checks the patches still apply, so a security fix is a one-line change rather than a merge.</p>
       </div>
       <pre class="snippet"><code><span class="c"># pick up a new upstream release</span>
 ./scripts/check-upstream.sh
@@ -213,25 +209,25 @@ MATTERMORE_VERSION=<span class="k">1000.12.3</span></code></pre>
   <div class="shell">
     <div class="section-head">
       <h2>What to know before you install</h2>
-      <p>You are putting this on a server your colleagues depend on, so here is the honest list, before you install rather than after.</p>
+      <p>The honest list, before you install rather than after.</p>
     </div>
 
     <ul class="limits">
       <li>
         <h3>Recording and transcription need a second service</h3>
-        <p>Lifting the licence gate does not conjure the machinery. Recording and transcription run as jobs in separate containers, so you also need <code>calls-offloader</code> alongside Mattermost, with Docker access to launch them. The <a href="/selfhost">self-host guide</a> includes it. Transcription then runs entirely on your hardware, with no cloud speech API.</p>
+        <p>They run as jobs in separate containers, so you also need <code>calls-offloader</code> with Docker access. The <a href="/selfhost">self-host guide</a> includes it. Transcription then runs on your own hardware.</p>
       </li>
       <li>
         <h3>Group video is new</h3>
-        <p>The upstream interface renders exactly one remote participant. Mattermore rewrites that into a real participant grid, which is a genuine port rather than a flag. It passes type checks and lint, and it has had far less real-world use than the audio path. Treat it as new code and try it before you depend on it.</p>
+        <p>Upstream renders one remote participant; Mattermore rewrites that into a real grid. It is a genuine port, not a flag, and far newer than the audio path. Try it before you depend on it.</p>
       </li>
       <li>
         <h3>Past about 50 people, you need rtcd</h3>
-        <p>That is the ceiling for calls handled in the plugin itself. Mattermore removes the licence check on <code>rtcd</code>, which is AGPL and free to run, but running it is another service to operate.</p>
+        <p>That is the ceiling for calls handled in the plugin. Mattermore unlocks <code>rtcd</code>, which is AGPL and free to run, but it is another service to operate.</p>
       </li>
       <li>
         <h3>No support contract, no warranty</h3>
-        <p>This is a volunteer fork under the AGPL. If calls are load-bearing for your organisation, buying Professional is a perfectly good answer, and it funds the upstream work this depends on.</p>
+        <p>A volunteer fork under the AGPL. If calls are load-bearing for you, buying Professional is a fair answer and funds the upstream work.</p>
       </li>
     </ul>
   </div>
@@ -241,11 +237,11 @@ MATTERMORE_VERSION=<span class="k">1000.12.3</span></code></pre>
   <div class="shell">
     <div class="section-head center">
       <h2>Keep the official apps</h2>
-      <p>Mattermore changes your server, not your clients. Nobody has to install anything unusual.</p>
+      <p>Mattermore changes your server, not your clients.</p>
     </div>
 
     <div class="apps-note">
-      <p>The official Mattermost apps for iPhone, Android, Windows, macOS and Linux connect to a Mattermore server unchanged, and group calls work in them. The desktop apps render the same web app your server serves. The mobile apps read the same capability your server reports, so when Mattermore says group calls are available, the phone agrees.</p>
+      <p>The official apps connect to a Mattermore server unchanged, and group calls work in them. The mobile apps read the same capability your server reports, so the phone agrees.</p>
     </div>
 
     <AppDownloads />
@@ -291,7 +287,7 @@ MATTERMORE_VERSION=<span class="k">1000.12.3</span></code></pre>
 <section class="closer">
   <div class="shell">
     <h2>Two steps, five minutes</h2>
-    <p>Set one environment variable, upload one plugin bundle. Reversible at every point, and it does not touch your database.</p>
+    <p>One environment variable, one plugin upload. Reversible, and it never touches your database.</p>
     <p><a class="btn btn-primary" href="/install">Read the install guide</a></p>
   </div>
 </section>
