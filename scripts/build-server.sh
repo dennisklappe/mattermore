@@ -30,4 +30,17 @@ done
 ( cd "$WORK/server" && go work init . ./public )
 
 ( cd "$WORK/server" && go build -o "$OUT" ./cmd/mattermost )
+
+# Two patches change only the web app, and the official image ships a prebuilt
+# one. Without this step those patches are inert: the guest administration
+# screens stay hidden and the licence badges stay put. Roughly four minutes.
+if [ "${SKIP_WEBAPP:-}" != "1" ]; then
+    echo "==> building the web app"
+    ( cd "$WORK/webapp" && npm ci --no-audit --no-fund )
+    ( cd "$WORK/webapp" && NODE_OPTIONS=--max-old-space-size=6144 npm run build )
+    rm -rf "$(dirname "$OUT")/client"
+    cp -r "$WORK/webapp/channels/dist" "$(dirname "$OUT")/client"
+    echo "==> $(dirname "$OUT")/client"
+fi
+
 echo "==> $OUT"
