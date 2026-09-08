@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import TopBar from '../components/TopBar.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import AppDownloads from '../components/AppDownloads.astro';
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -98,7 +99,7 @@ const jsonLd = {
 
     <div class="cta">
       <a class="btn btn-primary" href="/install">Install in five minutes</a>
-      <a class="btn btn-ghost" href="https://github.com/dennisklappe/mattermore" target="_blank" rel="noopener noreferrer">View the source</a>
+      <a class="btn btn-ghost" href="/hosting">Have us run it</a>
     </div>
 
     <p class="fineprint">Free and AGPL-3.0. Run the image, or upload just the plugin. Either way, reversible.</p>
@@ -233,6 +234,21 @@ MATTERMORE_VERSION=<span class="k">1000.12.3</span></code></pre>
         <p>This is a volunteer fork under the AGPL. If calls are load-bearing for your organisation, buying Professional is a perfectly good answer, and it funds the upstream work this depends on.</p>
       </li>
     </ul>
+  </div>
+</section>
+
+<section class="section section-soft" id="apps">
+  <div class="shell">
+    <div class="section-head center">
+      <h2>Keep the official apps</h2>
+      <p>Mattermore changes your server, not your clients. Nobody has to install anything unusual.</p>
+    </div>
+
+    <div class="apps-note">
+      <p>The official Mattermost apps for iPhone, Android, Windows, macOS and Linux connect to a Mattermore server unchanged, and group calls work in them. The desktop apps render the same web app your server serves. The mobile apps read the same capability your server reports, so when Mattermore says group calls are available, the phone agrees.</p>
+    </div>
+
+    <AppDownloads />
   </div>
 </section>
 

@@ -81,6 +81,42 @@ Mattermost also hides the SSO login button in the web application unless the
 server is licensed, in `server/config/client.go`. A working provider with an
 invisible button is not much use, so Mattermore lifts that too.
 
+## The gotcha: SSRF protection blocks a provider on an internal address
+
+This one cost us an evening against Keycloak, so it belongs on the page.
+
+If your identity provider is reachable only on an internal or loopback address,
+a Docker network name or `127.0.0.1`, the login fails and the server log carries
+this:
+
+> address forbidden, you may need to set AllowedUntrustedInternalConnections to
+> allow an integration access to your internal network
+
+That is not a Mattermore bug and it is not your provider misbehaving. Mattermost
+makes the discovery, token and userinfo calls through its own HTTP client in
+`server/public/shared/httpservice`, which refuses to connect to reserved and
+loopback address ranges. It is deliberate SSRF protection: without it, anything
+that can talk the server into fetching a URL can reach into your internal
+network. Webhooks and other integrations hit exactly the same wall.
+
+The fix is to name the host in `ServiceSettings.AllowedUntrustedInternalConnections`,
+a space or comma separated list of hostnames, IP addresses and CIDR ranges the
+server is allowed to reach:
+
+```json
+{
+  "ServiceSettings": {
+    "AllowedUntrustedInternalConnections": "keycloak 127.0.0.1"
+  }
+}
+```
+
+We confirmed this against Keycloak on the same Docker network: with the entry
+in place, login completes end to end. Keep the list as narrow as it will go.
+The setting is meant to be a named exception, not a way to switch the
+protection off, and a provider on a public hostname does not need it at all.
+[Configuration](/configuration) has the OpenID settings that go with it.
+
 ## Which identity providers this covers
 
 Any provider that speaks OpenID Connect properly: mattermost keycloak and
@@ -139,6 +175,13 @@ work.
 
 No. Those implementations are not in the open source repository and would have
 to be rewritten from scratch. We have not done that.
+
+### Why does Mattermost SSO fail with "address forbidden"?
+
+Because your identity provider is on an internal or loopback address and
+Mattermost's SSRF protection refuses to call it. Add the host to
+`ServiceSettings.AllowedUntrustedInternalConnections`. That is the server
+protecting itself, not a fault in the provider.
 
 ### Does the Mattermore calls plugin enable SSO?
 

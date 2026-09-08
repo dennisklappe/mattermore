@@ -63,6 +63,12 @@ change, because they share the same rendering surface.
 The change is confined to the web app: no server behaviour, no licence
 handling, nothing that affects what your users can do.
 
+One honest caveat about its state. This change has not been type-checked yet,
+let alone run. It is a few string edits and it may well be fine, but nobody has
+compiled it, so it does not belong in the same column as the parts of Mattermore
+that were verified on a running server. The [roadmap](/roadmap) tracks which is
+which.
+
 ## Keep this in proportion
 
 We would rather undersell this than oversell it.
@@ -110,8 +116,8 @@ people already running Mattermore Server. See [install](/install), the
 
 On a stock server you would edit the strings in
 `webapp/channels/src/i18n/en.json` and rebuild the web app, hide the elements
-with browser CSS, or use a third-party plugin. Mattermore Server ships with
-them already removed.
+with browser CSS, or use a third-party plugin. Mattermore Server removes them
+in the build, though that change has not been type-checked yet.
 
 ### How do I remove the unsupported version banner in Mattermost?
 

@@ -68,8 +68,14 @@ If Team Edition has full history, why does anyone hit the cap?
 Because of the trade between the two free tiers, and it is a genuinely awkward
 one:
 
-- **Entry** gives you no user cap and single sign-on, and caps history at
-  10,000 messages.
+- **Entry** gives you single sign-on and caps history at 10,000 messages. It
+  does not give you an unlimited number of users, which is worth correcting
+  because the internet often says it does. `server/channels/app/limits.go`
+  hard-codes 200 and 250 only when there is no licence at all. With a licence
+  that enforces seats, the cap becomes `license.Features.Users`, and the hard
+  limit that number plus `license.ExtraUsers`. A licence moves the seat count
+  rather than removing it, and what Entry is actually issued with is a question
+  for Mattermost, not something the source tells you.
 - **Team** gives you full mattermost entry edition history in the sense
   that it is not capped at all, plus a 250 user limit and no SSO.
 
@@ -85,7 +91,8 @@ Mattermore does not patch the history cap. It removes the reason you would ever
 accept it.
 
 The two things Entry offers that Team does not are exactly the two things
-Mattermore Server addresses: the [user limit](/user-limit) is lifted, and
+Mattermore Server addresses: the [user limit](/user-limit) is raised in the
+build rather than swapped for a licensed seat count, and
 [single sign-on](/sso) is provided. Both sit on a Team Edition base that never
 had a mattermost message limit to begin with.
 

@@ -1,0 +1,131 @@
+---
+import Base from '../layouts/Base.astro';
+import TopBar from '../components/TopBar.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+const title = 'Managed Mattermore hosting';
+const description =
+  'We run Mattermore for you on your own subdomain, with every feature switched on, email and TLS configured, and upgrades handled.';
+---
+<Base title={`${title} | Mattermore`} description={description} ogType="article">
+  <TopBar />
+
+  <main id="main">
+    <section class="feature-hero">
+      <div class="shell">
+        <p class="crumb"><a href="/">Mattermore</a> <span>/</span> Hosting</p>
+        <h1>We run it for you</h1>
+        <p class="sub">{description}</p>
+      </div>
+    </section>
+
+    <div class="shell">
+      <div class="hosting-layout">
+        <div class="hosting-body">
+          <h2>What you get</h2>
+          <ul>
+            <li>Your own server at <strong>yourteam.mattermore.dev</strong>, or your own domain if you prefer</li>
+            <li>Every Mattermore feature on from the first day, on every tier: group calls, video, recording, transcription, single sign-on, guest accounts, no user cap. Nothing is held back for a higher plan</li>
+            <li>Email, TLS and backups configured, so invitations and password resets work immediately</li>
+            <li>Upgrades handled, including tracking upstream Mattermost security releases</li>
+            <li>Your data stays yours. Ask for an export at any time, or ask us to hand the whole server over</li>
+          </ul>
+
+          <h2>Who controls what</h2>
+          <p>You get a system administrator account on your own server. Users, teams, channels, permissions, guest access, single sign-on and every plugin setting are yours to change, and you never need to ask us.</p>
+          <p>We keep the layer underneath: the machine, the database, backups, TLS and upgrades. A small number of settings that would break the server if changed, the site address and the database connection among them, are pinned by us and show as read-only in your System Console.</p>
+          <p>If you ever want out, we hand you the database and the files, or move the whole server to your own infrastructure. There is no lock-in to engineer around: it is Mattermost underneath, and the software is free.</p>
+
+          <h2>What it is not</h2>
+          <p>This is a small operation, not a support desk. You get help with the server, not with training your team or building integrations. If you need contractual guarantees and a response time in writing, buying Mattermost Professional is the honest answer, and it funds the upstream work this is built on.</p>
+
+          <h2>Self-hosting stays free</h2>
+          <p>Everything here is <a href="/docs">documented</a> and the software is AGPL-3.0. Run it yourself and pay nothing. This exists for teams who would rather not.</p>
+
+          <h2>Request a server</h2>
+          <p>No signup, no card. Tell us what you need and you get a reply from a person.</p>
+
+          <form class="hosting-form" id="hosting-form">
+            <div class="field">
+              <label for="hf-name">Your name</label>
+              <input id="hf-name" name="name" type="text" autocomplete="name" required />
+            </div>
+
+            <div class="field">
+              <label for="hf-email">Email</label>
+              <input id="hf-email" name="email" type="email" autocomplete="email" required />
+            </div>
+
+            <div class="field">
+              <label for="hf-subdomain">Server address</label>
+              <div class="subdomain">
+                <input id="hf-subdomain" name="subdomain" type="text" required
+                       placeholder="yourteam" pattern="[a-z0-9][a-z0-9-]{1,30}[a-z0-9]"
+                       autocapitalize="none" autocorrect="off" spellcheck="false"
+                       aria-describedby="hf-subdomain-hint" />
+                <span class="subdomain-suffix">.mattermore.dev</span>
+              </div>
+              <p class="hint" id="hf-subdomain-hint">Lowercase letters, numbers and hyphens. This is the address your team will type. Bringing your own domain instead is fine, just say so below.</p>
+            </div>
+
+            <div class="field">
+              <label for="hf-size">Roughly how many people</label>
+              <input id="hf-size" name="size" type="text" inputmode="numeric" placeholder="25" />
+            </div>
+
+            <div class="field">
+              <label for="hf-notes">Anything else</label>
+              <textarea id="hf-notes" name="notes" rows="4" placeholder="Migrating from an existing Mattermost? Need recording or single sign-on on day one? Say so here."></textarea>
+            </div>
+
+            <button class="btn btn-primary" type="submit">Send the request</button>
+            <p class="hint" id="hf-status" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <aside class="hosting-aside">
+          <div class="price-card">
+            <p class="col-label">Indicative pricing</p>
+            <ul class="price-list">
+              <li><span>Up to 25 people</span><strong>€49 / month</strong></li>
+              <li><span>Up to 200 people</span><strong>€149 / month</strong></li>
+            </ul>
+            <p class="hint">Every feature is included on both tiers, recording and transcription with it. Transcription runs on your own server rather than a cloud speech provider, so call audio never leaves it. Capacity is our problem, not yours.</p>
+            <p class="hint">For comparison, 100 seats of Mattermost Professional is roughly €1,000 a month.</p>
+            <p class="hint">Larger teams, ask.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <SiteFooter />
+
+  <script is:inline>
+    // No backend yet, so the form composes a mail rather than pretending to
+    // submit. Swapping this for a real endpoint means changing only this block.
+    (function () {
+      var form = document.getElementById('hosting-form');
+      var status = document.getElementById('hf-status');
+      if (!form) return;
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var f = new FormData(form);
+        var sub = (f.get('subdomain') || '').toString().trim();
+        var body = [
+          'Name: ' + f.get('name'),
+          'Email: ' + f.get('email'),
+          'Server: ' + sub + '.mattermore.dev',
+          'People: ' + (f.get('size') || 'not said'),
+          '',
+          (f.get('notes') || '').toString(),
+        ].join('\n');
+        var href = 'mailto:hosting@mattermore.dev'
+          + '?subject=' + encodeURIComponent('Mattermore hosting: ' + sub)
+          + '&body=' + encodeURIComponent(body);
+        status.textContent = 'Opening your mail app. If nothing happens, write to hosting@mattermore.dev.';
+        window.location.href = href;
+      });
+    })();
+  </script>
+</Base>

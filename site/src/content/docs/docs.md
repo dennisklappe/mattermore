@@ -7,14 +7,17 @@ order: 1
 ## What Mattermore is
 
 Mattermore is a fork of [Mattermost](https://github.com/mattermost/mattermost)
-that turns the paywalled features back on: group calls, group video, call
-recording, local transcription, single sign-on, guest accounts, and no user
-limit.
+that turns the paywalled features back on: group calls, call recording, local
+transcription, host controls, single sign-on, guest accounts, and no user
+limit. Group video is written too, and is the one item on that list that has
+not been run yet.
 
-It ships two ways. The server image has everything already switched on,
-including the calls plugin, so running it is the whole installation. If you
-already run Mattermost and would rather not replace it, the calls plugin is a
-separate download that works on its own.
+What you can download today is the calls plugin bundle, which drops onto an
+existing Mattermost server on its own. The server-side work, single sign-on and
+guest accounts and the user limit among it, lives in Mattermore Server, our
+build of Mattermost. There is no prebuilt Docker image for that yet, so running
+it means building it yourself. The [roadmap](/roadmap) says plainly what is
+verified working and what is only written.
 
 It is for system administrators who run their own Mattermost and want more than
 two people in a call. It keeps the upstream plugin id `com.mattermost.calls`,
@@ -32,11 +35,13 @@ Compared with a stock free (Team Edition or unlicensed) Mattermost server:
 | Screen sharing | Yes | Yes |
 | Group audio calls in any channel | Needs Professional | Yes |
 | Video in direct messages | Yes (experimental) | Yes (experimental) |
-| Group video | Needs Professional | Not yet |
+| Group video | Needs Professional | Written, not yet browser-tested |
 | Recording and transcription | Needs Enterprise | Needs a separate service |
 
-Group video is the next feature on the list and is not done. See the
-[roadmap](/roadmap) for exactly what is missing and why.
+Group video is written: streams are mapped by sender and the participant grid
+replaces the single remote tile. It has not been run in a browser yet, so it is
+not a feature we will claim. See [video calls](/video-calls) for the shape of
+the change and the [roadmap](/roadmap) for its status.
 
 ## How it works
 

@@ -58,9 +58,16 @@ licence feature flag. The enforcement points are:
 
 - `server/channels/api4/user.go`, lines 2437, 2493 and 3556.
 - `server/channels/api4/team.go`, line 1819.
-- `server/channels/api4/role.go`, line 196, which covers guest permissions.
 - `server/channels/utils/license.go`, line 257, which is what tells the web
   application whether the feature is available.
+
+One nearby check is worth separating out, because it is easy to miscount as a
+fourth `GuestAccounts` gate and it is not one. `server/channels/api4/role.go`,
+line 196, reads `License().Features.GuestAccountsPermissions`, a different
+licence feature, and it only fires when a licence is present at all. What it
+governs is editing the permissions attached to guest roles, not whether guest
+accounts exist. Lifting the `GuestAccounts` gate does not touch it, and a
+server with no licence never reaches it.
 
 Every one of those files is AGPL-licensed. That matters for the same reason it
 matters throughout [Mattermore's licensing position](/licensing): the AGPL

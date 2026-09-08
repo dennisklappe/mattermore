@@ -1,6 +1,6 @@
 ---
 title: "Video calls on self-hosted Mattermost"
-description: "Mattermost restricts camera video to direct messages. Mattermore adds group video on self-hosted servers by fixing the client, not the licence."
+description: "Mattermost restricts camera video to direct messages. Mattermore fixes that in the client rather than the licence, though it is not browser-tested yet."
 label: "Video calls"
 order: 2
 ---
@@ -61,9 +61,10 @@ Mattermore does two things, both in AGPL-licensed code:
 - Renders a participant grid instead of a single remote tile, and removes the
   restriction that limited video to direct messages.
 
-The result is mattermost group video on a self-hosted server: cameras on in
-a channel call, several people visible at once, and screen sharing behaving as
-it does upstream.
+The intended result is mattermost group video on a self-hosted server: cameras
+on in a channel call, several people visible at once, and screen sharing
+behaving as it does upstream. Intended is the honest word, and the next section
+explains why.
 
 Because Mattermore keeps the plugin id `com.mattermost.calls`, it is a drop-in
 replacement for the stock plugin and reversible at any point. It requires
@@ -76,6 +77,14 @@ which allows neither plugin uploads nor custom environment variables. See
 Video is experimental upstream. Mattermore removes the DM restriction and fixes
 the renderer. It does not make the feature mature, and claiming otherwise would
 be dishonest.
+
+There is a sharper caveat on top of that one. The group video change is written
+and has never been run in a browser. The per-sender stream map and the
+participant grid are both in the tree; nobody has yet had three cameras in one
+channel call and watched what came out. Everything else on this site marked as
+working was verified on a running server, and this was not, so treat group
+video as code rather than a feature until the [roadmap](/roadmap) says
+otherwise.
 
 Practically: pilot mattermost camera video call usage with a small group
 before rolling it out to an organisation, and treat audio as the reliable path.
@@ -129,8 +138,9 @@ noting the assumption that it only renders in a DM.
 
 ### Can Mattermost do group video calls?
 
-Not upstream. Mattermore adds it by mapping streams by sender and rendering a
-participant grid, then removing the DM restriction. All of that is in AGPL code.
+Not upstream. Mattermore maps streams by sender, renders a participant grid and
+removes the DM restriction, all in AGPL code. That change is written but has
+not been run in a browser yet, so it is not something we will call working.
 
 ### Is Mattermost video calling stable enough for production?
 
