@@ -1,7 +1,8 @@
 <div align="center">
-  <img src="site/public/logo-wide.svg" alt="Mattermore" width="320">
-
-  <h1>Mattermore</h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/dennisklappe/mattermore/main/site/public/logo-wide-dark.svg">
+    <img src="https://raw.githubusercontent.com/dennisklappe/mattermore/main/site/public/logo-wide.svg" alt="Mattermore" width="320">
+  </picture>
 
   <p><strong>Mattermost, but more.</strong></p>
 

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 96" width="320" height="96" role="img" aria-label="Mattermore">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 408 96" width="408" height="96" role="img" aria-label="Mattermore">
   <title>Mattermore</title>
-  <rect width="320" height="96" fill="none"/>
+  <rect width="408" height="96" fill="none"/>
   <g transform="translate(16 24)">
     <circle cx="24" cy="24" r="24" fill="#10161c"/>
     <circle cx="57" cy="24" r="24" fill="#10161c" stroke="#ffffff" stroke-width="7"/>
