@@ -28,7 +28,10 @@ export function extractFaq(markdown: string): FaqEntry[] {
     const answer = parts[i + 1]
       .replace(/```[\s\S]*?```/g, '')
       .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-      .replace(/[*_`]/g, '')
+      // Only strip emphasis markers, never underscores inside identifiers
+      // like MM_CALLS_GROUP_CALLS_ALLOWED.
+      .replace(/\*\*?/g, '')
+      .replace(/`/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 

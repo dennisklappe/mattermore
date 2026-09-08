@@ -19,50 +19,58 @@ const jsonLd = {
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     },
     {
-      '@type': 'FAQPage',
-      mainEntity: [
+      "@type": "FAQPage",
+      "mainEntity": [
         {
-          '@type': 'Question',
-          name: "Why can't I make group calls on self-hosted Mattermost?",
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'The free edition of Mattermost allows one-to-one audio calls with screen sharing. Group calls are gated behind a Professional or Enterprise licence by a check in the calls plugin, not by any technical limit in the media stack.',
-          },
+          "@type": "Question",
+          "name": "Why can't I make group calls on self-hosted Mattermost?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The free edition gives every server one-to-one audio calls with screen sharing. The moment a third person joins, the plugin refuses. That refusal is a licence check in the calls plugin, not a limitation of the media stack, which is why one boolean is enough to change it."
+          }
         },
         {
-          '@type': 'Question',
-          name: 'Is Mattermore legal to use and distribute?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Mattermore only modifies AGPL-3.0 licensed code and publishes its own changes under the same licence. It does not modify or redistribute any file governed by the Mattermost Source Available Licence.',
-          },
+          "@type": "Question",
+          "name": "Is this legal to run and to distribute?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Mattermore changes AGPL-3.0 code and publishes its changes under the same licence, which is what the AGPL is for. It does not modify or redistribute any file under the Mattermost Source Available Licence, and it enables group calls through an environment variable that upstream ships in every released version. Framasoft's Mostlymatter has taken the same approach with the Mattermost server since 2024."
+          }
         },
         {
-          '@type': 'Question',
-          name: 'Will a Mattermost server upgrade remove Mattermore?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'No. Mattermost reinstalls its prepackaged calls plugin only when the prepackaged version is higher than the installed one. Mattermore versions itself well above any upstream release so a server upgrade leaves it in place.',
-          },
+          "@type": "Question",
+          "name": "Will a Mattermost upgrade remove it?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. The server replaces an installed plugin with its prepackaged copy only when the prepackaged version is strictly higher, and Mattermore versions itself above anything upstream ships. If you would rather belt and braces it, set AutomaticPrepackagedPlugins to false."
+          }
         },
         {
-          '@type': 'Question',
-          name: 'Can I go back to the official Calls plugin?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Yes. Mattermore keeps the same plugin id as official Calls, so it is a drop-in replacement. Removing it and reinstalling official Calls restores the original behaviour, and your call settings are preserved either way.',
-          },
+          "@type": "Question",
+          "name": "Can I go back to official Calls?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes, in about two minutes. Mattermore keeps the plugin id com.mattermost.calls , so it is a drop-in replacement. Remove it, reinstall Calls, and your configuration is untouched either way."
+          }
         },
         {
-          '@type': 'Question',
-          name: 'Does Mattermore work with Mattermost Cloud?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'No. Cloud servers do not allow plugin uploads or custom server environment variables. Mattermore is for self-hosted installations only.',
-          },
+          "@type": "Question",
+          "name": "Does this work with Mattermost Cloud?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Cloud servers do not let you upload plugins or set server environment variables. Mattermore is for self-hosted installations only."
+          }
         },
-      ],
-    },
+        {
+          "@type": "Question",
+          "name": "Am I taking something from Mattermost?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Worth asking honestly. Mattermost open-sourced this code under the AGPL and added the environment variable themselves, so neither the licence nor the switch is being worked around. That said, if your organisation can afford Professional, buying it funds the upstream work that makes a fork like this possible at all."
+          }
+        }
+      ]
+    }
   ],
 };
 ---
@@ -73,7 +81,7 @@ const jsonLd = {
 >
   <TopBar />
 
-<main>
+<main id="main">
 
 <section class="hero">
   <div class="shell">
@@ -116,8 +124,9 @@ const jsonLd = {
       <p class="two-parts">One image, everything on. The <strong>Mattermore</strong> server image ships with the calls plugin already prepackaged and the switches set, so running it is the whole installation. Already have Mattermost and would rather not replace it? The <a href="/install">calls plugin is a separate download</a> you upload in two minutes.</p>
     </div>
 
-    <div class="table-wrap">
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Feature comparison">
       <table>
+        <caption class="visually-hidden">What Mattermost free and Mattermore each include on a self-hosted server with no paid licence</caption>
         <thead>
           <tr>
             <th scope="col">On a self-hosted server, no paid licence</th>
@@ -129,12 +138,12 @@ const jsonLd = {
           <tr><th scope="row">One-to-one audio calls</th><td class="yes">Included</td><td class="yes">Included</td></tr>
           <tr><th scope="row">Screen sharing</th><td class="yes">Included</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/group-calls">Group audio calls in any channel</a></th><td class="no">Needs Professional</td><td class="yes">Included</td></tr>
-          <tr class="row-link"><th scope="row"><a href="/video-calls">Group video calls</a></th><td class="no">Needs Professional</td><td class="yes">Included</td></tr>
+          <tr class="row-link"><th scope="row"><a href="/video-calls">Group video calls</a></th><td class="no">Direct messages only</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/call-recording">Call recording</a></th><td class="no">Needs Enterprise</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/transcription">Transcription, on your own hardware</a></th><td class="no">Needs Enterprise</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/sso">Single sign-on with any OIDC provider</a></th><td class="no">Needs Professional</td><td class="yes">Included</td></tr>
           <tr class="row-link"><th scope="row"><a href="/guest-accounts">Guest accounts</a></th><td class="no">Needs Professional</td><td class="yes">Included</td></tr>
-          <tr class="row-link"><th scope="row"><a href="/user-limit">Users on one server</a></th><td class="no">250</td><td class="yes">No practical limit</td></tr>
+          <tr class="row-link"><th scope="row"><a href="/user-limit">Users on one server</a></th><td class="no">250, by licence</td><td class="yes">Whatever your hardware handles</td></tr>
           <tr class="row-link"><th scope="row"><a href="/message-history">Message history</a></th><td class="no">10,000 on Entry</td><td class="yes">All of it</td></tr>
         </tbody>
       </table>
@@ -153,7 +162,7 @@ const jsonLd = {
       <div class="split-text">
         <h3>Upstream already ships the switch</h3>
         <p>Group calls are gated by a single function. It checks your licence, and then it checks an environment variable that Mattermost added themselves.</p>
-        <p>Mattermore does not patch this file. It carries the Mattermost Source Available Licence rather than the AGPL, and leaving it alone is exactly what keeps this project distributable.</p>
+        <p>Mattermore does not patch this file. It carries the Mattermost Source Available Licence, and the functions it declares delegate to an AGPL package that Mattermore does change. That distinction is the project's whole legal position, so <a href="/licensing">it is set out in full</a> rather than glossed over.</p>
       </div>
       <pre class="snippet"><code><span class="k">func</span> (e *LicenseChecker) GroupCallsAllowed() <span class="k">bool</span> {
     <span class="k">return</span> e.isAtLeastProfessionalLicensed() ||

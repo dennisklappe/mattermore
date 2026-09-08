@@ -12,7 +12,7 @@
 :root {
     --ink: #10161c;
     --body: #4b5763;
-    --muted: #77828d;
+    --muted: #5f6a75;
     --line: #e5e9ed;
     --line-soft: #eef1f4;
 
@@ -195,7 +195,7 @@ code {
 }
 
 .btn-primary {
-    background: var(--brand);
+    background: var(--brand-dark);
     color: #fff;
 }
 
@@ -646,7 +646,7 @@ td.soon {
     margin: 0;
 }
 
-.foot-grid h4 {
+.foot-grid .col-label {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--ink);
@@ -692,22 +692,6 @@ td.soon {
 
 /* ---- docs page --------------------------------------------------------- */
 
-.doc-head {
-    padding-block: clamp(2.75rem, 6vw, 4rem) 2.5rem;
-    border-bottom: 1px solid var(--line-soft);
-    background: var(--bg-soft);
-}
-
-.doc-head h1 {
-    font-size: clamp(2rem, 4.4vw, 2.9rem);
-}
-
-.doc-head p {
-    font-size: 1.08rem;
-    max-width: 42rem;
-    margin: 1rem 0 0;
-}
-
 .doc-layout {
     display: grid;
     gap: 3rem;
@@ -727,7 +711,7 @@ td.soon {
     }
 }
 
-.doc-nav h4 {
+.doc-nav .col-label {
     font-size: 0.85rem;
     margin-bottom: 0.8rem;
 }
@@ -853,7 +837,7 @@ td.soon {
     margin-bottom: 2.75rem;
 }
 
-.doc-toc h4 {
+.doc-toc .col-label {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--muted);
@@ -894,7 +878,8 @@ td.soon {
     font-size: 0.95rem;
 }
 
-.doc-body blockquote {
+.doc-body blockquote,
+.feature-body blockquote {
     margin: 1.5rem 0;
     padding: 0.15rem 0 0.15rem 1.2rem;
     border-left: 3px solid var(--brand);
@@ -905,7 +890,8 @@ td.soon {
     margin-bottom: 0;
 }
 
-.doc-body pre {
+.doc-body pre,
+.feature-body pre {
     background: #10161c;
     color: #e6edf3;
     border-radius: var(--radius);
@@ -924,7 +910,8 @@ td.soon {
     color: inherit;
 }
 
-.doc-body :not(pre) > code {
+.doc-body :not(pre) > code,
+.feature-body :not(pre) > code {
     background: var(--bg-soft);
     border: 1px solid var(--line-soft);
     border-radius: 4px;
@@ -1030,7 +1017,7 @@ td.soon {
     }
 }
 
-.feature-aside h4 {
+.feature-aside .col-label {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--muted);
@@ -1095,31 +1082,12 @@ td.soon {
     margin-bottom: 0.45rem;
 }
 
-.feature-body pre {
-    background: #10161c;
-    color: #e6edf3;
-    border-radius: var(--radius);
-    padding: 1.15rem 1.3rem;
-    overflow-x: auto;
-    font-family: var(--mono);
-    font-size: 0.85rem;
-    line-height: 1.6;
-    margin: 1.25rem 0;
-}
-
 .feature-body pre code {
     background: none;
     border: 0;
     padding: 0;
     color: inherit;
     font-size: inherit;
-}
-
-.feature-body :not(pre) > code {
-    background: var(--bg-soft);
-    border: 1px solid var(--line-soft);
-    border-radius: 4px;
-    padding: 0.08em 0.35em;
 }
 
 .feature-body table {
@@ -1130,13 +1098,6 @@ td.soon {
     border-radius: var(--radius);
     overflow: hidden;
     font-size: 0.95rem;
-}
-
-.feature-body blockquote {
-    margin: 1.5rem 0;
-    padding: 0.15rem 0 0.15rem 1.2rem;
-    border-left: 3px solid var(--brand);
-    color: var(--body);
 }
 
 /* The FAQ is everything after its own heading, so give those questions a
@@ -1205,8 +1166,8 @@ td.soon {
     font: inherit;
     font-weight: 500;
     color: #fff;
-    background: var(--brand);
-    border: 1px solid var(--brand);
+    background: var(--brand-dark);
+    border: 1px solid var(--brand-dark);
     border-radius: 7px;
     padding: 0.4rem 0.85rem;
     cursor: pointer;
@@ -1261,4 +1222,48 @@ td.soon {
 .two-parts em {
     font-style: normal;
     color: var(--body);
+}
+
+/* ---- accessibility helpers --------------------------------------------- */
+
+.col-label {
+    margin: 0 0 0.85rem;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.skip-link {
+    position: absolute;
+    left: 0.75rem;
+    top: -3rem;
+    z-index: 60;
+    background: var(--brand-dark);
+    color: #fff;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius);
+    text-decoration: none;
+    transition: top 120ms ease;
+}
+
+.skip-link:focus {
+    top: 0.75rem;
+}
+
+.table-wrap:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+}
+
+.ai-status {
+    font-size: 0.88rem;
+    color: var(--muted);
 }

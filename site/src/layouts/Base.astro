@@ -37,6 +37,7 @@ const favicon =
   <meta property="og:title" content={title} />
   <meta property="og:description" content={description} />
   <meta property="og:site_name" content="Mattermore" />
+  <meta property="og:image" content={new URL("/og.png", Astro.site).href} />
   <meta name="twitter:card" content="summary_large_image" />
 
   <link rel="icon" href={favicon} />
@@ -44,6 +45,7 @@ const favicon =
   {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <slot />
 </body>
 </html>

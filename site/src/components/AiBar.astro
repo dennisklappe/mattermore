@@ -11,7 +11,8 @@ const { slug } = Astro.props;
     <span>Hand it this page as plain markdown, or the whole site at once.</span>
   </div>
   <div class="ai-bar-actions">
-    <button type="button" class="ai-copy" data-md={`/${slug}.md`}>Copy as Markdown</button>
+    <button type="button" class="ai-copy" data-md={`/${slug}.md`} data-label="Copy as Markdown">Copy as Markdown</button>
+    <span class="ai-status" role="status" aria-live="polite"></span>
     <a href={`/${slug}.md`}>View .md</a>
     <a href="/llms.txt">llms.txt</a>
   </div>
@@ -19,17 +20,28 @@ const { slug } = Astro.props;
 
 <script is:inline>
   document.querySelectorAll('.ai-copy').forEach(function (btn) {
+    var status = btn.parentElement.querySelector('.ai-status');
+    var busy = false;
     btn.addEventListener('click', async function () {
-      var original = btn.textContent;
+      // Reading textContent would latch on a second click inside the reset
+      // window, so the original label lives in a data attribute.
+      if (busy) return;
+      busy = true;
       try {
         var res = await fetch(btn.dataset.md);
         await navigator.clipboard.writeText(await res.text());
         btn.textContent = 'Copied';
+        if (status) status.textContent = 'Page markdown copied to the clipboard';
       } catch (err) {
-        // Clipboard access can be refused, so say so rather than silently failing.
-        btn.textContent = 'Copy failed, open the .md';
+        // Clipboard access can be refused, so say so rather than failing silently.
+        btn.textContent = 'Copy failed';
+        if (status) status.textContent = 'Copy failed, open the .md link instead';
       }
-      setTimeout(function () { btn.textContent = original; }, 2200);
+      setTimeout(function () {
+        btn.textContent = btn.dataset.label;
+        if (status) status.textContent = '';
+        busy = false;
+      }, 2200);
     });
   });
 </script>
