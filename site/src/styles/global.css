@@ -1090,3 +1090,21 @@ td.soon {
     color: var(--brand-dark);
     font-weight: 500;
 }
+
+/* The project is two deliverables now, and the comparison table has to say so. */
+.two-parts {
+    font-size: 0.97rem;
+    color: var(--muted);
+    max-width: 46rem;
+    margin-top: 0.9rem;
+}
+
+.two-parts strong {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+.two-parts em {
+    font-style: normal;
+    color: var(--body);
+}

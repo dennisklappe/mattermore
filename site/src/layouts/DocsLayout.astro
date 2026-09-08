@@ -60,7 +60,7 @@ const showToc = sections.length >= 3;
         <slot />
 
         <p class="doc-edit">
-          <a href={`https://github.com/dennisklappe/mattermore/edit/main/site/src/content/docs/${slug}.md`}>
+          <a href={`https://github.com/dennisklappe/mattermore/edit/main/site/src/content/docs/${slug}.md`} target="_blank" rel="noopener noreferrer">
             Improve this page on GitHub
           </a>
         </p>
@@ -69,5 +69,5 @@ const showToc = sections.length >= 3;
     </div>
   </main>
 
-  <SiteFooter blurb='These docs live in the <a href="https://github.com/dennisklappe/mattermore/tree/main/site/src/content/docs">repository</a> as markdown. Corrections are welcome as a pull request.' />
+  <SiteFooter blurb='These docs live in the <a href="https://github.com/dennisklappe/mattermore/tree/main/site/src/content/docs" target="_blank" rel="noopener noreferrer">repository</a> as markdown. Corrections are welcome as a pull request.' />
 </Base>

@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
+import rehypeExternalLinks from 'rehype-external-links';
 
 export default defineConfig({
   site: 'https://mattermore.dev',
@@ -10,6 +11,14 @@ export default defineConfig({
   // the canonical tags.
   build: { format: 'file' },
   trailingSlash: 'never',
+
+  // Links that leave the site open in a new tab. Internal navigation does not,
+  // because hijacking a reader's tab for their own site is rude.
+  markdown: {
+    rehypePlugins: [
+      [rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] }],
+    ],
+  },
 
   integrations: [
     sitemap({
