@@ -81,19 +81,18 @@ is a browser, which is why it sits above under written rather than working.
 
 ## Where group video actually stands
 
-The port is written and the transport carries what it needs, but it does not
-work yet, and that is from a real test rather than a guess.
+It works, and that is from a real test rather than a guess. Three browsers in
+one call with cameras on: every participant sees the other two, each stream
+distinct, and a newcomer replacing someone who left appears correctly.
 
-Three browsers were driven through a call with cameras on. Every client
-rendered exactly one video, its own, and the map of remote streams stayed
-empty even though two remote tracks arrived in each browser. The cause is
-attribution: each client resolved the sender of an incoming track to its own
-session, so every remote stream collapsed onto one key and overwrote the
-previous one.
+Getting there took two attempts. The first trusted `sender_id` from the media
+map, which turns out to be wrong at the source: upstream's own
+`rtcd/service/rtc/session.go` sets that field to the *receiving* session, so
+every client attributed every remote track to itself and the streams collapsed
+onto one key. The sender is instead recoverable from the track naming the SFU
+uses, which is what Mattermore does now.
 
-WebRTC itself was fine throughout. Audio group calls are unaffected and work
-today. Progress is tracked in the
-[issues](https://github.com/dennisklappe/mattermore/issues).
+It is much newer than the audio path, so treat it as new code.
 
 ## Why some things stay out of reach
 
