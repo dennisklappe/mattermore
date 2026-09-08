@@ -30,6 +30,7 @@ const description =
             <li>Upgrades handled, including tracking upstream Mattermost security releases</li>
             <li>Your data stays yours. Ask for an export at any time, or ask us to hand the whole server over</li>
           </ul>
+          <p>Nothing is reserved for a higher plan. Transcription runs on the server itself, so call audio is never sent to a third party. For comparison, 100 seats of Mattermost Professional runs to roughly €1,000 a month.</p>
 
           <h2>Who controls what</h2>
           <p>You get a system administrator account on your own server. Users, teams, channels, permissions, guest access, single sign-on and every plugin setting are yours to change, and you never need to ask us.</p>
@@ -53,45 +54,47 @@ const description =
           <h2>Self-hosting stays free</h2>
           <p>Everything here is <a href="/docs">documented</a> and the software is AGPL-3.0. Run it yourself and pay nothing. This exists for teams who would rather not.</p>
 
-          <h2>Request a server</h2>
-          <p>No signup, no card. Tell us what you need and you get a reply from a person.</p>
+          <div class="request-card" id="request">
+            <h2>Request a server</h2>
+            <p>No signup, no card. Tell us what you need and you get a reply from a person.</p>
 
-          <form class="hosting-form" id="hosting-form">
-            <div class="field">
-              <label for="hf-name">Your name</label>
-              <input id="hf-name" name="name" type="text" autocomplete="name" required />
-            </div>
-
-            <div class="field">
-              <label for="hf-email">Email</label>
-              <input id="hf-email" name="email" type="email" autocomplete="email" required />
-            </div>
-
-            <div class="field">
-              <label for="hf-subdomain">Server address</label>
-              <div class="subdomain">
-                <input id="hf-subdomain" name="subdomain" type="text" required
-                       placeholder="yourteam" pattern="[a-z0-9][a-z0-9-]{1,30}[a-z0-9]"
-                       autocapitalize="none" autocorrect="off" spellcheck="false"
-                       aria-describedby="hf-subdomain-hint" />
-                <span class="subdomain-suffix">.mattermore.dev</span>
+            <form class="hosting-form" id="hosting-form">
+              <div class="field">
+                <label for="hf-name">Your name</label>
+                <input id="hf-name" name="name" type="text" autocomplete="name" required />
               </div>
-              <p class="hint" id="hf-subdomain-hint">Lowercase letters, numbers and hyphens. This is the address your team will type. Bringing your own domain instead is fine, just say so below.</p>
-            </div>
 
-            <div class="field">
-              <label for="hf-size">Roughly how many people</label>
-              <input id="hf-size" name="size" type="text" inputmode="numeric" placeholder="25" />
-            </div>
+              <div class="field">
+                <label for="hf-email">Email</label>
+                <input id="hf-email" name="email" type="email" autocomplete="email" required />
+              </div>
 
-            <div class="field">
-              <label for="hf-notes">Anything else</label>
-              <textarea id="hf-notes" name="notes" rows="4" placeholder="Migrating from Slack, Teams or an existing Mattermost? Need single sign-on or an integration building? Say so here."></textarea>
-            </div>
+              <div class="field">
+                <label for="hf-subdomain">Server address</label>
+                <div class="subdomain">
+                  <input id="hf-subdomain" name="subdomain" type="text" required
+                         placeholder="yourteam" pattern="[a-z0-9][a-z0-9-]{1,30}[a-z0-9]"
+                         autocapitalize="none" autocorrect="off" spellcheck="false"
+                         aria-describedby="hf-subdomain-hint" />
+                  <span class="subdomain-suffix">.mattermore.dev</span>
+                </div>
+                <p class="hint" id="hf-subdomain-hint">Lowercase letters, numbers and hyphens. This is the address your team will type. Bringing your own domain instead is fine, just say so below.</p>
+              </div>
 
-            <button class="btn btn-primary" type="submit">Send the request</button>
-            <p class="hint" id="hf-status" role="status" aria-live="polite"></p>
-          </form>
+              <div class="field">
+                <label for="hf-size">Roughly how many people</label>
+                <input id="hf-size" name="size" type="text" inputmode="numeric" placeholder="25" />
+              </div>
+
+              <div class="field">
+                <label for="hf-notes">Anything else</label>
+                <textarea id="hf-notes" name="notes" rows="4" placeholder="Migrating from Slack, Teams or an existing Mattermost? Need single sign-on or an integration building? Say so here."></textarea>
+              </div>
+
+              <button class="btn btn-primary" type="submit">Send the request</button>
+              <p class="hint" id="hf-status" role="status" aria-live="polite"></p>
+            </form>
+          </div>
         </div>
 
         <aside class="hosting-aside">
@@ -101,9 +104,7 @@ const description =
               <li><span>Up to 25 people</span><strong>€49 / month</strong></li>
               <li><span>Up to 200 people</span><strong>€149 / month</strong></li>
             </ul>
-            <p class="hint">Both tiers include everything, recording and transcription with it. Transcription runs on the server itself, so call audio is never sent to a third party.</p>
-            <p class="hint">For comparison, 100 seats of Mattermost Professional is roughly €1,000 a month.</p>
-            <p class="hint">Larger teams, ask.</p>
+            <p class="hint">Everything included on both. Larger teams, ask.</p>
           </div>
         </aside>
       </div>
