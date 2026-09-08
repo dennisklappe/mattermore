@@ -1,0 +1,147 @@
+From 86e53722235508d6f655ff745e634971680f4965 Mon Sep 17 00:00:00 2001
+From: Dennis Klappe <dennisklappe@gmail.com>
+Date: Tue, 8 Sep 2026 14:19:40 +0200
+Subject: [PATCH] Lift the unlicensed 200/250 user limit
+
+Scales the hard-coded unlicensed seat caps in server/channels/app/limits.go
+by 1000 so they never bind on a self-hosted install. Enforced from
+server/channels/app/user.go (CreateUser and UpdateActive).
+
+The tests that pinned the old numbers now derive their expectations from the
+constants instead of repeating them, so a future rescale does not break them
+again. channels/api4/limits_test.go cannot see the unexported constants, so it
+keeps literals with a pointer to where they live.
+
+See https://mattermore.dev/user-limit
+---
+ server/channels/api4/limits_test.go     |  6 ++++--
+ server/channels/app/limits.go           |  8 ++++++--
+ server/channels/app/limits_test.go      | 18 +++++++++---------
+ server/channels/app/user_limits_test.go |  4 ++--
+ 4 files changed, 21 insertions(+), 15 deletions(-)
+
+diff --git a/server/channels/api4/limits_test.go b/server/channels/api4/limits_test.go
+index b4d4d808..5ce42e18 100644
+--- a/server/channels/api4/limits_test.go
++++ b/server/channels/api4/limits_test.go
+@@ -28,8 +28,10 @@ func TestGetServerLimits(t *testing.T) {
+ 
+ 		// Should have full access to all limits data
+ 		require.Greater(t, serverLimits.ActiveUserCount, int64(0))
+-		require.Equal(t, int64(200), serverLimits.MaxUsersLimit)
+-		require.Equal(t, int64(250), serverLimits.MaxUsersHardLimit)
++		// Matches maxUsersLimit / maxUsersHardLimit in channels/app/limits.go, which
++		// are unexported so this package cannot reference them directly.
++		require.Equal(t, int64(200000), serverLimits.MaxUsersLimit)
++		require.Equal(t, int64(250000), serverLimits.MaxUsersHardLimit)
+ 		require.Equal(t, int64(0), serverLimits.PostHistoryLimit)
+ 		require.Equal(t, int64(0), serverLimits.LastAccessiblePostTime)
+ 	})
+diff --git a/server/channels/app/limits.go b/server/channels/app/limits.go
+index 45448e4b..7be39d71 100644
+--- a/server/channels/app/limits.go
++++ b/server/channels/app/limits.go
+@@ -10,8 +10,12 @@ import (
+ )
+ 
+ const (
+-	maxUsersLimit     = 200
+-	maxUsersHardLimit = 250
++	// Upstream caps an unlicensed server at 200 soft / 250 hard users. Scaled by 1000
++	// so the limit never binds on a self-hosted install while the soft/hard ratio and
++	// every code path that assumes a non-zero limit stay intact.
++	// See https://mattermore.dev/user-limit
++	maxUsersLimit     = 200000
++	maxUsersHardLimit = 250000
+ )
+ 
+ // GetServerLimits returns the server's seat/post-history limits. The license-derived
+diff --git a/server/channels/app/limits_test.go b/server/channels/app/limits_test.go
+index 4aa419e5..c55aee47 100644
+--- a/server/channels/app/limits_test.go
++++ b/server/channels/app/limits_test.go
+@@ -27,8 +27,8 @@ func TestGetServerLimits(t *testing.T) {
+ 
+ 		// InitBasic creates 3 users by default
+ 		require.Equal(t, int64(3), serverLimits.ActiveUserCount)
+-		require.Equal(t, int64(200), serverLimits.MaxUsersLimit)
+-		require.Equal(t, int64(250), serverLimits.MaxUsersHardLimit)
++		require.Equal(t, int64(maxUsersLimit), serverLimits.MaxUsersLimit)
++		require.Equal(t, int64(maxUsersHardLimit), serverLimits.MaxUsersHardLimit)
+ 	})
+ 
+ 	t.Run("user counts are skipped when includeUserCounts is false", func(t *testing.T) {
+@@ -47,8 +47,8 @@ func TestGetServerLimits(t *testing.T) {
+ 		require.Nil(t, appErr)
+ 		require.Equal(t, int64(0), withoutCounts.ActiveUserCount)
+ 		require.Equal(t, int64(0), withoutCounts.SingleChannelGuestCount)
+-		require.Equal(t, int64(200), withoutCounts.MaxUsersLimit)
+-		require.Equal(t, int64(250), withoutCounts.MaxUsersHardLimit)
++		require.Equal(t, int64(maxUsersLimit), withoutCounts.MaxUsersLimit)
++		require.Equal(t, int64(maxUsersHardLimit), withoutCounts.MaxUsersHardLimit)
+ 	})
+ 
+ 	t.Run("user count should increase on creating new user and decrease on permanently deleting", func(t *testing.T) {
+@@ -286,7 +286,7 @@ func TestIsAtUserLimit(t *testing.T) {
+ 			th.App.Srv().SetLicense(nil)
+ 
+ 			mockUserStore := storemocks.UserStore{}
+-			mockUserStore.On("Count", mock.Anything).Return(int64(200), nil) // Under hard limit of 250
++			mockUserStore.On("Count", mock.Anything).Return(int64(maxUsersHardLimit-1), nil) // Under the hard limit
+ 			mockUserStore.On("AnalyticsGetSingleChannelGuestCount").Return(int64(0), nil)
+ 			mockStore := th.App.Srv().Store().(*storemocks.Store)
+ 			mockStore.On("User").Return(&mockUserStore)
+@@ -302,7 +302,7 @@ func TestIsAtUserLimit(t *testing.T) {
+ 			th.App.Srv().SetLicense(nil)
+ 
+ 			mockUserStore := storemocks.UserStore{}
+-			mockUserStore.On("Count", mock.Anything).Return(int64(250), nil) // At hard limit of 250
++			mockUserStore.On("Count", mock.Anything).Return(int64(maxUsersHardLimit), nil) // At the hard limit
+ 			mockUserStore.On("AnalyticsGetSingleChannelGuestCount").Return(int64(0), nil)
+ 			mockStore := th.App.Srv().Store().(*storemocks.Store)
+ 			mockStore.On("User").Return(&mockUserStore)
+@@ -318,7 +318,7 @@ func TestIsAtUserLimit(t *testing.T) {
+ 			th.App.Srv().SetLicense(nil)
+ 
+ 			mockUserStore := storemocks.UserStore{}
+-			mockUserStore.On("Count", mock.Anything).Return(int64(300), nil) // Over hard limit of 250
++			mockUserStore.On("Count", mock.Anything).Return(int64(maxUsersHardLimit+1), nil) // Over the hard limit
+ 			mockUserStore.On("AnalyticsGetSingleChannelGuestCount").Return(int64(0), nil)
+ 			mockStore := th.App.Srv().Store().(*storemocks.Store)
+ 			mockStore.On("User").Return(&mockUserStore)
+@@ -548,8 +548,8 @@ func TestExtraUsersBehavior(t *testing.T) {
+ 		require.Nil(t, appErr)
+ 
+ 		// Unlicensed servers use hard-coded limits without extra users
+-		require.Equal(t, int64(200), serverLimits.MaxUsersLimit)
+-		require.Equal(t, int64(250), serverLimits.MaxUsersHardLimit)
++		require.Equal(t, int64(maxUsersLimit), serverLimits.MaxUsersLimit)
++		require.Equal(t, int64(maxUsersHardLimit), serverLimits.MaxUsersHardLimit)
+ 	})
+ }
+ 
+diff --git a/server/channels/app/user_limits_test.go b/server/channels/app/user_limits_test.go
+index 22de6150..a02003de 100644
+--- a/server/channels/app/user_limits_test.go
++++ b/server/channels/app/user_limits_test.go
+@@ -39,7 +39,7 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
+ 
+ 			// Mock user count at hard limit
+ 			mockUserStore := storemocks.UserStore{}
+-			mockUserStore.On("Count", mock.Anything).Return(int64(5000), nil) // At 5000 hard limit
++			mockUserStore.On("Count", mock.Anything).Return(int64(maxUsersHardLimit), nil) // At the hard limit
+ 			mockStore := th.App.Srv().Store().(*storemocks.Store)
+ 			mockStore.On("User").Return(&mockUserStore)
+ 
+@@ -64,7 +64,7 @@ func TestUpdateActiveWithUserLimits(t *testing.T) {
+ 
+ 			// Mock user count to exceed hard limit
+ 			mockUserStore := storemocks.UserStore{}
+-			mockUserStore.On("Count", mock.Anything).Return(int64(6000), nil) // Over 5000 hard limit
++			mockUserStore.On("Count", mock.Anything).Return(int64(maxUsersHardLimit+1), nil) // Over the hard limit
+ 			mockStore := th.App.Srv().Store().(*storemocks.Store)
+ 			mockStore.On("User").Return(&mockUserStore)
+ 
+-- 
+2.53.0
+
