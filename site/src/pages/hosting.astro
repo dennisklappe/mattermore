@@ -6,7 +6,7 @@ import { BALIE_ENDPOINT, BALIE_PUBLIC_KEY, TURNSTILE_SITEKEY, FALLBACK_EMAIL, is
 
 const title = 'Managed Mattermore hosting';
 const description =
-  'We run Mattermore for you on your own subdomain, with every feature switched on, email and TLS configured, and upgrades handled.';
+  'Mattermore on your own subdomain, every feature on, email and TLS handled.';
 ---
 <Base title={`${title} | Mattermore`} description={description} ogType="article">
   <TopBar />
@@ -23,41 +23,42 @@ const description =
     <div class="shell">
       <div class="hosting-layout">
         <div class="hosting-body">
+          <div class="note">
+            <p><strong>Self-hosting is free and identical.</strong> Same features, no licence key, no paid tier. You are paying here for someone else to run the server. <a href="/selfhost">Do it yourself</a> or <a href="/docs">read the docs</a>.</p>
+          </div>
+
           <h2>What you get</h2>
           <ul>
             <li>Your own server at <strong>yourteam.mattermore.dev</strong>, or your own domain if you prefer</li>
-            <li>Every Mattermore feature on from the first day, on every tier: group calls, video, recording, transcription, single sign-on, guest accounts, no user cap. Nothing is held back for a higher plan</li>
-            <li>Email, TLS and backups configured, so invitations and password resets work immediately</li>
-            <li>Upgrades handled, including tracking upstream Mattermost security releases</li>
-            <li>Your data stays yours. Ask for an export at any time, or ask us to hand the whole server over</li>
+            <li>Every feature on from day one, on every tier. Nothing held back for a higher plan</li>
+            <li>Email, TLS and backups configured, so invitations work immediately</li>
+            <li>Upgrades handled, including upstream security releases</li>
+            <li>Your data stays yours. Ask for an export, or for the whole server</li>
           </ul>
-          <p>Nothing is reserved for a higher plan. Transcription runs on the server itself, so call audio is never sent to a third party. For comparison, 100 seats of Mattermost Professional runs to roughly €1,000 a month.</p>
+          <p>Transcription runs on the server itself, so call audio never reaches a third party. For comparison, 100 seats of Mattermost Professional is roughly €1,000 a month.</p>
 
           <h2>Who controls what</h2>
-          <p>You get a system administrator account on your own server. Users, teams, channels, permissions, guest access, single sign-on and every plugin setting are yours to change, and you never need to ask us.</p>
-          <p>We keep the layer underneath: the machine, the database, backups, TLS and upgrades. A small number of settings that would break the server if changed, the site address and the database connection among them, are pinned by us and show as read-only in your System Console.</p>
-          <p>If you ever want out, we hand you the database and the files, or move the whole server to your own infrastructure. There is no lock-in to engineer around: it is Mattermost underneath, and the software is free.</p>
+          <p>You get system admin on your own server. Users, teams, permissions, sign-on and every plugin setting are yours, without asking us.</p>
+          <p>We keep the machine, database, backups, TLS and upgrades. A few settings that would break the server, the site address and database among them, are pinned by us and show as read-only.</p>
+          <p>Want out? We hand over the database and files, or move the server to your infrastructure. No lock-in: it is Mattermost underneath and the software is free.</p>
 
           <h2>Work beyond the server</h2>
-          <p>The monthly fee covers running the server. Anything beyond that is real work and is quoted separately, but it is work we do:</p>
+          <p>The fee covers running the server. Anything beyond is quoted separately, but we do it:</p>
           <ul>
-            <li>Migrating from Slack, Teams or an existing Mattermost, with history intact</li>
-            <li>Connecting it to what you already use, from GitHub and Jira to something in-house</li>
+            <li>Migrating from Slack, Teams or Mattermost, history intact</li>
+            <li>Connecting it to GitHub, Jira or something in-house</li>
             <li>Single sign-on against an identity provider we have not met before</li>
             <li>Custom plugins, bots and automations</li>
-            <li>Getting your team onto it without the usual month of confusion</li>
+            <li>Getting your team onto it without the usual confusion</li>
           </ul>
-          <p>Tell us what you need and you get a fixed quote before anything starts. No hourly surprises.</p>
+          <p>Fixed quote before anything starts. No hourly surprises.</p>
 
           <h2>What it is not</h2>
-          <p>This is a small operation, not a support desk. If you need contractual guarantees and a response time in writing, buying Mattermost Professional is the honest answer, and it funds the upstream work this is built on.</p>
-
-          <h2>Self-hosting stays free</h2>
-          <p>Everything here is <a href="/docs">documented</a> and the software is AGPL-3.0. Run it yourself and pay nothing. This exists for teams who would rather not.</p>
+          <p>A small operation, not a support desk. If you need a response time in writing, Mattermost Professional is the honest answer.</p>
 
           <div class="request-card" id="request">
             <h2>Request a server</h2>
-            <p>No signup, no card. Tell us what you need and you get a reply from a person.</p>
+            <p>No signup, no card. You get a reply from a person.</p>
 
             <form class="hosting-form" id="hosting-form">
               <div class="field">
@@ -79,7 +80,7 @@ const description =
                          aria-describedby="hf-subdomain-hint" />
                   <span class="subdomain-suffix">.mattermore.dev</span>
                 </div>
-                <p class="hint" id="hf-subdomain-hint">Lowercase letters, numbers and hyphens. This is the address your team will type. Bringing your own domain instead is fine, just say so below.</p>
+                <p class="hint" id="hf-subdomain-hint">Lowercase letters, numbers and hyphens. Own domain instead? Say so below.</p>
               </div>
 
               <div class="field">
