@@ -1,15 +1,20 @@
 ---
 title: "Overview"
-description: "Mattermore is a maintained fork of mattermost-plugin-calls that enables group audio calls on self-hosted Mattermost without a Professional licence."
+description: "Mattermore is a fork of Mattermost with the paywalled features turned back on: group calls, video, recording, transcription, SSO and guest accounts."
 order: 1
 ---
 
 ## What Mattermore is
 
-Mattermore is a maintained fork of
-[mattermost-plugin-calls](https://github.com/mattermost/mattermost-plugin-calls)
-that enables group audio calls in any channel on a self-hosted Mattermost
-server, without a Professional licence.
+Mattermore is a fork of [Mattermost](https://github.com/mattermost/mattermost)
+that turns the paywalled features back on: group calls, group video, call
+recording, local transcription, single sign-on, guest accounts, and no user
+limit.
+
+It ships two ways. The server image has everything already switched on,
+including the calls plugin, so running it is the whole installation. If you
+already run Mattermost and would rather not replace it, the calls plugin is a
+separate download that works on its own.
 
 It is for system administrators who run their own Mattermost and want more than
 two people in a call. It keeps the upstream plugin id `com.mattermost.calls`,
