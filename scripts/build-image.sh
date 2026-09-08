@@ -23,6 +23,8 @@ rm -rf "$STAGE"; mkdir -p "$STAGE"
 "$ROOT/scripts/build-server.sh" "$STAGE/mattermore-server"   # also emits $STAGE/client
 "$ROOT/scripts/build-calls.sh" "$STAGE"
 mv "$STAGE/mattermore-calls-$CALLS_VERSION.tar.gz" "$STAGE/mattermore-calls.tar.gz"
+# The checksum is for people downloading the bundle, not for the image.
+rm -f "$STAGE"/mattermore-calls-*.sha256
 cp "$ROOT/Containerfile" "$STAGE/Containerfile"
 
 "$engine" build -t "$TAG" -f "$STAGE/Containerfile" "$STAGE"
