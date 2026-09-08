@@ -167,13 +167,92 @@ that still apply:
   quality depends entirely on your hardware and uplink. Set a number you can
   actually serve rather than leaving it open.
 - **Enable video** (`EnableVideo`). Video calls in direct messages. Off by
-  default and experimental. Group video is not implemented yet, so switching
-  this on does not add video to channel calls.
+  default and experimental. Mattermore's group video change is written but has
+  not been run in a browser, so switching this on for channel calls is a test
+  rather than a supported configuration. See [video calls](/video-calls).
 - **Allow screen sharing** (`AllowScreenSharing`). Works in group calls.
 - **Enable ringing** (`EnableRinging`). Notification sound and call popup for
   incoming calls.
 
 Everything else on that page behaves exactly as documented upstream.
+
+## Single sign-on with OpenID Connect
+
+This one is Mattermore Server rather than the calls plugin: authentication
+lives in the Mattermost server, so no plugin upload can provide it. The reason
+the stock server cannot do this, and the GitLab workaround that returns a 501,
+are on [single sign-on](/sso).
+
+The settings live under `OpenIdSettings` in `config.json`, and in the System
+Console under **Authentication › OpenID Connect**:
+
+```json
+{
+  "OpenIdSettings": {
+    "Enable": true,
+    "DiscoveryEndpoint": "https://id.example.com/realms/main/.well-known/openid-configuration",
+    "Id": "mattermost",
+    "Secret": "the client secret your provider issued",
+    "ButtonText": "Log in with SSO",
+    "ButtonColor": "#145DBF"
+  }
+}
+```
+
+What each one is for:
+
+- `Enable` turns the provider on. It is off by default.
+- `Id` and `Secret` are the client credentials from your identity provider.
+- `DiscoveryEndpoint` on its own is enough for the endpoints. Point it at your
+  provider's `/.well-known/openid-configuration`, or at the bare issuer URL and
+  that path is appended for you, and the server reads the authorisation, token
+  and userinfo endpoints out of the document. It is cached for an hour, so a
+  provider that changes its endpoints is picked up without a restart.
+- If you would rather not use discovery, leave `DiscoveryEndpoint` empty and
+  set `AuthEndpoint`, `TokenEndpoint` and `UserAPIEndpoint` by hand instead.
+  Three URLs to keep correct rather than one, which is the only reason to
+  prefer it.
+- `Scope` defaults to `profile openid email`. `openid` has to stay in it.
+- `ButtonText` is the label on the login button. Leave it empty for upstream's
+  default wording. `ButtonColor` is the button's colour as a hex value,
+  `#145DBF` unless you change it.
+- `UsePreferredUsername` takes the Mattermost username from the
+  `preferred_username` claim rather than the local part of the email address.
+
+On the provider side, register the redirect URI as your site URL plus
+`/signup/openid/complete`:
+
+```
+https://chat.example.com/signup/openid/complete
+```
+
+### If the provider is on an internal address
+
+Worth reading before you debug anything else, because it is the failure we
+actually hit. If your identity provider answers only on an internal hostname or
+a loopback address, a Docker service name or `127.0.0.1`, the login fails and
+the server log says:
+
+```
+address forbidden, you may need to set AllowedUntrustedInternalConnections
+```
+
+Mattermost is protecting itself, not breaking. It makes the discovery, token
+and userinfo requests through an HTTP client that refuses reserved and loopback
+address ranges, which is what stops a server being talked into fetching things
+from your internal network. Name the host explicitly to allow it:
+
+```json
+{
+  "ServiceSettings": {
+    "AllowedUntrustedInternalConnections": "keycloak 127.0.0.1"
+  }
+}
+```
+
+The value is a space or comma separated list of hostnames, IP addresses and
+CIDR ranges. Keep it to the hosts that need it. A provider on a public
+hostname needs no entry at all.
 
 ## Network and ports
 
@@ -209,5 +288,7 @@ fail to connect. This is the single most common misconfiguration.
 - [Self-host from scratch](/selfhost) for a complete Compose stack.
 - [Upgrading](/upgrading) for what happens on a server upgrade.
 - [Troubleshooting](/troubleshooting) if calls do not connect.
+- [Single sign-on](/sso) for why OpenID Connect needs Mattermore Server and
+  what it does not cover.
 - [Licensing and legality](/licensing) for what this does and does not
   change about your licence position.

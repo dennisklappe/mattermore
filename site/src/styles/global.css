@@ -1267,3 +1267,236 @@ td.soon {
     font-size: 0.88rem;
     color: var(--muted);
 }
+
+/* ---- official apps note ------------------------------------------------ */
+
+.apps-note {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 1.75rem 2rem;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.apps-note p:last-child {
+    margin-bottom: 0;
+}
+
+.apps-note strong {
+    color: var(--ink);
+    font-weight: 600;
+}
+
+/* ---- client downloads -------------------------------------------------- */
+
+.app-grid {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem auto 0;
+    max-width: 46rem;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.app-grid a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.9rem 1.1rem;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    text-decoration: none;
+    height: 100%;
+}
+
+.app-grid a:hover {
+    border-color: var(--brand);
+}
+
+.app-label {
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.app-note {
+    font-size: 0.88rem;
+    color: var(--muted);
+}
+
+.app-grid a.is-yours {
+    border-color: var(--brand);
+    background: var(--brand-tint);
+}
+
+/* ---- managed hosting --------------------------------------------------- */
+
+.hosting-layout {
+    display: grid;
+    gap: 2.5rem;
+    align-items: start;
+    padding-block: clamp(2.25rem, 4vw, 3rem);
+}
+
+@media (min-width: 64rem) {
+    .hosting-layout {
+        grid-template-columns: minmax(0, 1fr) 19rem;
+        gap: 3.5rem;
+    }
+
+    .hosting-aside {
+        position: sticky;
+        top: 5.5rem;
+    }
+}
+
+.hosting-body {
+    max-width: 44rem;
+}
+
+.hosting-body h2 {
+    font-size: 1.5rem;
+    margin-top: 2.75rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--line-soft);
+    margin-bottom: 0.85rem;
+}
+
+.hosting-body > h2:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.hosting-body ul {
+    padding-left: 1.3rem;
+    margin: 0 0 1.15em;
+}
+
+.hosting-body li {
+    margin-bottom: 0.5rem;
+}
+
+.price-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--bg-soft);
+    padding: 1.5rem;
+}
+
+.price-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.1rem;
+    display: grid;
+    gap: 0.7rem;
+}
+
+.price-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.95rem;
+}
+
+.price-list li:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.price-list strong {
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+/* ---- form -------------------------------------------------------------- */
+
+.hosting-form {
+    margin-top: 1.5rem;
+    max-width: 34rem;
+}
+
+.field {
+    margin-bottom: 1.25rem;
+}
+
+.field label {
+    display: block;
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 0.94rem;
+    margin-bottom: 0.4rem;
+}
+
+.field input,
+.field textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 0.97rem;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.8rem;
+}
+
+.field textarea {
+    resize: vertical;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+    border-color: var(--brand);
+}
+
+/* The suffix sits inside the control so the address reads as one thing. */
+.subdomain {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #fff;
+    overflow: hidden;
+}
+
+.subdomain:focus-within {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+    border-color: var(--brand);
+}
+
+.subdomain input {
+    border: 0;
+    border-radius: 0;
+    flex: 1;
+    min-width: 0;
+}
+
+.subdomain input:focus-visible {
+    outline: none;
+}
+
+.subdomain-suffix {
+    display: flex;
+    align-items: center;
+    padding: 0 0.85rem;
+    background: var(--bg-soft);
+    border-left: 1px solid var(--line);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.hint {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin: 0.45rem 0 0;
+}

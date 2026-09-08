@@ -1,24 +1,26 @@
 ---
 title: "Call transcription on self-hosted Mattermost"
-description: "Mattermost call transcription that runs on your own hardware with whisper.cpp, no cloud speech API and no per-minute billing."
+description: "Mattermost call transcription on your own hardware with whisper.cpp by default, and what the opt-in remote API backends cost you."
 label: "Transcription"
 order: 4
 ---
 
 Mattermost call transcription is the feature where self-hosting actually pays
-off. The transcriber does not call out to a cloud speech service. It bundles
-whisper.cpp and runs the model on your own machine, so the audio of your calls
-never leaves your infrastructure. Mattermore, a maintained fork of
-`mattermost-plugin-calls`, removes the Enterprise licence gate in front of it.
-What is left is infrastructure you have to run, and this page is straight about
-how much.
+off. On the default backend the transcriber does not call out to a cloud speech
+service. It bundles whisper.cpp and runs the model on your own machine, so the
+audio of your calls never leaves your infrastructure. There are remote backends
+too, and this page is straight about what switching to one costs you.
+Mattermore, a maintained fork of `mattermost-plugin-calls`, removes the
+Enterprise licence gate in front of the feature. What is left is infrastructure
+you have to run, and a choice you should make deliberately.
 
-## Nothing leaves the server
+## The default keeps audio on your server
 
 `calls-transcriber` bundles whisper.cpp version 1.7.5, with the tiny, base and
 small models built into the image. You can read that off `WHISPER_VERSION` and
-`WHISPER_MODELS` in its Makefile. The models ship inside the container, so
-there is no download step at job time and no API endpoint to configure.
+`WHISPER_MODELS` in its Makefile. The models ship inside the container, so on
+the default backend there is no download step at job time and no API endpoint
+to configure.
 
 The consequences are the point:
 
@@ -30,8 +32,44 @@ The consequences are the point:
   agreement to negotiate.
 
 If your organisation self-hosts Mattermost for data protection reasons, this is
-the whole argument. A cloud transcription API would undo the reason you
-self-host in the first place. Running Whisper locally does not.
+the whole argument, and it is why local whisper.cpp is the backend we recommend
+you leave alone. A cloud transcription API would undo the reason you self-host
+in the first place. Running Whisper locally does not.
+
+## The remote backends are an opt-in, and they send your audio away
+
+Local whisper.cpp is the default, not the only option. The backend is selected
+with the `TRANSCRIBE_API` variable on the transcriber job, and it takes three
+values:
+
+- `whisper.cpp`, the default. Audio never leaves the container.
+- `azure`, Azure Cognitive Services Speech. This one is upstream's rather than
+  ours: the stock calls plugin already offers an "Azure AI" choice for its
+  `TranscribeAPI` setting, next to `TranscribeAPIAzureSpeechKey` and
+  `TranscribeAPIAzureSpeechRegion`.
+- `openai/api`, any remote service implementing OpenAI's
+  `/v1/audio/transcriptions` endpoint. This one Mattermore added. It works with
+  OpenAI itself, Groq, LocalAI, or a whisper server you run, configured through
+  `OPENAI_API_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_API_MODEL` and
+  `OPENAI_API_TIMEOUT_SECONDS`.
+
+Now the part that matters, stated plainly: selecting either remote backend
+uploads the recorded call audio to a third party. Every participant's audio
+goes to whichever endpoint you point it at, subject to that provider's
+retention and training policies, and the guarantee that made self-hosting worth
+it is gone the moment you switch it on. That is why it is an explicit opt-in
+and why nothing here switches it on for you. If you want a larger model without
+the exposure, point `OPENAI_API_BASE_URL` at a service you run yourself.
+
+Two smaller details. The API key is sent as a bearer token and is kept out of
+the logs. Live captions ignore the setting entirely and always use the local
+whisper.cpp models.
+
+The caveat we would rather you heard from us: the OpenAI-compatible backend has
+only ever been tested against a mock server standing in for the API, never
+against a real provider. Request handling, retries, chunking and timeouts are
+covered by tests written against that mock. How an actual endpoint behaves is
+not something we have verified. Run your own trial before you rely on it.
 
 ## How it works
 
@@ -106,8 +144,10 @@ check is not the only requirement.
 
 ### Does Mattermost call transcription send audio to the cloud?
 
-No. `calls-transcriber` runs whisper.cpp inside the container on your own host.
-No audio is sent to an external speech API.
+Not on the default backend. `calls-transcriber` runs whisper.cpp inside the
+container on your own host and no audio is sent to an external speech API. If
+you set `TRANSCRIBE_API` to `azure` or `openai/api` it does send call audio to
+that third party, which is why those are opt-in.
 
 ### What speech to text engine does Mattermost use?
 
@@ -133,6 +173,7 @@ a replacement plugin.
 
 ### What does self hosted meeting transcription cost to run?
 
-CPU time and one extra service. There is no per-minute API charge, and the
-recorder and transcriber images are both public and Apache-2.0. Your real cost
-is the host that runs the job containers.
+CPU time and one extra service. On the default backend there is no per-minute
+API charge, and the recorder and transcriber images are both public and
+Apache-2.0. Your real cost is the host that runs the job containers. Choose a
+remote backend and you take on that provider's metered billing as well.

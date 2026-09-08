@@ -1,15 +1,16 @@
 ---
 title: "Raising the user limit on self-hosted Mattermost"
-description: "Mattermost Team Edition caps an unlicensed server at 250 users. Where the cap lives, why it dropped from 5,000, and how Mattermore raises it."
+description: "Mattermost Team Edition caps an unlicensed server at 250 users. Where the cap lives, how much it tightened in v11, and how Mattermore raises it."
 label: "User limit"
 order: 7
 ---
 
-In v11 Mattermost cut the user cap on an unlicensed self-hosted server from
-5,000 to 250, one of the most-cited reasons people left the project. This page
-explains where the mattermost user limit is enforced, what Mattermore
-changes, and why the 10,000 message history complaint you have read about is a
-different problem with a surprising cause.
+In v11 Mattermost cut the user cap on an unlicensed self-hosted server to 250,
+one of the most-cited reasons people left the project. The previous cap was
+substantially higher, high enough that most self-hosted servers never came near
+it. This page explains where the mattermost user limit is enforced, what
+Mattermore changes, and why the 10,000 message history complaint you have read
+about is a different problem with a surprising cause.
 
 ## Scope: this is Mattermore Server, not the calls plugin
 
@@ -43,16 +44,22 @@ So the mattermost team edition user cap is not a licence check bolted onto
 the application. It is a pair of constants consulted on the account lifecycle
 paths.
 
-## It used to be 5,000
+## It used to be much higher
 
 Worth stating plainly, because a lot of the advice online predates the change.
-Version 10.6 allowed 5,000 users on an unlicensed server. Version 11 cut that to
-250.
+Before v11 an unlicensed server could carry far more than 250 users.
 
-For a small company or a community server, 5,000 was effectively no limit. 250
-is a number you can hit. Plenty of organisations discovered the
-mattermost 250 user limit the day they tried to onboard a new intake, and a
-good number went looking for another chat server rather than a quote.
+We are not going to put a figure on it here. The numbers circulating in forum
+posts are second-hand, and the v11 source we check everything else on this site
+against only tells us what the cap is now, not what it replaced. If you need
+the exact earlier value, Mattermost's own release notes are the place to get
+it, not us.
+
+The direction and the size of the change are not in doubt. The old cap was
+effectively no limit for a small company or a community server. 250 is a number
+you can hit. Plenty of organisations discovered the mattermost 250 user limit
+the day they tried to onboard a new intake, and a good number went looking for
+another chat server rather than a quote.
 
 ## What Mattermore changes
 
@@ -108,11 +115,13 @@ An unlicensed self-hosted server has a soft limit of 200 users and a hard limit
 of 250, defined in `server/channels/app/limits.go` and enforced when a user is
 created or reactivated.
 
-### Why did Mattermost drop the limit from 5,000 to 250?
+### Why did Mattermost tighten the user limit in v11?
 
-The 5,000 figure applied up to v10.6. Version 11 replaced it with the 200 soft
-and 250 hard limits. It is one of the most common reasons cited by people who
-left the project.
+Version 11 introduced the 200 soft and 250 hard limits for unlicensed servers,
+defined in `server/channels/app/limits.go`. The cap before that was
+considerably higher. We do not quote the earlier number because we cannot read
+it out of the current source, so check Mattermost's release notes for it. The
+change is one of the most common reasons cited by people who left the project.
 
 ### How do I remove the 250 user limit in Mattermost?
 
@@ -129,8 +138,10 @@ history.
 ### Should I take a free Entry licence to get past the user cap?
 
 Be careful. Moving from unlicensed to Entry gets you features but imposes a
-10,000 post history limit you did not previously have. Many people discover this
-only after their history starts disappearing.
+10,000 post history limit you did not previously have, and it swaps the
+hard-coded 250 for whatever seat count the licence itself carries rather than
+removing the cap. Many people discover the history part only after their
+messages start disappearing.
 
 ### What happens when my server hits the user cap?
 

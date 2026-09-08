@@ -18,10 +18,39 @@ correct without anyone remembering to update a website.
 
 ## What works today
 
+This list means verified on a running server, not read off the source.
+
 Group audio calls in any channel, on any self-hosted server, with no licence.
 Screen sharing works in those calls, as it already did upstream.
 
+The other licence gates in the calls plugin are lifted and confirmed on the
+same unlicensed server: call recording, transcription, host controls and the
+rtcd gate. Recording and transcription still need `calls-offloader` deployed
+before they do anything, which is an infrastructure job rather than a licence
+one.
+
+Single sign-on works end to end. The full OpenID Connect login was run against
+Keycloak on a Mattermore server and returned a working session. See
+[single sign-on](/sso).
+
 Video works in direct messages, experimental, exactly as upstream ships it.
+
+## Written, but not yet verified
+
+Three things are in the tree and have not earned the word "works".
+
+**Group video** is written: streams mapped by sender, a participant grid, and
+the direct message restriction removed. It has never been run in a browser.
+Until three cameras have been in one channel call and someone has looked at the
+result, treat it as code rather than a feature.
+
+**The licence badge removal** has not been type-checked. It is a small change
+to web application strings and it may well be fine, but nobody has compiled it
+yet.
+
+**A Docker image** does not exist. The calls plugin bundle is what you can
+download today. Running the server-side features means building Mattermore
+Server yourself.
 
 ## Why group video is not just a licence check
 
@@ -47,7 +76,8 @@ The client simply discards `sender_id`.
 
 The work is to map streams by sender, replace the single-stream state with a
 keyed map in both components, and write a grid that handles more than two
-people. All of it in AGPL code.
+people. All of it in AGPL code, and all of it now written. What it has not had
+is a browser, which is why it sits above under written rather than working.
 
 ## Why some things stay out of reach
 

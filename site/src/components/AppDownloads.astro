@@ -1,0 +1,44 @@
+---
+// Direct download links, so nobody is bounced through a marketing page to
+// fetch a client. Every URL here was checked to resolve; the Windows and Linux
+// entries point at the desktop release list because Mattermost publishes no
+// stable per-platform alias for those, only for the macOS disk image.
+const apps = [
+  { id: 'macos',   label: 'macOS',   note: 'Disk image',      href: 'https://latest.mattermost.com/mattermost-desktop-dmg', direct: true },
+  { id: 'windows', label: 'Windows', note: 'Latest release',  href: 'https://github.com/mattermost/desktop/releases/latest' },
+  { id: 'linux',   label: 'Linux',   note: 'deb, rpm, AppImage', href: 'https://github.com/mattermost/desktop/releases/latest' },
+  { id: 'ios',     label: 'iPhone and iPad', note: 'App Store', href: 'https://apps.apple.com/app/mattermost/id1257222717', direct: true },
+  { id: 'android', label: 'Android', note: 'Google Play',     href: 'https://play.google.com/store/apps/details?id=com.mattermost.rn', direct: true },
+];
+---
+<ul class="app-grid" id="app-grid">
+  {apps.map((app) => (
+    <li>
+      <a href={app.href} data-platform={app.id} target="_blank" rel="noopener noreferrer">
+        <span class="app-label">{app.label}</span>
+        <span class="app-note">{app.note}</span>
+      </a>
+    </li>
+  ))}
+</ul>
+
+<script is:inline>
+  // Nudge the visitor's own platform to the front. Everything stays visible,
+  // because platform sniffing is a hint and gets it wrong often enough.
+  (function () {
+    var grid = document.getElementById('app-grid');
+    if (!grid) return;
+    var ua = navigator.userAgent;
+    var id = /iPhone|iPad|iPod/.test(ua) ? 'ios'
+      : /Android/.test(ua) ? 'android'
+      : /Mac OS X/.test(ua) ? 'macos'
+      : /Windows/.test(ua) ? 'windows'
+      : /Linux/.test(ua) ? 'linux' : null;
+    if (!id) return;
+    var link = grid.querySelector('[data-platform="' + id + '"]');
+    if (!link) return;
+    link.classList.add('is-yours');
+    var item = link.parentElement;
+    item.parentElement.insertBefore(item, item.parentElement.firstChild);
+  })();
+</script>

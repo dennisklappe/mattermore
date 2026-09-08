@@ -45,7 +45,8 @@ This is expected, not a fault.
 
 - Video is limited to direct messages.
 - That is a limit in the upstream interface, not a licence check.
-- Group video is not done yet. Progress is tracked on the [roadmap](/roadmap).
+- Mattermore's group video change is written but not yet browser-tested, so on
+  a stock build the button stays DM-only. Status is on the [roadmap](/roadmap).
 
 Audio in channels is unaffected, so a group call still works, just without
 camera.

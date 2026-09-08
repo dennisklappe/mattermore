@@ -174,6 +174,6 @@ docker compose exec mattermost env | grep MM_CALLS
 **Calls connect then drop.** Port 8443, or a `SITE_URL` that does not match the
 address people use.
 
-**Plugin upload rejected.** Plugin signature verification is on. See the
-[install guide](/install#signature) for what turning it off means before
-you turn it off.
+**Plugin upload rejected.** Plugin signature verification is on. See
+[configuration](/configuration#configjson-plugin-settings) for what turning it
+off means before you turn it off.
