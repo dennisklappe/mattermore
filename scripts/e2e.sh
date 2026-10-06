@@ -49,10 +49,19 @@ done
 [ "$created" -eq "$USERS" ] || { echo "FAIL: only $created of $USERS users created" >&2; exit 1; }
 
 echo "==> checking the calls plugin"
-# The output lists enabled plugins first, then disabled ones.
-enabled="$(mmctl plugin list | awk '/^Listing disabled/ {exit} {print}')"
+# The output lists enabled plugins first, then disabled ones. The plugin starts
+# in the background, so give it a minute rather than racing it.
+enabled=""
+for _ in $(seq 1 20); do
+    enabled="$(mmctl plugin list | awk '/^Listing disabled/ {exit} {print}')"
+    grep -q "com.mattermost.calls: Calls (Mattermore)" <<<"$enabled" && break
+    sleep 3
+done
 echo "$enabled"
-grep -q "com.mattermost.calls: Calls (Mattermore)" <<<"$enabled" \
-    || { echo "FAIL: Mattermore calls plugin is not enabled" >&2; exit 1; }
+if ! grep -q "com.mattermost.calls: Calls (Mattermore)" <<<"$enabled"; then
+    echo "--- plugin list" >&2; mmctl plugin list >&2 || true
+    echo "--- server log, plugin lines" >&2; docker logs "$RUN-mm" 2>&1 | grep -i "plugin\|calls" | tail -40 >&2
+    echo "FAIL: Mattermore calls plugin is not enabled" >&2; exit 1
+fi
 
 echo "PASS: $created users created, calls plugin enabled"
