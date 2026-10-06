@@ -69,7 +69,7 @@ Download the latest `mattermore-*.tar.gz` from
 against the published checksum:
 
 ```bash
-sha256sum -c mattermore-1000.12.5.tar.gz.sha256
+sha256sum -c mattermore-1000.12.3.tar.gz.sha256
 ```
 
 Then in Mattermost:

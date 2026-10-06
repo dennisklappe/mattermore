@@ -1,8 +1,8 @@
 diff --git a/webapp/src/selectors.ts b/webapp/src/selectors.ts
-index 4ee2d74..6cd1f84 100644
+index 218c4bb..9739171 100644
 --- a/webapp/src/selectors.ts
 +++ b/webapp/src/selectors.ts
-@@ -633,11 +633,12 @@ export const callsUserPreferences = (state: GlobalState): CallsUserPreferences =
+@@ -578,11 +578,12 @@ export const callsUserPreferences = (state: GlobalState): CallsUserPreferences =
  export const shouldPlayJoinUserSound = (state: GlobalState): boolean =>
      profilesInCurrentCall(state).length < callsUserPreferences(state).joinSoundParticipantsThreshold;
  

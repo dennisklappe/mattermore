@@ -1,5 +1,5 @@
 diff --git a/standalone/src/init.ts b/standalone/src/init.ts
-index 58bd8cf..e73426b 100644
+index 07ec43a..c847725 100644
 --- a/standalone/src/init.ts
 +++ b/standalone/src/init.ts
 @@ -56,7 +56,6 @@ import {DesktopNotificationArgs, Store, WebAppUtils} from 'plugin/types/mattermo
@@ -479,10 +479,18 @@ index d987eae..1e80949 100644
  
      public getRemoteVoiceTracks(): MediaStreamTrack[] {
 diff --git a/webapp/src/components/call_widget/component.test.tsx b/webapp/src/components/call_widget/component.test.tsx
-index e29cfd4..822af2c 100644
+index 7d8446d..d3386b8 100644
 --- a/webapp/src/components/call_widget/component.test.tsx
 +++ b/webapp/src/components/call_widget/component.test.tsx
-@@ -124,6 +124,7 @@ describe('CallWidget', () => {
+@@ -81,7 +81,6 @@ const props: Props = {
+     openModal: jest.fn(),
+     openCallsUserSettings: jest.fn(),
+     enableVideo: false,
+-    connectedDMUser: undefined,
+     isAdmin: false,
+ };
+ 
+@@ -98,6 +97,7 @@ describe('CallWidget', () => {
              channelID: 'channel-id',
              getRemoteVoiceTracks: () => [],
              getRemoteScreenStream: () => null,
@@ -490,7 +498,7 @@ index e29cfd4..822af2c 100644
              getLocalScreenStream: () => null,
              on: jest.fn(),
              off: jest.fn(),
-@@ -224,6 +225,7 @@ describe('leave button behavior', () => {
+@@ -198,6 +198,7 @@ describe('leave button behavior', () => {
              channelID: 'channel-id',
              getRemoteVoiceTracks: () => [],
              getRemoteScreenStream: () => null,
@@ -498,36 +506,28 @@ index e29cfd4..822af2c 100644
              getLocalScreenStream: () => null,
              on: jest.fn(),
              off: jest.fn(),
-@@ -409,6 +411,7 @@ describe('DM call presentation', () => {
-             channelID: dmChannelID,
-             getSessionID: () => ownSession.session_id,
-             getRemoteVoiceTracks: () => [],
-+            getRemoteVideoStreams: () => new Map(),
-             getRemoteScreenStream: () => null,
-             getLocalScreenStream: () => null,
-             on: jest.fn(),
-@@ -578,6 +581,7 @@ describe('DM call presentation with video enabled', () => {
-             channelID: dmChannelID,
-             getSessionID: () => ownSession.session_id,
-             getRemoteVoiceTracks: () => [],
-+            getRemoteVideoStreams: () => new Map(),
-             getRemoteScreenStream: () => null,
-             getLocalScreenStream: () => null,
-             on: jest.fn(),
 diff --git a/webapp/src/components/call_widget/component.tsx b/webapp/src/components/call_widget/component.tsx
-index 3405fa0..9404e57 100644
+index 997db98..6184c05 100644
 --- a/webapp/src/components/call_widget/component.tsx
 +++ b/webapp/src/components/call_widget/component.tsx
-@@ -53,7 +53,7 @@ import VideoOnIcon from 'src/components/icons/video_on';
+@@ -51,7 +51,7 @@ import VideoOffIcon from 'src/components/icons/video_off';
+ import VideoOnIcon from 'src/components/icons/video_on';
  import {CallIncomingCondensed} from 'src/components/incoming_calls/call_incoming_condensed';
- import {RingbackContainer} from 'src/components/incoming_calls/ringback_container';
  import {LeaveCallMenu} from 'src/components/leave_call_menu';
 -import {JoinLoadingOverlay, VideoLoadingOverlay} from 'src/components/loading_overlays';
 +import {JoinLoadingOverlay} from 'src/components/loading_overlays';
  import {
      CallAlertConfigs,
      CallRecordingDisclaimerStrings,
-@@ -166,7 +166,7 @@ interface State {
+@@ -142,7 +142,6 @@ interface Props {
+     openModal: <P>(modalData: ModalData<P>) => void;
+     openCallsUserSettings: () => void;
+     enableVideo: boolean,
+-    connectedDMUser: UserProfile | undefined,
+     isAdmin: boolean,
+ }
+ 
+@@ -162,7 +161,7 @@ interface State {
      screenStream: MediaStream | null,
      selfVideoStream: MediaStream | null,
      initializingSelfVideo: boolean,
@@ -536,7 +536,7 @@ index 3405fa0..9404e57 100644
      currentAudioInputDevice?: MediaDeviceInfo | null,
      currentAudioOutputDevice?: MediaDeviceInfo | null,
      currentVideoInputDevice?: MediaDeviceInfo | null,
-@@ -231,12 +231,6 @@ export default class CallWidget extends React.PureComponent<Props, State> {
+@@ -227,12 +226,6 @@ export default class CallWidget extends React.PureComponent<Props, State> {
                  alignItems: 'center',
                  gap: '6px',
              },
@@ -549,7 +549,7 @@ index 3405fa0..9404e57 100644
              frame: {
                  width: '100%',
                  background: 'var(--center-channel-bg)',
-@@ -328,7 +322,7 @@ export default class CallWidget extends React.PureComponent<Props, State> {
+@@ -324,7 +317,7 @@ export default class CallWidget extends React.PureComponent<Props, State> {
              removeConfirmation: null,
              leaveMenuOpen: false,
              selfVideoStream: null,
@@ -558,7 +558,7 @@ index 3405fa0..9404e57 100644
              initializingSelfVideo: false,
          };
          this.node = React.createRef();
-@@ -537,10 +531,18 @@ export default class CallWidget extends React.PureComponent<Props, State> {
+@@ -531,10 +524,18 @@ export default class CallWidget extends React.PureComponent<Props, State> {
              });
          });
  
@@ -581,7 +581,7 @@ index 3405fa0..9404e57 100644
          });
  
          window.callsClient.on('devicechange', (devices: MediaDevices, videoDevices: MediaDeviceInfo[]) => {
-@@ -728,8 +730,55 @@ export default class CallWidget extends React.PureComponent<Props, State> {
+@@ -722,8 +723,55 @@ export default class CallWidget extends React.PureComponent<Props, State> {
          if (this.screenPlayer && this.state.screenStream !== prevState.screenStream) {
              this.screenPlayer.srcObject = this.state.screenStream;
          }
@@ -637,7 +637,7 @@ index 3405fa0..9404e57 100644
      private getGlobalWidgetBounds = () => {
          const bounds = {
              width: 0,
-@@ -2278,63 +2327,41 @@ export default class CallWidget extends React.PureComponent<Props, State> {
+@@ -2339,85 +2387,59 @@ export default class CallWidget extends React.PureComponent<Props, State> {
          );
      };
  
@@ -685,15 +685,14 @@ index 3405fa0..9404e57 100644
      renderProfiles = () => {
 -        // Here we are assuming this only renders in a DM which is the case
 -        // right now.
-+        const sessions = this.getCallSessions();
-+        const videoView = sessions.some((session) => session.video) || this.state.initializingSelfVideo;
-         const selfProfile = this.props.profiles[this.props.currentUserID] || this.props.currentUserProfile;
-         const otherProfile = this.props.connectedDMUser;
+-        const selfProfile = this.props.profiles[this.props.currentUserID];
+-        const otherProfile = this.props.connectedDMUser;
 -        const otherSession = this.props.otherSessions[0];
 -        const selfSession = this.props.currentSession;
 -        const videoView = (otherSession?.video || selfSession?.video) ?? false;
-         const calleePending = (this.props.clientConnecting || this.props.isDMCalling) && Boolean(otherProfile);
-         const selfOnly = this.props.otherSessions.length === 0 && !calleePending;
++        const sessions = this.getCallSessions();
++        const videoView = sessions.some((session) => session.video) || this.state.initializingSelfVideo;
+         const selfOnly = this.props.otherSessions.length === 0;
 +        const mirrorSelfVideo = localStorage.getItem(STORAGE_CALLS_MIRROR_VIDEO_KEY) === 'true';
  
          return (
@@ -710,17 +709,13 @@ index 3405fa0..9404e57 100644
 +                    overflowY: 'auto',
                  }}
              >
--
--                { calleePending && otherProfile &&
-+                {calleePending && otherProfile &&
-                 <CallsWidgetProfile
-                     videoStream={null}
-                     profile={otherProfile}
-@@ -2348,28 +2375,39 @@ export default class CallWidget extends React.PureComponent<Props, State> {
-                 />
-                 }
++                {sessions.map((session) => {
++                    const profile = this.props.profiles[session.user_id];
++                    if (!profile) {
++                        return null;
++                    }
  
--                { !calleePending && otherProfile && otherSession &&
+-                { otherProfile && otherSession &&
 -                <CallsWidgetProfile
 -                    videoStream={this.state.otherVideoStream}
 -                    profile={otherProfile}
@@ -729,15 +724,21 @@ index 3405fa0..9404e57 100644
 -                    hasVideo={Boolean(otherSession.video)}
 -                    videoView={videoView}
 -                    mirrorVideo={false}
--                    testID='calls-widget-profile-other'
 -                />
 -                }
-+                {sessions.map((session) => {
-+                    const profile = this.props.profiles[session.user_id];
-+                    if (!profile) {
-+                        return null;
-+                    }
-+
+-
+-                { selfProfile && selfSession &&
+-                <CallsWidgetProfile
+-                    videoStream={this.state.selfVideoStream}
+-                    profile={selfProfile}
+-                    isSpeaking={Boolean(selfSession.voice)}
+-                    isMuted={!selfSession.unmuted}
+-                    hasVideo={Boolean(selfSession.video)}
+-                    videoView={videoView}
+-                    mirrorVideo={localStorage.getItem(STORAGE_CALLS_MIRROR_VIDEO_KEY) === 'true'}
+-                    singleSession={selfOnly}
+-                />
+-                }
 +                    const isSelf = session.session_id === this.props.currentSession?.session_id;
 +
 +                    return (
@@ -746,44 +747,27 @@ index 3405fa0..9404e57 100644
 +                            videoStream={this.getSessionVideoStream(session)}
 +                            profile={profile}
 +                            isSpeaking={Boolean(session.voice)}
-+                            isMuted={!calleePending && !session.unmuted}
++                            isMuted={!session.unmuted}
 +                            hasVideo={Boolean(session.video) || (isSelf && this.state.initializingSelfVideo)}
 +                            videoView={videoView}
 +                            mirrorVideo={isSelf && mirrorSelfVideo}
 +                            singleSession={isSelf && selfOnly}
-+                            testID={isSelf ? 'calls-widget-profile-self' : 'calls-widget-profile-other'}
 +                        />
 +                    );
 +                })}
- 
--                { selfProfile && (selfSession || this.props.clientConnecting) &&
-+                {!this.props.currentSession && selfProfile && (this.props.clientConnecting || calleePending) &&
-                 <CallsWidgetProfile
--                    videoStream={this.state.selfVideoStream}
-+                    videoStream={null}
-                     profile={selfProfile}
--                    isSpeaking={Boolean(selfSession?.voice)}
--                    isMuted={!calleePending && Boolean(selfSession) && !selfSession?.unmuted}
--                    hasVideo={Boolean(selfSession?.video)}
-+                    isSpeaking={false}
-+                    isMuted={false}
-+                    hasVideo={false}
-                     videoView={videoView}
--                    mirrorVideo={localStorage.getItem(STORAGE_CALLS_MIRROR_VIDEO_KEY) === 'true'}
-+                    mirrorVideo={false}
-                     singleSession={selfOnly}
-                     testID='calls-widget-profile-self'
-                 />
-@@ -2457,8 +2495,6 @@ export default class CallWidget extends React.PureComponent<Props, State> {
-         // A ringing DM call hasn't been answered yet, so hanging up cancels it rather than leaving it.
-         const leaveMenuLabel = this.props.isDMCalling ? formatMessage({defaultMessage: 'Cancel call'}) : formatMessage({defaultMessage: 'Leave call'});
+             </div>
+         );
+     };
+@@ -2499,8 +2521,6 @@ export default class CallWidget extends React.PureComponent<Props, State> {
+         const settingsButtonLabel = formatMessage({defaultMessage: 'More options'});
+         const leaveMenuLabel = formatMessage({defaultMessage: 'Leave call'});
  
 -        // const shouldRenderVideoContainer = this.props.currentSession?.video || this.state.initializingSelfVideo || this.props.otherSessions.some((s) => s.video);
 -
          return (
              <div
                  id='calls-widget'
-@@ -2550,8 +2586,6 @@ export default class CallWidget extends React.PureComponent<Props, State> {
+@@ -2584,8 +2604,6 @@ export default class CallWidget extends React.PureComponent<Props, State> {
  
                      {this.props.enableVideo && this.renderTopBar() }
  
@@ -792,7 +776,7 @@ index 3405fa0..9404e57 100644
                      {this.props.enableVideo && this.renderMiddleBar() }
  
                      <div
-@@ -2729,123 +2763,9 @@ const LeaveCallButton = styled(DotMenuButton)<{ $isActive: boolean }>`
+@@ -2755,123 +2773,9 @@ const LeaveCallButton = styled(DotMenuButton)<{ $isActive: boolean }>`
      }
  `;
  
@@ -919,7 +903,7 @@ index 3405fa0..9404e57 100644
  const WidgetProfileContainer = styled.div<{$videoView: boolean, $singleSession?: boolean}>`
    display: flex;
    position: relative;
-@@ -2853,7 +2773,8 @@ const WidgetProfileContainer = styled.div<{$videoView: boolean, $singleSession?:
+@@ -2879,7 +2783,8 @@ const WidgetProfileContainer = styled.div<{$videoView: boolean, $singleSession?:
    align-items: center;
    background: #E4EBFA;
    border-radius: 4px;
@@ -929,7 +913,7 @@ index 3405fa0..9404e57 100644
  
    ${({$videoView, $singleSession}) => $videoView && !$singleSession && css`
      aspect-ratio: 1;
-@@ -2905,6 +2826,10 @@ type CallsWidgetProfileProps = {
+@@ -2929,6 +2834,10 @@ type CallsWidgetProfileProps = {
  const CallsWidgetProfile = (props: CallsWidgetProfileProps) => {
      const MuteIcon = props.isMuted ? MutedIcon : UnmutedIcon;
  
@@ -940,8 +924,8 @@ index 3405fa0..9404e57 100644
      const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
      const videoElRefCb = (el: HTMLVideoElement | null) => {
          if (el) {
-@@ -2925,7 +2850,7 @@ const CallsWidgetProfile = (props: CallsWidgetProfileProps) => {
-             data-testid={props.testID}
+@@ -2948,7 +2857,7 @@ const CallsWidgetProfile = (props: CallsWidgetProfileProps) => {
+             $singleSession={props.singleSession}
          >
  
 -            {!props.hasVideo &&
@@ -949,7 +933,7 @@ index 3405fa0..9404e57 100644
              <Avatar
                  size={40}
                  border={false}
-@@ -2936,7 +2861,7 @@ const CallsWidgetProfile = (props: CallsWidgetProfileProps) => {
+@@ -2958,7 +2867,7 @@ const CallsWidgetProfile = (props: CallsWidgetProfileProps) => {
              />
              }
  
@@ -959,23 +943,55 @@ index 3405fa0..9404e57 100644
                  ref={videoElRefCb}
                  autoPlay={true}
 diff --git a/webapp/src/components/call_widget/index.ts b/webapp/src/components/call_widget/index.ts
-index 6190a4f..4d2150f 100644
+index f0490d0..210aa98 100644
 --- a/webapp/src/components/call_widget/index.ts
 +++ b/webapp/src/components/call_widget/index.ts
-@@ -97,7 +97,7 @@ const mapStateToProps = (state: GlobalState) => {
+@@ -4,7 +4,7 @@
+ import {GlobalState} from '@mattermost/types/store';
+ import {getChannel} from 'mattermost-redux/selectors/entities/channels';
+ import {getCurrentTeamId, getMyTeams, getTeam} from 'mattermost-redux/selectors/entities/teams';
+-import {getCurrentUserId, getUser, isCurrentUserSystemAdmin} from 'mattermost-redux/selectors/entities/users';
++import {getCurrentUserId, isCurrentUserSystemAdmin} from 'mattermost-redux/selectors/entities/users';
+ import {injectIntl} from 'react-intl';
+ import {connect} from 'react-redux';
+ import {bindActionCreators, Dispatch} from 'redux';
+@@ -41,7 +41,7 @@ import {
+     threadIDForCallInChannel,
+     transcriptionsEnabled,
+ } from 'src/selectors';
+-import {alphaSortSessions, getUserIdFromDM, isDMChannel, stateSortSessions} from 'src/utils';
++import {alphaSortSessions, stateSortSessions} from 'src/utils';
+ import {modals} from 'src/webapp_globals';
+ 
+ import CallWidget from './component';
+@@ -65,12 +65,6 @@ const mapStateToProps = (state: GlobalState) => {
+ 
+     const callThreadID = threadIDForCallInChannel(state, channel?.id || '');
+ 
+-    let connectedDMUser;
+-    if (channel && isDMChannel(channel)) {
+-        const otherID = getUserIdFromDM(channel.name, currentUserID);
+-        connectedDMUser = getUser(state, otherID);
+-    }
+-
+     return {
+         currentUserID,
+         channel,
+@@ -97,8 +91,7 @@ const mapStateToProps = (state: GlobalState) => {
          clientConnecting: clientConnecting(state),
          callThreadID,
          recordingsEnabled: recordingsEnabled(state),
 -        enableVideo: callsConfig(state).EnableVideo && isDMChannel(channel),
+-        connectedDMUser,
 +        enableVideo: callsConfig(state).EnableVideo,
-         connectedDMUser,
          otherSessions: sessionsForOtherUsersInCall(state),
          isAdmin: isCurrentUserSystemAdmin(state),
+     };
 diff --git a/webapp/src/components/expanded_view/component.tsx b/webapp/src/components/expanded_view/component.tsx
-index 91d478c..d1e252f 100644
+index 0ac3ae3..d3df205 100644
 --- a/webapp/src/components/expanded_view/component.tsx
 +++ b/webapp/src/components/expanded_view/component.tsx
-@@ -139,12 +139,16 @@ interface Props extends RouteComponentProps {
+@@ -136,12 +136,16 @@ interface Props extends RouteComponentProps {
  interface State {
      screenStream: MediaStream | null,
      selfVideoStream: MediaStream | null,
@@ -993,7 +1009,7 @@ index 91d478c..d1e252f 100644
  }
  
  const StyledMediaController = styled(MediaController)`
-@@ -293,12 +297,14 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
+@@ -290,12 +294,14 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
          this.state = {
              screenStream: null,
              selfVideoStream: null,
@@ -1009,7 +1025,7 @@ index 91d478c..d1e252f 100644
          };
  
          if (window.opener) {
-@@ -588,6 +594,29 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
+@@ -585,6 +591,29 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
      onSwitchViewClick = () => {
          this.setState({
              viewState: this.state.viewState === 'grid' ? 'speaker' : 'grid',
@@ -1039,7 +1055,7 @@ index 91d478c..d1e252f 100644
          });
      };
  
-@@ -618,8 +647,77 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
+@@ -615,8 +644,77 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
          if (this.screenPlayer && this.state.screenStream !== prevState.screenStream) {
              this.screenPlayer.srcObject = this.state.screenStream;
          }
@@ -1117,7 +1133,7 @@ index 91d478c..d1e252f 100644
      requestCallState = () => {
          const callsClient = getCallsClient();
          if (!callsClient) {
-@@ -707,11 +805,8 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
+@@ -704,11 +802,8 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
                  selfVideoStream: stream,
              });
          });
@@ -1131,7 +1147,7 @@ index 91d478c..d1e252f 100644
          callsClient.on('devicechange', (audioDevices: MediaDevices, videoDevices: MediaDeviceInfo[]) => {
              this.setAudioDevices(audioDevices);
              this.setVideoDevices(videoDevices);
-@@ -744,7 +839,7 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
+@@ -741,7 +836,7 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
  
          const screenStream = callsClient.getLocalScreenStream() || callsClient.getRemoteScreenStream();
          const selfVideoStream = callsClient.localVideoStream;
@@ -1140,7 +1156,7 @@ index 91d478c..d1e252f 100644
  
          // eslint-disable-next-line react/no-did-mount-set-state
          this.setState({
-@@ -763,7 +858,8 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
+@@ -760,7 +855,8 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
              },
              screenStream,
              selfVideoStream,
@@ -1150,7 +1166,7 @@ index 91d478c..d1e252f 100644
          });
  
          if (window.opener) {
-@@ -829,6 +925,12 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
+@@ -826,6 +922,12 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
          window.removeEventListener('blur', this.handleBlur, true);
          this.#unlockNavigation?.();
          this.context?.removeFirstConnectListener(this.requestCallState);
@@ -1163,9 +1179,9 @@ index 91d478c..d1e252f 100644
      }
  
      dismissRecordingPrompt = () => {
-@@ -918,69 +1020,98 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
- 
-     isRingingCallee = () => this.props.isDMCalling && Boolean(this.props.connectedDMUser);
+@@ -913,116 +1015,115 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
+         return null;
+     };
  
 +    getActiveSessionID = () => {
 +        const {currentSession, otherSessions} = this.props;
@@ -1213,7 +1229,6 @@ index 91d478c..d1e252f 100644
 +                mirrorVideo={isSelf && localStorage.getItem(STORAGE_CALLS_MIRROR_VIDEO_KEY) === 'true'}
 +                width={opts?.width}
 +                aspectRatio={opts?.aspectRatio}
-+                testID={isSelf ? 'calls-popout-video-profile-self' : undefined}
 +            />
 +        );
 +    };
@@ -1234,7 +1249,7 @@ index 91d478c..d1e252f 100644
 +        // everyone gets a thumbnail. In speaker view the active speaker is
 +        // rendered large and is left out of the strip.
 +        const sessions = (this.props.currentSession ? [this.props.currentSession, ...this.props.otherSessions] : this.props.otherSessions)
-+            .filter((session) => this.props.screenSharingSession || this.isRingingCallee() || session.session_id !== activeSessionID);
++            .filter((session) => this.props.screenSharingSession || session.session_id !== activeSessionID);
  
          return (
              <VideoProfilesTopContainer
@@ -1250,7 +1265,6 @@ index 91d478c..d1e252f 100644
 -                            hasVideo={Boolean(selfSession.video)}
 -                            isSpeaking={Boolean(selfSession.voice)}
 -                            mirrorVideo={localStorage.getItem(STORAGE_CALLS_MIRROR_VIDEO_KEY) === 'true'}
--                            testID='calls-popout-video-profile-self'
 -                        />
 -                    </div>
 -                }
@@ -1304,15 +1318,9 @@ index 91d478c..d1e252f 100644
 +        const sessions = this.getCallSessions();
 +        const activeSessionID = this.getActiveSessionID();
  
-         const ringing = this.isRingingCallee();
-+        const otherProfile = this.props.connectedDMUser;
+         const shouldRenderTopVideoContainer = this.state.viewState === 'speaker' && ((this.props.currentSession?.video && this.props.otherSessions.length > 0) || this.props.otherSessions.some((s) => s.video));
  
-         const shouldRenderTopVideoContainer = this.state.viewState === 'speaker' && ((this.props.currentSession?.video && (this.props.otherSessions.length > 0 || ringing)) || this.props.otherSessions.some((s) => s.video));
- 
-@@ -1011,54 +1142,24 @@ export default class ExpandedView extends React.PureComponent<Props, State> {
-                 return renderRingingProfile({aspectRatio: '16/9'});
-             }
- 
+         const renderSpeakerView = () => {
 -            if (!profile || !session) {
 +            const session = sessions.find((s) => s.session_id === activeSessionID);
 +            if (!session) {
@@ -1341,10 +1349,7 @@ index 91d478c..d1e252f 100644
          const renderGridView = () => {
              return (
 -                <>
-+                <VideoProfilesGrid $columns={Math.ceil(Math.sqrt(sessions.length + (ringing ? 1 : 0)))}>
-                     {ringing && renderRingingProfile({width: '100%'})}
--
--                    { !ringing && otherProfile && otherSession &&
+-                    { otherProfile && otherSession &&
 -                    <VideoProfile
 -                        stream={this.state.otherVideoStream}
 -                        profile={otherProfile}
@@ -1370,12 +1375,13 @@ index 91d478c..d1e252f 100644
 -                    />
 -                    }
 -                </>
++                <VideoProfilesGrid $columns={Math.ceil(Math.sqrt(sessions.length))}>
 +                    {sessions.map((session) => this.renderSessionVideoProfile(session, {width: '100%'}))}
 +                </VideoProfilesGrid>
              );
          };
  
-@@ -1912,6 +2013,41 @@ const VideoProfilesTopContainer = styled.div`
+@@ -1872,6 +1973,41 @@ const VideoProfilesTopContainer = styled.div`
      justify-content: center;
      gap: 8px;
      padding: 0px 20px 8px 20px;
@@ -1417,7 +1423,7 @@ index 91d478c..d1e252f 100644
  `;
  
  const VideoProfilesContainer = styled.div<{$height: string}>`
-@@ -1929,24 +2065,30 @@ const VideoProfilesContainer = styled.div<{$height: string}>`
+@@ -1889,24 +2025,30 @@ const VideoProfilesContainer = styled.div<{$height: string}>`
      `}
  `;
  
@@ -1455,15 +1461,15 @@ index 91d478c..d1e252f 100644
  `;
  
  const VideoProfilePlayer = styled.video<{$mirror: boolean}>`
-@@ -1990,6 +2132,7 @@ type VideoProfileProps = {
+@@ -1948,6 +2090,7 @@ type VideoProfileProps = {
+     mirrorVideo: boolean;
+     width?: string;
      aspectRatio?: string;
-     ringing?: boolean;
-     testID?: string;
 +    avatarSize?: number;
  };
  
  const VideoProfile = (props: VideoProfileProps) => {
-@@ -1997,6 +2140,10 @@ const VideoProfile = (props: VideoProfileProps) => {
+@@ -1955,6 +2098,10 @@ const VideoProfile = (props: VideoProfileProps) => {
  
      const MuteIcon = props.isMuted ? MutedIcon : UnmutedIcon;
  
@@ -1474,9 +1480,9 @@ index 91d478c..d1e252f 100644
      useEffect(() => {
          if (videoEl && props.stream) {
              videoEl.srcObject = props.stream;
-@@ -2009,9 +2156,9 @@ const VideoProfile = (props: VideoProfileProps) => {
+@@ -1966,9 +2113,9 @@ const VideoProfile = (props: VideoProfileProps) => {
+             $width={props.width}
              $aspectRatio={props.aspectRatio}
-             data-testid={props.testID}
          >
 -            {!props.hasVideo &&
 +            {!showVideo &&
@@ -1486,7 +1492,7 @@ index 91d478c..d1e252f 100644
                  border={false}
                  url={Client4.getProfilePictureUrl(props.profile.id, props.profile.last_picture_update)}
                  borderGlowWidth={props.isSpeaking ? 3 : 0}
-@@ -2020,7 +2167,7 @@ const VideoProfile = (props: VideoProfileProps) => {
+@@ -1976,7 +2123,7 @@ const VideoProfile = (props: VideoProfileProps) => {
              />
              }
  
@@ -1496,20 +1502,20 @@ index 91d478c..d1e252f 100644
                  ref={(el) => setVideoEl(el)}
                  autoPlay={true}
 diff --git a/webapp/src/components/expanded_view/index.ts b/webapp/src/components/expanded_view/index.ts
-index 4bf5ebf..434d65c 100644
+index fdf3650..c8982d1 100644
 --- a/webapp/src/components/expanded_view/index.ts
 +++ b/webapp/src/components/expanded_view/index.ts
-@@ -95,7 +95,7 @@ const mapStateToProps = (state: GlobalState) => {
+@@ -94,7 +94,7 @@ const mapStateToProps = (state: GlobalState) => {
          transcriptionsEnabled: transcriptionsEnabled(state),
          isAdmin: isCurrentUserSystemAdmin(state),
          hostControlsAllowed: areHostControlsAllowed(state),
--        enableVideo: callsConfig(state).EnableVideo && isDM,
+-        enableVideo: callsConfig(state).EnableVideo && isDMChannel(channel),
 +        enableVideo: callsConfig(state).EnableVideo,
          otherSessions: sessionsForOtherUsersInCall(state),
-         isDMCalling: isCurrentDMCallInCallingState(state),
-         clientConnecting: clientConnecting(state),
+     };
+ };
 diff --git a/webapp/src/index.tsx b/webapp/src/index.tsx
-index acd1d78..a1d3513 100644
+index 09dbc44..5771143 100644
 --- a/webapp/src/index.tsx
 +++ b/webapp/src/index.tsx
 @@ -167,7 +167,6 @@ import {
@@ -1520,12 +1526,12 @@ index acd1d78..a1d3513 100644
      playSound,
      sendDesktopEvent,
      setCallsGlobalCSSVars,
-@@ -711,7 +710,7 @@ export default class Plugin {
+@@ -722,7 +721,7 @@ export default class Plugin {
                      enableAV1: callsConfig(state).EnableAV1,
                      dcSignaling: callsConfig(state).EnableDCSignaling,
                      dcLocking: hasDCSignalingLockSupport(callsVersionInfo(state)),
 -                    enableVideo: callsConfig(state).EnableVideo && isDMChannel(channel),
 +                    enableVideo: callsConfig(state).EnableVideo,
                  });
-                 window.currentCallData = {...CurrentCallDataDefault};
+                 window.currentCallData = CurrentCallDataDefault;
  
