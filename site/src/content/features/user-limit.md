@@ -127,7 +127,9 @@ change is one of the most common reasons cited by people who left the project.
 
 Buy a licence, or run a build with different constants. Mattermore Server raises
 both limits by a factor of 1000, keeping their ratio so every existing code path
-still behaves correctly.
+still behaves correctly. Run the `ghcr.io/dennisklappe/mattermore` image, as in
+[self-host](/selfhost). The official image with the calls plugin on top keeps
+the 250 cap.
 
 ### Does Mattermost Team Edition limit message history to 10,000 posts?
 

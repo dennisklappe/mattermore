@@ -1,11 +1,18 @@
 ---
 title: "Self-host from scratch"
-description: "A complete Docker Compose stack running Mattermost, PostgreSQL and Mattermore, with group calls working from the first boot."
+description: "A complete Docker Compose stack running the Mattermore server image and PostgreSQL, with group calls and no 250 user limit from the first boot."
 order: 3
 ---
 
-If you already run Mattermost, you do not need this page. Use the
-[install guide](/install) instead, which is two steps on an existing server.
+This page runs the Mattermore server image, our build of Mattermost itself.
+That is what lifts the 250 user limit, single sign-on and guest accounts, as
+well as the call features. The official `mattermost/mattermost-team-edition`
+image does not: the user limit is enforced in the server, so no plugin can
+remove it.
+
+If you already run official Mattermost and only want group calls, the
+[install guide](/install) covers that with a plugin upload. It leaves the user
+limit in place.
 
 ## What you need
 
@@ -35,7 +42,7 @@ services:
       retries: 5
 
   mattermost:
-    image: mattermost/mattermost-team-edition:latest
+    image: ghcr.io/dennisklappe/mattermore:latest
     restart: unless-stopped
     depends_on:
       postgres:
@@ -46,8 +53,7 @@ services:
         postgres://mmuser:${POSTGRES_PASSWORD}@postgres:5432/mattermost?sslmode=disable&connect_timeout=10
       MM_SERVICESETTINGS_SITEURL: ${SITE_URL:?set SITE_URL in .env}
 
-      # This is what enables group calls. Mattermost reads it in the calls
-      # plugin's own licence check.
+      # Group calls in every channel.
       MM_CALLS_GROUP_CALLS_ALLOWED: "true"
     ports:
       - "8065:8065"
@@ -88,22 +94,12 @@ docker compose up -d
 Open `SITE_URL` and create the first account. That account becomes the system
 administrator.
 
-## 3. Install Mattermore
+## 3. Nothing to install
 
-Download the latest bundle and verify it:
-
-```
-curl -LO https://github.com/dennisklappe/mattermore/releases/latest/download/mattermore.tar.gz
-curl -LO https://github.com/dennisklappe/mattermore/releases/latest/download/mattermore.tar.gz.sha256
-sha256sum -c mattermore.tar.gz.sha256
-```
-
-Then in Mattermost, go to **System Console › Plugins › Plugin Management**,
-choose **Upload Plugin**, and select the file. Enable it if it does not enable
-itself.
-
-Mattermore uses the same plugin id as the official calls plugin, so it replaces
-it in place.
+The image already contains the Mattermore server and the Mattermore calls
+plugin. There is no plugin to upload. To confirm you are running it, open
+**System Console › Plugins › Calls**: it reports itself as
+**Calls (Mattermore)**.
 
 ## 4. Check it works
 
@@ -158,9 +154,8 @@ docker compose pull
 docker compose up -d
 ```
 
-Mattermore survives this. Mattermost reinstalls its own prepackaged calls
-plugin only when the prepackaged version is higher than what is installed, and
-Mattermore versions itself above anything upstream ships.
+This pulls the newest Mattermore image, which carries the server and the calls
+plugin together, so there is nothing else to update.
 
 ## Troubleshooting
 
@@ -173,7 +168,3 @@ docker compose exec mattermost env | grep MM_CALLS
 
 **Calls connect then drop.** Port 8443, or a `SITE_URL` that does not match the
 address people use.
-
-**Plugin upload rejected.** Plugin signature verification is on. See
-[configuration](/configuration#configjson-plugin-settings) for what turning it
-off means before you turn it off.
