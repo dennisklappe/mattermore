@@ -12,11 +12,13 @@ transcription, host controls, single sign-on, guest accounts, and no user
 limit. Group video is written too, and is the one item on that list that has
 not been run yet.
 
-What you can download today is the calls plugin bundle, which drops onto an
-existing Mattermost server on its own. The server-side work, single sign-on and
-guest accounts and the user limit among it, lives in Mattermore Server, our
-build of Mattermost. There is no prebuilt Docker image for that yet, so running
-it means building it yourself. The [roadmap](/roadmap) says plainly what is
+Mattermore comes in two parts. The server image, `ghcr.io/dennisklappe/mattermore`,
+is our build of Mattermost and carries everything: single sign-on, guest
+accounts, no user limit, and the calls features. The calls plugin bundle is
+also published on its own and drops onto an existing official Mattermost
+server, but it only covers the call features. The user limit is enforced in the
+server, so lifting it needs the image. See [self-host](/selfhost) for the image
+and [install](/install) for the plugin alone. The [roadmap](/roadmap) says plainly what is
 verified working and what is only written.
 
 It is for system administrators who run their own Mattermost and want more than

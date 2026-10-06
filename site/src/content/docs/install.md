@@ -8,8 +8,11 @@ Two steps, about five minutes, reversible at every point. You need system
 administrator access to Mattermost and the ability to set an environment
 variable on the server process.
 
-If you do not have Mattermost running yet, start with
-[self-host from scratch](/selfhost) instead.
+This installs the calls plugin only: group calls, video, recording and
+transcription. It does not lift the 250 user limit, single sign-on or guest
+accounts, because those live in the server. For those, run the Mattermore
+server image instead, which is also the way to start from scratch:
+[self-host](/selfhost).
 
 ## Before you start
 
