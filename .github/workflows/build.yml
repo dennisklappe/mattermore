@@ -65,3 +65,19 @@ jobs:
         env:
           SKIP_WEBAPP: '1'
         run: ./scripts/build-server.sh /tmp/mattermore-server
+
+  e2e:
+    name: image runs, user limit lifted
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.26' }
+      - name: Build the image
+        env:
+          CONTAINER_ENGINE: docker
+        run: ./scripts/build-image.sh mattermore:ci
+      - name: Run it and create more than 250 users
+        run: ./scripts/e2e.sh mattermore:ci

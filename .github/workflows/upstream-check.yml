@@ -57,6 +57,17 @@ jobs:
             git -C /tmp/upstream apply --check "$patch"
           done
 
+      # A calls release can need a newer server than we build from: v1.12.5
+      # needs Mattermost 12 and refuses to start on v11. Say so in the issue.
+      - id: compat
+        if: steps.check.outputs.new_tag && matrix.key == 'CALLS_TAG'
+        run: |
+          source upstream.env
+          min="$(jq -r '.min_server_version // empty' /tmp/upstream/plugin.json)"
+          if [ -n "$min" ] && [ "${min%%.*}" -gt "$(echo "${SERVER_TAG#v}" | cut -d. -f1)" ]; then
+            echo "needs=$min" >> "$GITHUB_OUTPUT"
+          fi
+
       - if: steps.check.outputs.new_tag
         uses: actions/github-script@v7
         env:
@@ -65,9 +76,10 @@ jobs:
           REPO: ${{ matrix.repo }}
           KEY: ${{ matrix.key }}
           PATCHES_OK: ${{ steps.verify.outcome }}
+          NEEDS_SERVER: ${{ steps.compat.outputs.needs }}
         with:
           script: |
-            const { NEW_TAG, CURRENT, REPO, KEY, PATCHES_OK } = process.env;
+            const { NEW_TAG, CURRENT, REPO, KEY, PATCHES_OK, NEEDS_SERVER } = process.env;
             const title = `${REPO} ${NEW_TAG} is available`;
             const open = await github.rest.issues.listForRepo({
               owner: context.repo.owner, repo: context.repo.repo,
@@ -80,7 +92,10 @@ jobs:
                 + `To ship it: set \`${KEY}=${NEW_TAG}\` in \`upstream.env\`, bump \`CALLS_VERSION\` if this is the calls plugin, and push a tag.`
               : `\`${REPO}\` released \`${NEW_TAG}\`, we are on \`${CURRENT}\`. **At least one patch no longer applies** and needs rebasing.\n\n`
                 + `The workflow log says which hunk failed. Remember that a patch which cannot be rebased in time can be dropped for one release rather than holding everything up.`;
+            const note = NEEDS_SERVER
+              ? `\n\n**Do not ship this yet:** it needs Mattermost ${NEEDS_SERVER} or newer, and the server we build from is older, so the plugin refuses to start. Wait for a matching server release.`
+              : '';
             await github.rest.issues.create({
               owner: context.repo.owner, repo: context.repo.repo,
-              title, body, labels: ['upstream'],
+              title, body: body + note, labels: ['upstream'],
             });
