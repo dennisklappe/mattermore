@@ -1,5 +1,5 @@
 diff --git a/plugin.json b/plugin.json
-index 63ed529..ec4e91f 100644
+index 400d140..756ff6d 100644
 --- a/plugin.json
 +++ b/plugin.json
 @@ -229,6 +229,13 @@
@@ -31,7 +31,7 @@ index 63ed529..ec4e91f 100644
          "key": "JobServiceURL",
          "display_name": "Job service URL",
 diff --git a/server/configuration.go b/server/configuration.go
-index ee98b97..7d76f45 100644
+index 8e4babb..ea0b891 100644
 --- a/server/configuration.go
 +++ b/server/configuration.go
 @@ -118,6 +118,11 @@ type ClientConfig struct {
@@ -56,7 +56,7 @@ index ee98b97..7d76f45 100644
  	if c.EnableTranscriptions == nil {
  		c.EnableTranscriptions = model.NewPointer(false)
  	}
-@@ -415,6 +423,10 @@ func (c *configuration) Clone() *configuration {
+@@ -432,6 +440,10 @@ func (c *configuration) Clone() *configuration {
  		cfg.EnableRecordings = model.NewPointer(*c.EnableRecordings)
  	}
  
@@ -67,7 +67,7 @@ index ee98b97..7d76f45 100644
  	if c.EnableTranscriptions != nil {
  		cfg.EnableTranscriptions = model.NewPointer(*c.EnableTranscriptions)
  	}
-@@ -496,6 +508,11 @@ func (c *configuration) recordingsEnabled() bool {
+@@ -513,6 +525,11 @@ func (c *configuration) recordingsEnabled() bool {
  	return false
  }
  
@@ -80,7 +80,7 @@ index ee98b97..7d76f45 100644
  	if c.recordingsEnabled() && c.EnableTranscriptions != nil && *c.EnableTranscriptions {
  		return true
 diff --git a/server/recording_api.go b/server/recording_api.go
-index 377a89e..60a1707 100644
+index afa5a37..6e48454 100644
 --- a/server/recording_api.go
 +++ b/server/recording_api.go
 @@ -73,6 +73,27 @@ func (p *Plugin) recJobTimeoutChecker(callID, jobID string) {
@@ -112,10 +112,10 @@ index 377a89e..60a1707 100644
  	if state.Recording != nil && state.Recording.EndAt == 0 {
  		return nil, http.StatusForbidden, fmt.Errorf("recording already in progress")
 diff --git a/server/websocket.go b/server/websocket.go
-index 3c87273..0b797ff 100644
+index b99b48c..6211ede 100644
 --- a/server/websocket.go
 +++ b/server/websocket.go
-@@ -837,6 +837,13 @@ func (p *Plugin) handleJoin(userID, connID, authSessionID string, joinData calls
+@@ -827,6 +827,13 @@ func (p *Plugin) handleJoin(userID, connID, authSessionID string, joinData calls
  				"owner_id":  state.Call.OwnerID,
  				"host_id":   state.Call.GetHostID(),
  			}, &WebSocketBroadcast{ChannelID: channelID, ReliableClusterSend: true})
@@ -128,4 +128,4 @@ index 3c87273..0b797ff 100644
 +			}
  		}
  
- 		if !p.isBot(userID) && channel.Type == model.ChannelTypeDirect {
+ 		p.LogDebug("session has joined call",
