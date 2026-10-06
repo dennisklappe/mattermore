@@ -75,3 +75,15 @@ Whisper runs on CPU by default and a meeting transcribes in roughly real time
 on a few cores. Mattermore also accepts any OpenAI-compatible endpoint if you
 would rather send the audio somewhere with a GPU, which is off unless you
 configure it.
+
+## Keeping only the transcript
+
+If you want searchable text and not the video, turn on **Keep only the
+transcript** in **System Console › Plugins › Calls**. It is off by default and
+needs transcriptions enabled.
+
+The recording is still made. Once the transcript has been posted, the recording
+post is deleted from the call thread, so if transcription fails the recording
+stays. Deleting the post hides the video and makes it undownloadable, but the
+file itself stays on disk until your data retention policy purges it, so this
+saves clutter more than storage.
