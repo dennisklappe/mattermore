@@ -183,8 +183,9 @@ lives in the Mattermost server, so no plugin upload can provide it. The reason
 the stock server cannot do this, and the GitLab workaround that returns a 501,
 are on [single sign-on](/sso).
 
-The settings live under `OpenIdSettings` in `config.json`, and in the System
-Console under **Authentication › OpenID Connect**:
+The settings live under `OpenIdSettings` in `config.json`. The System Console page under
+**Authentication › OpenID Connect** is still upstream's sales page and has no
+fields, so configure it in the file:
 
 ```json
 {
@@ -201,7 +202,9 @@ Console under **Authentication › OpenID Connect**:
 
 What each one is for:
 
-- `Enable` turns the provider on. It is off by default.
+- `Enable` turns the provider on. It is off by default. Every endpoint, including
+  the discovery document, must be `https`: plain `http` is refused, with no
+  override, so a local provider needs TLS in front of it.
 - `Id` and `Secret` are the client credentials from your identity provider.
 - `DiscoveryEndpoint` on its own is enough for the endpoints. Point it at your
   provider's `/.well-known/openid-configuration`, or at the bare issuer URL and
