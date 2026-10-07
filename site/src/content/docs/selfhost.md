@@ -10,6 +10,10 @@ well as the call features. The official `mattermost/mattermost-team-edition`
 image does not: the user limit is enforced in the server, so no plugin can
 remove it.
 
+If your current server runs Mattermost v10 on MySQL, see
+[Migrate from MySQL](/migrate-from-mysql) first: the Mattermore image only
+runs on PostgreSQL.
+
 If you already run official Mattermost and only want group calls, the
 [install guide](/install) covers that with a plugin upload. It leaves the user
 limit in place.
