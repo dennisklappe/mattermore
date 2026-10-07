@@ -76,6 +76,8 @@ to switch group calls on.
 
 - [Install](/install), two steps on an existing server.
 - [Self-host from scratch](/selfhost), a complete Docker Compose stack.
+- [Migrate from MySQL](/migrate-from-mysql), moving a Mattermost v10 server
+  on MySQL to the Mattermore image on PostgreSQL.
 - [Configuration](/configuration), the environment variable, plugin
   settings and the ports calls media needs.
 - [Upgrading](/upgrading), what happens when you upgrade the server or the
