@@ -1,10 +1,22 @@
 ---
 title: "Upgrading"
-description: "How to upgrade Mattermore, why it survives a Mattermost server upgrade, how to check which build is installed, and how to roll back to official Calls."
+description: "Upgrade the Mattermore image or the calls plugin alone, what happens when Mattermost ships a new major version, and how to roll back to official Calls."
 order: 5
 ---
 
-## Upgrading Mattermore
+## Which upgrade do you need
+
+- **You run the Mattermore server image** (`ghcr.io/dennisklappe/mattermore`,
+  see [self-host](/selfhost)): the image already contains the Mattermore server
+  and the Mattermore calls plugin, so one `docker compose pull` and
+  `docker compose up -d` upgrades both. There is no plugin to upload, and the
+  rest of this section does not apply to you. The 250 user limit is lifted by
+  the server in the image. The plugin alone cannot lift it.
+- **You run official Mattermost and added only the calls plugin**
+  ([install](/install)): follow the plugin steps below. That setup keeps the
+  250 user limit.
+
+## Upgrading the Mattermore calls plugin
 
 There is no data migration and no state to convert. Upgrading is a download, a
 checksum check, and an upload over the top of the running plugin.
@@ -85,6 +97,35 @@ If a major Mattermost release changes the plugin API, an older Mattermore build
 can fail to start against a much newer server. Check the
 [releases page](https://github.com/dennisklappe/mattermore/releases) for a build
 tracking a newer upstream version before you upgrade a long-untouched server.
+
+## New Mattermost versions and the Mattermore image
+
+Each Mattermore release is built from one exact Mattermost server version and
+one exact Calls version, pinned in
+[`upstream.env`](https://github.com/dennisklappe/mattermore/blob/main/upstream.env).
+The image never moves to a new Mattermost major by itself: you stay on the
+version you pulled until a Mattermore release says otherwise.
+
+New upstream versions are picked up like this:
+
+- A daily check watches Mattermost and Calls for new stable releases, tries
+  every Mattermore patch against the new tag, and opens an issue saying whether
+  they still apply.
+- Security and patch releases within the same major are usually a version bump
+  and a rebuild.
+- A new major release can move the code a patch depends on, so it needs the
+  patches rebased by hand before a Mattermore build exists. Expect a delay
+  after the upstream release, not a same-day build.
+
+The check is a notification, not a guarantee: Mattermore is maintained by one
+person, and there is no support contract or release deadline. If you depend on
+it, subscribe to the
+[releases page](https://github.com/dennisklappe/mattermore/releases) and do not
+move your server to a new Mattermost major with the official image.
+
+You can always go back: the database is the standard Mattermost schema, so
+switching to the official Team Edition image on the same version is possible,
+with the 250 user limit applying again.
 
 ## Checking which build is installed
 
