@@ -3,7 +3,13 @@
 # Built on the official Team Edition image. Three things change: the server
 # binary, the web app, and the calls plugin.
 
-FROM docker.io/mattermost/mattermost-team-edition:latest AS upstream
+# Must match SERVER_TAG in upstream.env (without the v): the binary we build
+# comes from that tag, so the config and assets around it have to as well.
+# scripts/build-image.sh passes it in. Never :latest, which moves to the next
+# major the day it ships.
+ARG UPSTREAM_VERSION=11.11.1
+
+FROM docker.io/mattermost/mattermost-team-edition:${UPSTREAM_VERSION} AS upstream
 
 # The guest administration screens and the licence badges live in the web app,
 # so upstream's prebuilt one has to be replaced or those two patches do nothing
@@ -41,7 +47,8 @@ COPY scripts/merge-config.py /merge.py
 RUN python3 /merge.py /in.json /overrides.json /out.json
 
 
-FROM docker.io/mattermost/mattermost-team-edition:latest
+ARG UPSTREAM_VERSION
+FROM docker.io/mattermost/mattermost-team-edition:${UPSTREAM_VERSION}
 
 COPY --chown=2000:2000 mattermore-server /mattermost/bin/mattermost
 COPY --from=webapp --chown=2000:2000 /out /mattermost/client
