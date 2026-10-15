@@ -7,7 +7,7 @@
 # comes from that tag, so the config and assets around it have to as well.
 # scripts/build-image.sh passes it in. Never :latest, which moves to the next
 # major the day it ships.
-ARG UPSTREAM_VERSION=11.11.1
+ARG UPSTREAM_VERSION=12.0.0
 
 FROM docker.io/mattermost/mattermost-team-edition:${UPSTREAM_VERSION} AS upstream
 
