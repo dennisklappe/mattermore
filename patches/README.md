@@ -15,6 +15,12 @@ Every patch is independently appliable to a clean tree. If one stops applying
 on a new upstream release, it is dropped for that release and everything else
 still ships. A release is never blocked by one broken hunk.
 
+A dropped patch is renamed to `*.patch.disabled`, which the build globs skip,
+and goes back to `*.patch` once it is rebased. Currently disabled:
+`calls/0002-group-video`. Calls v1.12.5 rewrote the call widget and expanded
+view it touches, and a rebase that cannot be browser-tested is not worth
+shipping. Group video is DM-only again until it is ported.
+
 Patches delete conditions rather than adding code wherever possible. Removing
 an `if` survives upstream refactoring far better than anything else.
 

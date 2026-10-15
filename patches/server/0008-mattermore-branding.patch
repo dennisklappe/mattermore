@@ -1,5 +1,5 @@
 diff --git a/server/public/model/config.go b/server/public/model/config.go
-index 711f6eca..9d27ea74 100644
+index 3cce3a07..30646171 100644
 --- a/server/public/model/config.go
 +++ b/server/public/model/config.go
 @@ -141,7 +141,7 @@ const (
@@ -81,7 +81,7 @@ index 523e2056..6c103b72 100644
      </Svg>
  );
 diff --git a/webapp/channels/src/components/header_footer_route/header.tsx b/webapp/channels/src/components/header_footer_route/header.tsx
-index dda43fb5..3f87f2bd 100644
+index eed6a84a..40825460 100644
 --- a/webapp/channels/src/components/header_footer_route/header.tsx
 +++ b/webapp/channels/src/components/header_footer_route/header.tsx
 @@ -24,7 +24,7 @@ const Header = ({alternateLink, backButtonURL, onBackButtonClick}: HeaderProps)
@@ -164,7 +164,7 @@ index 7543811f..edef1c62 100644
 -    clipRule: 'evenodd',
 -};
 diff --git a/webapp/channels/src/root.html b/webapp/channels/src/root.html
-index cd167bfc..05801630 100644
+index df18dc90..b0a82dad 100644
 --- a/webapp/channels/src/root.html
 +++ b/webapp/channels/src/root.html
 @@ -7,7 +7,7 @@

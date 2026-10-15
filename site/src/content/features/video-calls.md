@@ -54,6 +54,8 @@ built for one.
 
 ## What Mattermore changes for group video
 
+**Current status:** the group video patch is switched off in the Mattermost 12 release, because Calls 1.12.5 rewrote the screens it changes. Video stays limited to direct messages until it is ported. The rest of this page describes the change as written.
+
 Mattermore does two things, both in AGPL-licensed code:
 
 - Maps incoming video streams by sender instead of collapsing them into one
