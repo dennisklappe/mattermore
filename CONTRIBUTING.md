@@ -48,6 +48,12 @@ A scheduled workflow opens an issue when any upstream publishes a stable
 release, and says whether the patches still apply. To ship it, bump the tag in
 `upstream.env`, confirm the build, and push a tag.
 
+## Testing a release
+
+Before reporting an upstream bump as done, test it on a real server, upgrading
+from the previous release with data. The checklist and scripts are in
+`scripts/release-test/`.
+
 ## No em dashes
 
 Anywhere. Commit messages, comments, docs, the website. Use a comma, brackets,
