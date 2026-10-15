@@ -30,7 +30,7 @@
 | --- | --- | --- |
 | One-to-one audio calls, screen sharing | Yes | Yes |
 | Group audio calls in any channel | Needs Professional | Yes |
-| Group video calls | Direct messages only | Yes |
+| Group video calls | Direct messages only | Not in the current release, being ported |
 | Call recording | Needs Enterprise | Yes |
 | Transcription, on your own hardware | Needs Enterprise | Yes |
 | Single sign-on with any OIDC provider | Needs Professional | Yes |
