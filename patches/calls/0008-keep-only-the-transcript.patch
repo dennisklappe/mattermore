@@ -1,5 +1,5 @@
 diff --git a/plugin.json b/plugin.json
-index ec4e91f..bf24eb6 100644
+index 559d57b..8cce0ee 100644
 --- a/plugin.json
 +++ b/plugin.json
 @@ -236,6 +236,13 @@
@@ -16,20 +16,6 @@ index ec4e91f..bf24eb6 100644
            {
              "key": "JobServiceURL",
              "display_name": "Job service URL",
-@@ -549,6 +556,13 @@
-         "default": false,
-         "help_text": "(Optional) When set to true, every call starts recording as soon as it begins, without anyone pressing the button. Participants still see the recording banner. Recording people without telling them is a legal question in many places, so leave this off unless you know where you stand. Requires call recordings to be enabled."
-       },
-+      {
-+        "key": "KeepTranscriptOnly",
-+        "display_name": "Keep only the transcript",
-+        "type": "bool",
-+        "default": false,
-+        "help_text": "(Optional) When set to true, the recording is removed from the call thread once its transcript has been posted, so only the text is kept. The recording is made first, because the transcript is produced alongside it, and is only removed after the transcript exists: if transcription fails, the recording stays. Removing it hides it and makes it undownloadable, but the file itself stays on disk until your data retention policy purges it. Requires call transcriptions to be enabled."
-+      },
-       {
-         "key": "JobServiceURL",
-         "display_name": "Job service URL",
 diff --git a/server/bot_api.go b/server/bot_api.go
 index 3057e17..15ad6ea 100644
 --- a/server/bot_api.go
