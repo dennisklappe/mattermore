@@ -31,12 +31,12 @@ See https://mattermore.dev/guest-accounts
  .../permission_team_scheme_settings.tsx       |  3 +-
  .../system_users_list_actions/index.tsx       |  5 ++--
  .../components/channel_invite_modal/index.ts  |  6 ++--
- .../invitation_modal/invite_as.test.tsx       | 13 ++++----
+ .../invitation_modal/invite_as.test.tsx       | 12 ++++----
  .../components/invitation_modal/invite_as.tsx | 10 +++----
- 7 files changed, 25 insertions(+), 46 deletions(-)
+ 7 files changed, 24 insertions(+), 46 deletions(-)
 
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index acc04a91..3a361f18 100644
+index 8d94358b..ddd804c1 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
 @@ -81,7 +81,6 @@ import {
@@ -47,7 +47,7 @@ index acc04a91..3a361f18 100644
      LDAPFeatureDiscovery,
      MobileSecurityFeatureDiscovery,
      OpenIDCustomFeatureDiscovery,
-@@ -5832,10 +5831,10 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -5895,10 +5894,10 @@ const AdminDefinition: AdminDefinitionType = {
                  url: 'authentication/guest_access',
                  title: defineMessage({id: 'admin.sidebar.guest_access', defaultMessage: 'Guest Access'}),
                  searchableStrings: magicLinkSearchableStrings,
@@ -62,7 +62,7 @@ index acc04a91..3a361f18 100644
                  schema: {
                      id: 'GuestAccountsSettings',
                      name: defineMessage({id: 'admin.authentication.guest_access', defaultMessage: 'Guest Access'}),
-@@ -5916,27 +5915,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -5979,27 +5978,6 @@ const AdminDefinition: AdminDefinitionType = {
                  },
                  restrictedIndicator: getRestrictedIndicator(),
              },
@@ -127,7 +127,7 @@ index 135d11a9..a37c3941 100644
                                  className='permissions-block'
                                  open={this.state.openRoles.guests}
 diff --git a/webapp/channels/src/components/admin_console/system_users/system_users_list_actions/index.tsx b/webapp/channels/src/components/admin_console/system_users/system_users_list_actions/index.tsx
-index de1e3841..3289d780 100644
+index c836bf00..05d5d051 100644
 --- a/webapp/channels/src/components/admin_console/system_users/system_users_list_actions/index.tsx
 +++ b/webapp/channels/src/components/admin_console/system_users/system_users_list_actions/index.tsx
 @@ -13,7 +13,6 @@ import {updateUserActive} from 'mattermost-redux/actions/users';
@@ -146,13 +146,13 @@ index de1e3841..3289d780 100644
      const haveSysConsoleWriteUserManagementUsersPermissions = useSelector((state: GlobalState) => haveISystemPermission(state, {permission: Permissions.SYSCONSOLE_WRITE_USERMANAGEMENT_USERS}));
      const showManageUserSettings = useSelector(getShowManageUserSettings);
  
-@@ -505,7 +503,8 @@ export function SystemUsersListAction({user, currentUser, tableId, rowIndex, onE
+@@ -507,7 +505,8 @@ export function SystemUsersListAction({user, currentUser, tableId, rowIndex, onE
                      onClick={handlePromoteToMemberClick}
                  />
              }
--            {!isGuest(user.roles) && user.id !== currentUser.id && isLicensed && config.GuestAccountsSettings?.Enable &&
+-            {!isGuestUser && user.id !== currentUser.id && isLicensed && config.GuestAccountsSettings?.Enable &&
 +            {/* Guest accounts are not licence-gated, so the config setting alone decides. */}
-+            {!isGuest(user.roles) && user.id !== currentUser.id && config.GuestAccountsSettings?.Enable &&
++            {!isGuestUser && user.id !== currentUser.id && config.GuestAccountsSettings?.Enable &&
                  <Menu.Item
                      id={`${menuItemIdPrefix}-demoteToGuest`}
                      labels={
@@ -175,7 +175,7 @@ index 0ad8f27d..e8280d3e 100644
  
          const isGroupsEnabled = enableCustomUserGroups || (license?.IsLicensed === 'true' && license?.LDAPGroups === 'true');
 diff --git a/webapp/channels/src/components/invitation_modal/invite_as.test.tsx b/webapp/channels/src/components/invitation_modal/invite_as.test.tsx
-index aab4ea3f..44b599c4 100644
+index c1787c6d..cf9aa0f4 100644
 --- a/webapp/channels/src/components/invitation_modal/invite_as.test.tsx
 +++ b/webapp/channels/src/components/invitation_modal/invite_as.test.tsx
 @@ -182,7 +182,7 @@ describe('components/cloud_start_trial_btn/cloud_start_trial_btn', () => {
@@ -187,17 +187,15 @@ index aab4ea3f..44b599c4 100644
          const testState = {
              entities: {
                  admin: {
-@@ -213,13 +213,14 @@ describe('components/cloud_start_trial_btn/cloud_start_trial_btn', () => {
-             {useMockedStore: true},
+@@ -214,12 +214,12 @@ describe('components/cloud_start_trial_btn/cloud_start_trial_btn', () => {
          );
  
-+        // Guest accounts are not a paid feature on a self hosted server.
          const guestRadioButton = screen.getByDisplayValue('GUEST');
 -        expect(guestRadioButton).toBeDisabled();
 +        expect(guestRadioButton).toBeEnabled();
  
--        expect(screen.getByText('Professional feature- try it out free')).toBeInTheDocument();
-+        expect(screen.queryByText('Professional feature- try it out free')).not.toBeInTheDocument();
+-        expect(screen.getByText('Professional feature - try it out free')).toBeInTheDocument();
++        expect(screen.queryByText('Professional feature - try it out free')).not.toBeInTheDocument();
      });
  
 -    test('restricted badge shows "Upgrade" for self hosted starter post trial', () => {
@@ -205,7 +203,7 @@ index aab4ea3f..44b599c4 100644
          const testState = {
              entities: {
                  admin: {
-@@ -251,9 +252,9 @@ describe('components/cloud_start_trial_btn/cloud_start_trial_btn', () => {
+@@ -251,9 +251,9 @@ describe('components/cloud_start_trial_btn/cloud_start_trial_btn', () => {
          );
  
          const guestRadioButton = screen.getByDisplayValue('GUEST');
@@ -218,7 +216,7 @@ index aab4ea3f..44b599c4 100644
  
      test('shows the badge guest highligh feature to invite guest when IS FREE trial for cloud', () => {
 diff --git a/webapp/channels/src/components/invitation_modal/invite_as.tsx b/webapp/channels/src/components/invitation_modal/invite_as.tsx
-index 326e8569..e07ce7b1 100644
+index 84893cc9..1a96480c 100644
 --- a/webapp/channels/src/components/invitation_modal/invite_as.tsx
 +++ b/webapp/channels/src/components/invitation_modal/invite_as.tsx
 @@ -7,7 +7,7 @@ import {useSelector, useDispatch} from 'react-redux';
@@ -247,5 +245,5 @@ index 326e8569..e07ce7b1 100644
      let extraGuestLegend = true;
      let guestDisabledClass = '';
 -- 
-2.53.0
+2.47.3
 
