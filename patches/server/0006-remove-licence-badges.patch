@@ -10,184 +10,31 @@ unsupported edition of Mattermost.' main menu notice:
   .../product_menu/.../product_branding_free_edition.tsx   logo without badge
   components/header_footer_route/header.tsx                logo without badge
 
-Also drops the two now-obsolete test files and the two orphaned en.json strings.
+Also drops the now-obsolete tests and the orphaned en.json strings, and
+renders nothing for the edition footer in the product switcher.
 ---
- .../product_branding_free_edition.test.tsx    | 122 ------------------
- .../product_branding_free_edition.tsx         |  31 +----
- .../components/header_footer_route/header.tsx |   7 +-
- .../menu/menu_items/menu_start_trial.test.tsx | 106 ---------------
- .../menu/menu_items/menu_start_trial.tsx      |  95 +-------------
- webapp/channels/src/i18n/en.json              |   8 --
- 6 files changed, 10 insertions(+), 359 deletions(-)
- delete mode 100644 webapp/channels/src/components/global_header/left_controls/product_menu/product_branding_team_edition/product_branding_free_edition.test.tsx
- delete mode 100644 webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.test.tsx
+ .../product_branding_free_edition.tsx         | 18 +---
+ .../switch_product_edition_menuitem.tsx       | 82 +---------------
+ .../components/header_footer_route/header.tsx |  7 +-
+ .../menu/menu_items/menu_start_trial.tsx      | 95 ++-----------------
+ webapp/channels/src/i18n/en.json              | 16 ----
+ 5 files changed, 14 insertions(+), 204 deletions(-)
 
-diff --git a/webapp/channels/src/components/global_header/left_controls/product_menu/product_branding_team_edition/product_branding_free_edition.test.tsx b/webapp/channels/src/components/global_header/left_controls/product_menu/product_branding_team_edition/product_branding_free_edition.test.tsx
-deleted file mode 100644
-index 94674499..00000000
---- a/webapp/channels/src/components/global_header/left_controls/product_menu/product_branding_team_edition/product_branding_free_edition.test.tsx
-+++ /dev/null
-@@ -1,122 +0,0 @@
--// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
--// See LICENSE.txt for license information.
--
--import React from 'react';
--
--import {renderWithContext, screen} from 'tests/react_testing_utils';
--import {TestHelper} from 'utils/test_helper';
--
--import ProductBrandingFreeEdition from './product_branding_free_edition';
--
--describe('ProductBrandingFreeEdition', () => {
--    const baseProps = {};
--
--    test('should show ENTRY EDITION for Entry license', () => {
--        const state = {
--            entities: {
--                general: {
--                    license: TestHelper.getLicenseMock({
--                        IsLicensed: 'true',
--                        SkuShortName: 'entry',
--                    }),
--                },
--            },
--        };
--
--        const {container} = renderWithContext(
--            <ProductBrandingFreeEdition {...baseProps}/>,
--            state,
--        );
--
--        expect(screen.getByText('ENTRY EDITION')).toBeInTheDocument();
--        const logoElement = container.querySelector('svg');
--        expect(logoElement).toBeInTheDocument();
--    });
--
--    test('should show TEAM EDITION for unlicensed', () => {
--        const state = {
--            entities: {
--                general: {
--                    license: TestHelper.getLicenseMock({
--                        IsLicensed: 'false',
--                        SkuShortName: '',
--                    }),
--                },
--            },
--        };
--
--        const {container} = renderWithContext(
--            <ProductBrandingFreeEdition {...baseProps}/>,
--            state,
--        );
--
--        expect(screen.getByText('TEAM EDITION')).toBeInTheDocument();
--        const logoElement = container.querySelector('svg');
--        expect(logoElement).toBeInTheDocument();
--    });
--
--    test('should show empty badge for Professional license', () => {
--        const state = {
--            entities: {
--                general: {
--                    license: TestHelper.getLicenseMock({
--                        IsLicensed: 'true',
--                        SkuShortName: 'professional',
--                    }),
--                },
--            },
--        };
--
--        renderWithContext(
--            <ProductBrandingFreeEdition {...baseProps}/>,
--            state,
--        );
--
--        // Should not show any edition badge
--        expect(screen.queryByText('ENTRY EDITION')).not.toBeInTheDocument();
--        expect(screen.queryByText('TEAM EDITION')).not.toBeInTheDocument();
--        expect(screen.queryByText('PROFESSIONAL EDITION')).not.toBeInTheDocument();
--    });
--
--    test('should show empty badge for Enterprise license', () => {
--        const state = {
--            entities: {
--                general: {
--                    license: TestHelper.getLicenseMock({
--                        IsLicensed: 'true',
--                        SkuShortName: 'enterprise',
--                    }),
--                },
--            },
--        };
--
--        renderWithContext(
--            <ProductBrandingFreeEdition {...baseProps}/>,
--            state,
--        );
--
--        // Should not show any edition badge
--        expect(screen.queryByText('ENTRY EDITION')).not.toBeInTheDocument();
--        expect(screen.queryByText('TEAM EDITION')).not.toBeInTheDocument();
--        expect(screen.queryByText('ENTERPRISE EDITION')).not.toBeInTheDocument();
--    });
--
--    test('should show empty badge when no license object', () => {
--        const state = {
--            entities: {
--                general: {
--                    license: {},
--                },
--            },
--        };
--
--        renderWithContext(
--            <ProductBrandingFreeEdition {...baseProps}/>,
--            state,
--        );
--
--        // Should not show any edition badge when license object is empty
--        expect(screen.queryByText('ENTRY EDITION')).not.toBeInTheDocument();
--        expect(screen.queryByText('TEAM EDITION')).not.toBeInTheDocument();
--    });
--});
-diff --git a/webapp/channels/src/components/global_header/left_controls/product_menu/product_branding_team_edition/product_branding_free_edition.tsx b/webapp/channels/src/components/global_header/left_controls/product_menu/product_branding_team_edition/product_branding_free_edition.tsx
-index abdbad2f..65d22ecf 100644
---- a/webapp/channels/src/components/global_header/left_controls/product_menu/product_branding_team_edition/product_branding_free_edition.tsx
-+++ b/webapp/channels/src/components/global_header/left_controls/product_menu/product_branding_team_edition/product_branding_free_edition.tsx
-@@ -2,15 +2,10 @@
+diff --git a/webapp/channels/src/components/global_header/left_controls/product_branding/product_branding_free_edition.tsx b/webapp/channels/src/components/global_header/left_controls/product_branding/product_branding_free_edition.tsx
+index a54a188e..63682920 100644
+--- a/webapp/channels/src/components/global_header/left_controls/product_branding/product_branding_free_edition.tsx
++++ b/webapp/channels/src/components/global_header/left_controls/product_branding/product_branding_free_edition.tsx
+@@ -2,24 +2,11 @@
  // See LICENSE.txt for license information.
  
  import React, {type JSX} from 'react';
 -import {useSelector} from 'react-redux';
- import styled from 'styled-components';
- 
--import {getLicense} from 'mattermost-redux/selectors/entities/general';
 -
- import Logo from 'components/common/svg_images_components/logo_dark_blue_svg';
+-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+ 
+ import MattermostLogo from 'components/common/svg_images_components/logo_dark_blue_svg';
  
 -import {LicenseSkus} from 'utils/constants';
--
- const ProductBrandingFreeEditionContainer = styled.span`
-     display: flex;
-     align-items: center;
-@@ -26,38 +21,14 @@ const StyledLogo = styled(Logo)`
-     }
- `;
- 
--const Badge = styled.span`
--    display: flex;
--    align-self: center;
--    padding: 2px 6px;
--    border-radius: var(--radius-s);
--    margin-left: 12px;
--    background: rgba(var(--sidebar-text-rgb), 0.08);
--    color: rgba(var(--sidebar-text-rgb), 0.75);
--    font-family: 'Open Sans', sans-serif;
--    font-size: 10px;
--    font-weight: 600;
--    letter-spacing: 0.025em;
--    line-height: 16px;
--`;
 -
 +// Renders the logo only: self-hosted builds are not badged as a lesser edition.
  const ProductBrandingFreeEdition = (): JSX.Element => {
@@ -201,15 +48,110 @@ index abdbad2f..65d22ecf 100644
 -    }
 -
      return (
-         <ProductBrandingFreeEditionContainer tabIndex={-1}>
-             <StyledLogo
+         <span className='globalHeader-leftControls-productBranding-freeEdition'>
+             <MattermostLogo
+@@ -27,9 +14,6 @@ const ProductBrandingFreeEdition = (): JSX.Element => {
                  width={116}
                  height={20}
              />
--            <Badge>{badgeText}</Badge>
-         </ProductBrandingFreeEditionContainer>
+-            <span className='globalHeader-leftControls-productBranding-freeEdition-badge'>
+-                {badgeText}
+-            </span>
+         </span>
      );
  };
+diff --git a/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_edition_menuitem.tsx b/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_edition_menuitem.tsx
+index 1a0e843f..2fe59a42 100644
+--- a/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_edition_menuitem.tsx
++++ b/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_edition_menuitem.tsx
+@@ -1,83 +1,9 @@
+ // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+ // See LICENSE.txt for license information.
+ 
+-import React from 'react';
+-import {FormattedMessage} from 'react-intl';
+-import {useSelector} from 'react-redux';
+-
+-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+-
+-import * as Menu from 'components/menu';
+-
+-import {LicenseLinks, LicenseSkus} from 'utils/constants';
+-
++// Upstream shows a "TEAM EDITION" / "ENTRY EDITION" footer with an upsell link
++// in the product switcher. Self-hosted AGPL builds are not advertised that way,
++// so nothing is rendered. The component is kept so its call site stays valid.
+ export default function ProductSwitcherEditionFooter() {
+-    const license = useSelector(getLicense);
+-
+-    const isLicensedVersion = license?.IsLicensed === 'true';
+-    const isEntrySKU = license?.SkuShortName === LicenseSkus.Entry;
+-
+-    if (isLicensedVersion && !isEntrySKU) {
+-        return null;
+-    }
+-
+-    const isEntryLicense = isLicensedVersion && isEntrySKU;
+-
+-    let badgeLabel = 'TEAM EDITION';
+-    if (isEntryLicense) {
+-        badgeLabel = 'ENTRY EDITION';
+-    }
+-
+-    let label = (
+-        <FormattedMessage
+-            id='globalHeader.productSwitcherMenu.editionMenuitem.unsupported'
+-            defaultMessage='This is the free <b>unsupported</b> edition of Mattermost. See pricing.'
+-            values={{
+-                b: (msg: React.ReactNode) => (
+-                    <b>
+-                        {msg}
+-                    </b>
+-                ),
+-            }}
+-        />
+-    );
+-    if (isEntryLicense) {
+-        label = (
+-            <FormattedMessage
+-                id='globalHeader.productSwitcherMenu.editionMenuitem.entry'
+-                defaultMessage='Entry offers Enterprise Advanced capabilities <b>with limits</b> designed to support evaluation. Learn more.'
+-                values={{
+-                    b: (msg: React.ReactNode) => (
+-                        <b>
+-                            {msg}
+-                        </b>
+-                    ),
+-                }}
+-            />
+-        );
+-    }
+-
+-    function handleClick() {
+-        if (isEntryLicense) {
+-            window.open(LicenseLinks.ENTRY_LIMITS_INFO, '_blank', 'noopener,noreferrer');
+-        } else {
+-            window.open(LicenseLinks.UNSUPPORTED, '_blank', 'noopener,noreferrer');
+-        }
+-    }
+-
+-    return (
+-        <>
+-            <Menu.Separator/>
+-            <Menu.Item
+-                className='globalHeader-leftControls-productSwitcherMenu-editionMenuItem'
+-                labels={
+-                    <>
+-                        <span className='badgeLabel'>{badgeLabel}</span>
+-                        {label}
+-                    </>
+-                }
+-                onClick={handleClick}
+-            />
+-        </>
+-    );
++    return null;
+ }
 diff --git a/webapp/channels/src/components/header_footer_route/header.tsx b/webapp/channels/src/components/header_footer_route/header.tsx
 index 59e924d6..eed6a84a 100644
 --- a/webapp/channels/src/components/header_footer_route/header.tsx
@@ -229,120 +171,8 @@ index 59e924d6..eed6a84a 100644
      }
  
      let title: React.ReactNode = SiteName;
-diff --git a/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.test.tsx b/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.test.tsx
-deleted file mode 100644
-index 77024197..00000000
---- a/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.test.tsx
-+++ /dev/null
-@@ -1,106 +0,0 @@
--// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
--// See LICENSE.txt for license information.
--
--import React from 'react';
--import * as reactRedux from 'react-redux';
--
--import {renderWithContext} from 'tests/react_testing_utils';
--import {TestHelper} from 'utils/test_helper';
--
--import MenuStartTrial from './menu_start_trial';
--
--describe('components/widgets/menu/menu_items/menu_start_trial', () => {
--    const useDispatchMock = jest.spyOn(reactRedux, 'useDispatch');
--
--    beforeEach(() => {
--        useDispatchMock.mockClear();
--    });
--
--    test('should render TEAM EDITION for unlicensed', () => {
--        const state = {
--            entities: {
--                users: {
--                    currentUserId: 'test_id',
--                },
--                general: {
--                    license: TestHelper.getLicenseMock({
--                        IsLicensed: 'false',
--                        SkuShortName: '',
--                    }),
--                },
--            },
--        };
--        const dummyDispatch = jest.fn();
--        useDispatchMock.mockReturnValue(dummyDispatch);
--        const {container} = renderWithContext(<MenuStartTrial id='startTrial'/>, state);
--
--        expect(container.querySelector('.editionText')).not.toBeNull();
--        expect(container.textContent).toContain('TEAM EDITION');
--        expect(container.textContent).toContain('This is the free');
--    });
--
--    test('should render ENTRY EDITION for Entry license', () => {
--        const state = {
--            entities: {
--                users: {
--                    currentUserId: 'test_id',
--                },
--                general: {
--                    license: TestHelper.getLicenseMock({
--                        IsLicensed: 'true',
--                        SkuShortName: 'entry',
--                    }),
--                },
--            },
--        };
--        const dummyDispatch = jest.fn();
--        useDispatchMock.mockReturnValue(dummyDispatch);
--        const {container} = renderWithContext(<MenuStartTrial id='startTrial'/>, state);
--
--        expect(container.querySelector('.editionText')).not.toBeNull();
--        expect(container.textContent).toContain('ENTRY EDITION');
--        expect(container.textContent).toContain('Entry offers Enterprise Advance capabilities');
--    });
--
--    test('should return null for Professional license', () => {
--        const state = {
--            entities: {
--                users: {
--                    currentUserId: 'test_id',
--                },
--                general: {
--                    license: TestHelper.getLicenseMock({
--                        IsLicensed: 'true',
--                        SkuShortName: 'professional',
--                    }),
--                },
--            },
--        };
--        const dummyDispatch = jest.fn();
--        useDispatchMock.mockReturnValue(dummyDispatch);
--        const {container} = renderWithContext(<MenuStartTrial id='startTrial'/>, state);
--
--        expect(container.innerHTML).toBe('');
--    });
--
--    test('should return null for Enterprise license', () => {
--        const state = {
--            entities: {
--                users: {
--                    currentUserId: 'test_id',
--                },
--                general: {
--                    license: TestHelper.getLicenseMock({
--                        IsLicensed: 'true',
--                        SkuShortName: 'enterprise',
--                    }),
--                },
--            },
--        };
--        const dummyDispatch = jest.fn();
--        useDispatchMock.mockReturnValue(dummyDispatch);
--        const {container} = renderWithContext(<MenuStartTrial id='startTrial'/>, state);
--
--        expect(container.innerHTML).toBe('');
--    });
--});
 diff --git a/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.tsx b/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.tsx
-index b3a73561..167f53ae 100644
+index 9ca3ffb2..167f53ae 100644
 --- a/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.tsx
 +++ b/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.tsx
 @@ -1,99 +1,16 @@
@@ -410,7 +240,7 @@ index b3a73561..167f53ae 100644
 -                {isEntryLicense ? (
 -                    formatMessage({
 -                        id: 'navbar_dropdown.entryVersionText',
--                        defaultMessage: 'Entry offers Enterprise Advance capabilities <link>with limits</link> designed to support evaluation.',
+-                        defaultMessage: 'Entry offers Enterprise Advanced capabilities <link>with limits</link> designed to support evaluation.',
 -                    },
 -                    {
 -                        link: (msg: React.ReactNode) => (
@@ -452,21 +282,36 @@ index b3a73561..167f53ae 100644
  
  export default MenuStartTrial;
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index 7c22f8a2..461afcaa 100644
+index 859a384b..7f2c3ff0 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -26051,10 +26051,6 @@
+@@ -23735,14 +23735,6 @@
+     "defaultMessage": "Download Apps",
+     "description": "Menu item in the product menu at the top left of the global header. It opens the download page for the desktop and mobile apps. Hidden in the desktop app."
+   },
+-  "globalHeader.productSwitcherMenu.editionMenuitem.entry": {
+-    "defaultMessage": "Entry offers Enterprise Advanced capabilities <b>with limits</b> designed to support evaluation. Learn more.",
+-    "description": "Clickable item at the bottom of the product menu on servers with an Entry license, next to an 'ENTRY EDITION' badge. The whole item opens a page about Entry's limits; 'Learn more.' is not a separate link. 'Entry' and 'Enterprise Advanced' are edition names. <b> marks bold text."
+-  },
+-  "globalHeader.productSwitcherMenu.editionMenuitem.unsupported": {
+-    "defaultMessage": "This is the free <b>unsupported</b> edition of Mattermost. See pricing.",
+-    "description": "Clickable item at the bottom of the product menu on unlicensed (Team Edition) servers, next to a 'TEAM EDITION' badge. The whole item opens the pricing page; 'See pricing.' is not a separate link. <b> marks bold text."
+-  },
+   "globalHeader.productSwitcherMenu.integrationsMenuItem.label": {
+     "defaultMessage": "Integrations",
+     "description": "Menu item in the product menu at the top left of the global header. It opens the team's Integrations page (webhooks, slash commands, bots). Plural noun."
+@@ -26695,10 +26687,6 @@
      "defaultMessage": "During your trial you are able to create multiple teams. These teams will be archived after your trial.",
      "description": "Tooltip on the create-team option during a Cloud free trial, warning that teams created will be archived when the trial ends."
    },
 -  "navbar_dropdown.entryVersionText": {
--    "defaultMessage": "Entry offers Enterprise Advance capabilities <link>with limits</link> designed to support evaluation.",
+-    "defaultMessage": "Entry offers Enterprise Advanced capabilities <link>with limits</link> designed to support evaluation.",
 -    "description": "Text in the main menu describing the free Entry edition; 'Entry' and 'Enterprise Advanced' are plan names; <link> wraps the linked words."
 -  },
    "navbar_dropdown.help": {
      "defaultMessage": "Help",
      "description": "Menu item in the mobile right sidebar menu linking to help documentation."
-@@ -26155,10 +26151,6 @@
+@@ -26783,10 +26771,6 @@
      "defaultMessage": "During your trial you are able to create user groups. These user groups will be archived after your trial.",
      "description": "Tooltip on the user groups option during a Cloud free trial, warning that groups created will be archived when the trial ends."
    },
@@ -477,6 +322,242 @@ index 7c22f8a2..461afcaa 100644
    "navbar_dropdown.viewMembers": {
      "defaultMessage": "View Members",
      "description": "Menu item in the mobile right sidebar menu that opens the read-only list of team members."
+diff --git a/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_edition_menuitem.test.tsx b/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_edition_menuitem.test.tsx
+deleted file mode 100644
+index 359d4f37..00000000
+--- a/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_edition_menuitem.test.tsx
++++ /dev/null
+@@ -1,84 +0,0 @@
+-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+-// See LICENSE.txt for license information.
+-
+-import React from 'react';
+-
+-import type {DeepPartial} from '@mattermost/types/utilities';
+-
+-import {renderWithContext, screen} from 'tests/react_testing_utils';
+-import {LicenseSkus} from 'utils/constants';
+-import {TestHelper} from 'utils/test_helper';
+-
+-import type {GlobalState} from 'types/store';
+-
+-import ProductSwitcherEditionFooter from './switch_product_edition_menuitem';
+-
+-describe('ProductSwitcherEditionFooter', () => {
+-    const initialState: DeepPartial<GlobalState> = {
+-        entities: {
+-            general: {
+-                license: {
+-                    IsLicensed: 'true',
+-                    SkuShortName: 'Enterprise',
+-                },
+-            },
+-            users: {
+-                currentUserId: 'user_id',
+-                profiles: {
+-                    user_id: TestHelper.getUserMock({id: 'user_id'}),
+-                },
+-            },
+-        },
+-    };
+-
+-    test('should not show when licensed and not entry SKU (e.g., Professional)', () => {
+-        const state = {
+-            entities: {
+-                ...initialState.entities,
+-                general: {
+-                    license: {
+-                        IsLicensed: 'true',
+-                        SkuShortName: LicenseSkus.Professional,
+-                    },
+-                },
+-            },
+-        };
+-
+-        renderWithContext(<ProductSwitcherEditionFooter/>, state);
+-
+-        expect(screen.queryByText('TEAM EDITION')).not.toBeInTheDocument();
+-        expect(screen.queryByText('ENTRY EDITION')).not.toBeInTheDocument();
+-    });
+-
+-    test("should show when it's unlicensed", () => {
+-        const state = {
+-            entities: {
+-                ...initialState.entities,
+-                general: {license: {IsLicensed: 'false'}},
+-            },
+-        };
+-
+-        renderWithContext(<ProductSwitcherEditionFooter/>, state);
+-
+-        expect(screen.getByText('TEAM EDITION')).toBeInTheDocument();
+-        expect(screen.getByText(/unsupported/)).toBeInTheDocument();
+-    });
+-
+-    test("should show when it's licensed with entry SKU", () => {
+-        const state = {
+-            entities: {
+-                ...initialState.entities,
+-                general: {
+-                    license: {
+-                        IsLicensed: 'true',
+-                        SkuShortName: LicenseSkus.Entry,
+-                    },
+-                },
+-            },
+-        };
+-
+-        renderWithContext(<ProductSwitcherEditionFooter/>, state);
+-
+-        expect(screen.getByText('ENTRY EDITION')).toBeInTheDocument();
+-    });
+-});
+diff --git a/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.test.tsx b/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.test.tsx
+deleted file mode 100644
+index ce1d8bf0..00000000
+--- a/webapp/channels/src/components/widgets/menu/menu_items/menu_start_trial.test.tsx
++++ /dev/null
+@@ -1,106 +0,0 @@
+-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+-// See LICENSE.txt for license information.
+-
+-import React from 'react';
+-import * as reactRedux from 'react-redux';
+-
+-import {renderWithContext} from 'tests/react_testing_utils';
+-import {TestHelper} from 'utils/test_helper';
+-
+-import MenuStartTrial from './menu_start_trial';
+-
+-describe('components/widgets/menu/menu_items/menu_start_trial', () => {
+-    const useDispatchMock = jest.spyOn(reactRedux, 'useDispatch');
+-
+-    beforeEach(() => {
+-        useDispatchMock.mockClear();
+-    });
+-
+-    test('should render TEAM EDITION for unlicensed', () => {
+-        const state = {
+-            entities: {
+-                users: {
+-                    currentUserId: 'test_id',
+-                },
+-                general: {
+-                    license: TestHelper.getLicenseMock({
+-                        IsLicensed: 'false',
+-                        SkuShortName: '',
+-                    }),
+-                },
+-            },
+-        };
+-        const dummyDispatch = jest.fn();
+-        useDispatchMock.mockReturnValue(dummyDispatch);
+-        const {container} = renderWithContext(<MenuStartTrial id='startTrial'/>, state);
+-
+-        expect(container.querySelector('.editionText')).not.toBeNull();
+-        expect(container.textContent).toContain('TEAM EDITION');
+-        expect(container.textContent).toContain('This is the free');
+-    });
+-
+-    test('should render ENTRY EDITION for Entry license', () => {
+-        const state = {
+-            entities: {
+-                users: {
+-                    currentUserId: 'test_id',
+-                },
+-                general: {
+-                    license: TestHelper.getLicenseMock({
+-                        IsLicensed: 'true',
+-                        SkuShortName: 'entry',
+-                    }),
+-                },
+-            },
+-        };
+-        const dummyDispatch = jest.fn();
+-        useDispatchMock.mockReturnValue(dummyDispatch);
+-        const {container} = renderWithContext(<MenuStartTrial id='startTrial'/>, state);
+-
+-        expect(container.querySelector('.editionText')).not.toBeNull();
+-        expect(container.textContent).toContain('ENTRY EDITION');
+-        expect(container.textContent).toContain('Entry offers Enterprise Advanced capabilities');
+-    });
+-
+-    test('should return null for Professional license', () => {
+-        const state = {
+-            entities: {
+-                users: {
+-                    currentUserId: 'test_id',
+-                },
+-                general: {
+-                    license: TestHelper.getLicenseMock({
+-                        IsLicensed: 'true',
+-                        SkuShortName: 'professional',
+-                    }),
+-                },
+-            },
+-        };
+-        const dummyDispatch = jest.fn();
+-        useDispatchMock.mockReturnValue(dummyDispatch);
+-        const {container} = renderWithContext(<MenuStartTrial id='startTrial'/>, state);
+-
+-        expect(container.innerHTML).toBe('');
+-    });
+-
+-    test('should return null for Enterprise license', () => {
+-        const state = {
+-            entities: {
+-                users: {
+-                    currentUserId: 'test_id',
+-                },
+-                general: {
+-                    license: TestHelper.getLicenseMock({
+-                        IsLicensed: 'true',
+-                        SkuShortName: 'enterprise',
+-                    }),
+-                },
+-            },
+-        };
+-        const dummyDispatch = jest.fn();
+-        useDispatchMock.mockReturnValue(dummyDispatch);
+-        const {container} = renderWithContext(<MenuStartTrial id='startTrial'/>, state);
+-
+-        expect(container.innerHTML).toBe('');
+-    });
+-});
+diff --git a/webapp/channels/src/components/global_header/left_controls/product_branding/product_branding.test.tsx b/webapp/channels/src/components/global_header/left_controls/product_branding/product_branding.test.tsx
+index 249d512e..7d8f57e4 100644
+--- a/webapp/channels/src/components/global_header/left_controls/product_branding/product_branding.test.tsx
++++ b/webapp/channels/src/components/global_header/left_controls/product_branding/product_branding.test.tsx
+@@ -44,7 +44,7 @@ describe('ProductBranding', () => {
+         jest.restoreAllMocks();
+     });
+ 
+-    test('should render TEAM EDITION for unlicensed users', () => {
++    test('should not badge an unlicensed server as TEAM EDITION', () => {
+         const state = {
+             entities: {
+                 general: {
+@@ -58,10 +58,10 @@ describe('ProductBranding', () => {
+ 
+         renderWithContext(<ProductBranding/>, state);
+ 
+-        expect(screen.getByText('TEAM EDITION')).toBeInTheDocument();
++        expect(screen.queryByText('TEAM EDITION')).not.toBeInTheDocument();
+     });
+ 
+-    test('should render ENTRY EDITION for Entry license', () => {
++    test('should not badge an Entry license as ENTRY EDITION', () => {
+         const state = {
+             entities: {
+                 general: {
+@@ -75,7 +75,7 @@ describe('ProductBranding', () => {
+ 
+         renderWithContext(<ProductBranding/>, state);
+ 
+-        expect(screen.getByText('ENTRY EDITION')).toBeInTheDocument();
++        expect(screen.queryByText('ENTRY EDITION')).not.toBeInTheDocument();
+     });
+ 
+     test('should not render a license name for a licensed edition that is not Entry', () => {
 -- 
 2.47.3
-
