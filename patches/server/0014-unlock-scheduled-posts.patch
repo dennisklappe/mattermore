@@ -1,0 +1,163 @@
+diff --git a/server/channels/api4/scheduled_post.go b/server/channels/api4/scheduled_post.go
+index 1ef9b98..447c077 100644
+--- a/server/channels/api4/scheduled_post.go
++++ b/server/channels/api4/scheduled_post.go
+@@ -70,10 +70,6 @@ func requireScheduledPostsEnabled(c *Context) {
+ 		return
+ 	}
+ 
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("", "api.scheduled_posts.license_error", nil, "", http.StatusBadRequest)
+-		return
+-	}
+ }
+ 
+ func createSchedulePost(c *Context, w http.ResponseWriter, r *http.Request) {
+diff --git a/server/channels/app/scheduled_post.go b/server/channels/app/scheduled_post.go
+index 0df0624..3e9a9a6 100644
+--- a/server/channels/app/scheduled_post.go
++++ b/server/channels/app/scheduled_post.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ // recurringScheduledPostsEnabled gates turning recurrence on. The api4 routes already enforce
+-// the ScheduledPosts setting and license for every scheduled post request, and the job keeps
++// the ScheduledPosts setting for every scheduled post request, and the job keeps
+ // sending existing recurring series regardless of the flag.
+ func (a *App) recurringScheduledPostsEnabled() bool {
+ 	return a.Config().FeatureFlags.RecurringScheduledPosts
+diff --git a/server/channels/app/scheduled_post_job.go b/server/channels/app/scheduled_post_job.go
+index 6515e8f..d78b66f 100644
+--- a/server/channels/app/scheduled_post_job.go
++++ b/server/channels/app/scheduled_post_job.go
+@@ -32,10 +32,6 @@ func (a *App) ProcessScheduledPosts(rctx request.CTX) {
+ 		return
+ 	}
+ 
+-	if a.License() == nil {
+-		return
+-	}
+-
+ 	beforeTime := model.GetMillis()
+ 	afterTime := beforeTime - (24 * 60 * 60 * 1000) // subtracting 24 hours from beforeTime
+ 	lastScheduledPostId := ""
+diff --git a/server/config/client.go b/server/config/client.go
+index d977af2..75d7eca 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -156,6 +156,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["BurnOnReadDurationSeconds"] = strconv.Itoa(*c.ServiceSettings.BurnOnReadDurationSeconds)
+ 	props["BurnOnReadMaximumTimeToLiveSeconds"] = strconv.Itoa(*c.ServiceSettings.BurnOnReadMaximumTimeToLiveSeconds)
+ 	props["AllowSyncedDrafts"] = strconv.FormatBool(*c.ServiceSettings.AllowSyncedDrafts)
++	props["ScheduledPosts"] = strconv.FormatBool(*c.ServiceSettings.ScheduledPosts)
+ 	props["DelayChannelAutocomplete"] = strconv.FormatBool(*c.ExperimentalSettings.DelayChannelAutocomplete)
+ 	props["YoutubeReferrerPolicy"] = strconv.FormatBool(*c.ExperimentalSettings.YoutubeReferrerPolicy)
+ 	props["UniqueEmojiReactionLimitPerPost"] = strconv.FormatInt(int64(*c.ServiceSettings.UniqueEmojiReactionLimitPerPost), 10)
+@@ -238,7 +239,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 		if model.MinimumProfessionalLicense(license) {
+ 			props["EnableCustomGroups"] = strconv.FormatBool(*c.ServiceSettings.EnableCustomGroups)
+ 			props["PostAcknowledgements"] = "true"
+-			props["ScheduledPosts"] = strconv.FormatBool(*c.ServiceSettings.ScheduledPosts)
+ 		}
+ 
+ 		if model.MinimumEnterpriseLicense(license) {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 8d94358..21e6b21 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3638,7 +3638,6 @@ const AdminDefinition: AdminDefinitionType = {
+                                     help_text: defineMessage({id: 'admin.posts.scheduledPosts.description', defaultMessage: 'When enabled, users can schedule and send messages in the future.'}),
+                                     help_text_markdown: false,
+                                     isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.POSTS)),
+-                                    isHidden: it.not(it.licensed),
+                                 },
+                             ],
+                         },
+diff --git a/webapp/channels/src/components/drafts/drafts_link/drafts_link.test.tsx b/webapp/channels/src/components/drafts/drafts_link/drafts_link.test.tsx
+index 9116d42..7f1560a 100644
+--- a/webapp/channels/src/components/drafts/drafts_link/drafts_link.test.tsx
++++ b/webapp/channels/src/components/drafts/drafts_link/drafts_link.test.tsx
+@@ -147,7 +147,7 @@ describe('components/drafts/drafts_link', () => {
+         expect(screen.queryByTestId('scheduledPostIcon')).not.toBeInTheDocument();
+     });
+ 
+-    it('should not show scheduled posts badge when not licensed', () => {
++    it('should show scheduled posts badge when not licensed', () => {
+         const state = {
+             ...baseState,
+             entities: {
+@@ -158,6 +158,7 @@ describe('components/drafts/drafts_link', () => {
+                     },
+                 },
+                 general: {
++                    config: {ScheduledPosts: 'true'},
+                     license: {
+                         IsLicensed: 'false',
+                     },
+@@ -167,7 +168,7 @@ describe('components/drafts/drafts_link', () => {
+ 
+         renderWithRouter(state);
+ 
+-        expect(screen.queryByTestId('scheduledPostIcon')).not.toBeInTheDocument();
++        expect(screen.getByTestId('scheduledPostIcon')).toBeInTheDocument();
+     });
+ 
+     it('should show error indicator when scheduled posts have errors', () => {
+@@ -204,7 +205,6 @@ describe('components/drafts/drafts_link', () => {
+ 
+     it.each<DeepPartial<GeneralState>>([
+         {config: {ScheduledPosts: 'false'}},
+-        {license: {IsLicensed: 'false'}},
+     ])('should not fetch scheduled posts when component mounts if disabled', async (partialConf) => {
+         const fetchTeamScheduledPosts = require('mattermost-redux/actions/scheduled_posts').fetchTeamScheduledPosts;
+         const state: DeepPartial<GlobalState> = {
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.test.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.test.ts
+index 268e5b4..77d7752 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.test.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.test.ts
+@@ -54,11 +54,11 @@ describe('isRecurringScheduledPostsEnabled', () => {
+         } as unknown as GlobalState;
+     }
+ 
+-    it('should be enabled only when scheduled posts, the license and the feature flag all allow it', () => {
++    it('should be enabled only when scheduled posts and the feature flag allow it', () => {
+         expect(isRecurringScheduledPostsEnabled(makeState('true', 'true', 'true'))).toBe(true);
+         expect(isRecurringScheduledPostsEnabled(makeState('false', 'true', 'true'))).toBe(false);
+         expect(isRecurringScheduledPostsEnabled(makeState('true', 'false', 'true'))).toBe(false);
+-        expect(isRecurringScheduledPostsEnabled(makeState('true', 'true', 'false'))).toBe(false);
++        expect(isRecurringScheduledPostsEnabled(makeState('true', 'true', 'false'))).toBe(true);
+     });
+ 
+     it('should be disabled when the feature flag is missing from the config', () => {
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.ts
+index 203b1f4..6edc461 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.ts
+@@ -1,13 +1,13 @@
+ // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+ // See LICENSE.txt for license information.
+ 
+-import type {ClientLicense, ClientConfig} from '@mattermost/types/config';
++import type {ClientConfig} from '@mattermost/types/config';
+ import type {ScheduledPost, ScheduledPostsState} from '@mattermost/types/schedule_post';
+ import {isRecurringScheduledPost} from '@mattermost/types/schedule_post';
+ import type {GlobalState} from '@mattermost/types/store';
+ 
+ import {createSelector} from 'mattermost-redux/selectors/create_selector';
+-import {getConfig, getFeatureFlagValue, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig, getFeatureFlagValue} from 'mattermost-redux/selectors/entities/general';
+ import {getTeamIdByChannelId} from 'mattermost-redux/selectors/entities/teams';
+ 
+ const emptyList: string[] = [];
+@@ -101,9 +101,8 @@ export function showChannelOrThreadScheduledPostIndicator(state: GlobalState, ch
+ export const isScheduledPostsEnabled: (a: GlobalState) => boolean = createSelector(
+     'isScheduledPostsEnabled',
+     getConfig,
+-    getLicense,
+-    (config: Partial<ClientConfig>, license: ClientLicense): boolean => {
+-        return config.ScheduledPosts === 'true' && license.IsLicensed === 'true';
++    (config: Partial<ClientConfig>): boolean => {
++        return config.ScheduledPosts === 'true';
+     },
+ );
+ 
