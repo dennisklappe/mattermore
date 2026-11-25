@@ -1,0 +1,198 @@
+diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
+index 6284a202..0ab9da14 100644
+--- a/server/channels/api4/channel.go
++++ b/server/channels/api4/channel.go
+@@ -3418,6 +3418,2 @@ func convertGroupMessageToChannel(c *Context, w http.ResponseWriter, r *http.Req
+ func canEditChannelBanner(c *Context, originalChannel *model.Channel) {
+-	if !model.MinimumEnterpriseAdvancedLicense(c.App.License()) {
+-		c.Err = model.NewAppError("patchChannel", "license_error.feature_unavailable.specific", map[string]any{"Feature": "Channel Banner"}, "feature is not available for the current license", http.StatusForbidden)
+-	}
+-
+ 	switch originalChannel.Type {
+diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
+index 8d337856..caa86522 100644
+--- a/server/channels/api4/channel_test.go
++++ b/server/channels/api4/channel_test.go
+@@ -1574,3 +1574,3 @@ func TestPatchChannel(t *testing.T) {
+ 
+-	t.Run("Should not be able to configure channel banner without a license", func(t *testing.T) {
++	t.Run("Should be able to configure channel banner without a license", func(t *testing.T) {
+ 		_, err := client.Logout(context.Background())
+@@ -1598,9 +1598,10 @@ func TestPatchChannel(t *testing.T) {
+ 
+-		patchedChannel, resp, err := client.PatchChannel(context.Background(), channel.Id, patch)
+-		require.Error(t, err)
+-		CheckForbiddenStatus(t, resp)
+-		require.Nil(t, patchedChannel)
++		patchedChannel, _, err := client.PatchChannel(context.Background(), channel.Id, patch)
++		require.NoError(t, err)
++		require.NotNil(t, patchedChannel.BannerInfo)
++		require.True(t, *patchedChannel.BannerInfo.Enabled)
++		require.Equal(t, "banner text", *patchedChannel.BannerInfo.Text)
+ 	})
+ 
+-	t.Run("Should not be able to configure channel banner with a professional license", func(t *testing.T) {
++	t.Run("Should be able to configure channel banner with a professional license", func(t *testing.T) {
+ 		_, err := client.Logout(context.Background())
+@@ -1631,6 +1632,7 @@ func TestPatchChannel(t *testing.T) {
+ 
+-		patchedChannel, resp, err := client.PatchChannel(context.Background(), channel.Id, patch)
+-		require.Error(t, err)
+-		CheckForbiddenStatus(t, resp)
+-		require.Nil(t, patchedChannel)
++		patchedChannel, _, err := client.PatchChannel(context.Background(), channel.Id, patch)
++		require.NoError(t, err)
++		require.NotNil(t, patchedChannel.BannerInfo)
++		require.True(t, *patchedChannel.BannerInfo.Enabled)
++		require.Equal(t, "banner text", *patchedChannel.BannerInfo.Text)
+ 	})
+diff --git a/webapp/channels/src/components/channel_banner/channel_banner.test.tsx b/webapp/channels/src/components/channel_banner/channel_banner.test.tsx
+index b061a5ef..c2c33852 100644
+--- a/webapp/channels/src/components/channel_banner/channel_banner.test.tsx
++++ b/webapp/channels/src/components/channel_banner/channel_banner.test.tsx
+@@ -114,4 +114,8 @@ describe('components/channel_banner', () => {
+ 
+-    test('should not render when license is professional', () => {
+-        const nonEnterpriseLicenseState = {
++    test.each([
++        ['professional', {IsLicensed: 'true', SkuShortName: LicenseSkus.Professional}],
++        ['enterprise', {IsLicensed: 'true', SkuShortName: LicenseSkus.Enterprise}],
++        ['no', {IsLicensed: 'false'}],
++    ])('should render with %s license', (_name, license) => {
++        const state = {
+             ...baseState,
+@@ -119,29 +123,3 @@ describe('components/channel_banner', () => {
+                 ...baseState.entities,
+-                general: {
+-                    license: {
+-                        IsLicensed: 'true',
+-                        SkuShortName: LicenseSkus.Professional,
+-                    },
+-                },
+-            },
+-        };
+-
+-        renderWithContext(
+-            <ChannelBanner channelId={'channel_id_1'}/>,
+-            nonEnterpriseLicenseState,
+-        );
+-        expect(screen.queryByTestId('channel_banner_container')).not.toBeInTheDocument();
+-    });
+-
+-    test('should not render when license is enterprise', () => {
+-        const nonEnterpriseLicenseState = {
+-            ...baseState,
+-            entities: {
+-                ...baseState.entities,
+-                general: {
+-                    license: {
+-                        IsLicensed: 'true',
+-                        SkuShortName: LicenseSkus.Enterprise,
+-                    },
+-                },
++                general: {license},
+             },
+@@ -151,9 +129,9 @@ describe('components/channel_banner', () => {
+             <ChannelBanner channelId={'channel_id_1'}/>,
+-            nonEnterpriseLicenseState,
++            state,
+         );
+-        expect(screen.queryByTestId('channel_banner_container')).not.toBeInTheDocument();
++        expect(screen.getByTestId('channel_banner_container')).toBeInTheDocument();
+     });
+ 
+-    test('should not render when there is no license', () => {
+-        const noLicenseState = {
++    test('should render when general state has no license at all', () => {
++        const state = {
+             ...baseState,
+@@ -167,5 +145,5 @@ describe('components/channel_banner', () => {
+             <ChannelBanner channelId={'channel_id_1'}/>,
+-            noLicenseState,
++            state,
+         );
+-        expect(screen.queryByTestId('channel_banner_container')).not.toBeInTheDocument();
++        expect(screen.getByTestId('channel_banner_container')).toBeInTheDocument();
+     });
+diff --git a/webapp/channels/src/components/channel_banner/channel_banner.tsx b/webapp/channels/src/components/channel_banner/channel_banner.tsx
+index 227e13b1..d1174c97 100644
+--- a/webapp/channels/src/components/channel_banner/channel_banner.tsx
++++ b/webapp/channels/src/components/channel_banner/channel_banner.tsx
+@@ -12,3 +12,2 @@ import {selectShowChannelBanner} from 'mattermost-redux/selectors/entities/chann
+ import {getChannelBanner} from 'mattermost-redux/selectors/entities/channels';
+-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+ import {getContrastingSimpleColor} from 'mattermost-redux/utils/theme_utils';
+@@ -21,3 +20,2 @@ import Markdown from 'components/markdown';
+ 
+-import {isMinimumEnterpriseAdvancedLicense} from 'utils/license_utils';
+ import type {TextFormattingOptions} from 'utils/text_formatting';
+@@ -39,6 +37,3 @@ export default function ChannelBanner({channelId}: Props) {
+     const channelBannerInfo = useSelector((state: GlobalState) => getChannelBanner(state, channelId));
+-    const license = useSelector(getLicense);
+-    const licenseEnabled = isMinimumEnterpriseAdvancedLicense(license);
+-    const channelBannerConfigured = useSelector((state: GlobalState) => selectShowChannelBanner(state, channelId));
+-    const showNativeBanner = licenseEnabled && channelBannerConfigured;
++    const showNativeBanner = useSelector((state: GlobalState) => selectShowChannelBanner(state, channelId));
+ 
+diff --git a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.test.tsx b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.test.tsx
+index 5ed30979..9851ef9e 100644
+--- a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.test.tsx
++++ b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.test.tsx
+@@ -506,4 +506,11 @@ describe('ChannelSettingsModal', () => {
+ 
+-    it('should not show banner section without enterprise advanced license', async () => {
++    it.each([
++        ['no', undefined],
++        ['professional', 'professional'],
++        ['enterprise', 'enterprise'],
++    ])('should show banner section with %s license', async (_name, sku) => {
+         const testState = makeTestState();
++        if (sku) {
++            testState.entities.general.license.SkuShortName = sku;
++        }
+ 
+@@ -511,21 +518,3 @@ describe('ChannelSettingsModal', () => {
+         await userEvent.click(screen.getByTestId('configuration-tab-button'));
+-        expect(screen.queryByTestId('banner-section')).not.toBeInTheDocument();
+-    });
+-
+-    it('should not show banner section with professional license', async () => {
+-        const testState = makeTestState();
+-        testState.entities.general.license.SkuShortName = 'professional';
+-
+-        renderWithContext(<ChannelSettingsModal {...baseProps}/>, testState);
+-        await userEvent.click(screen.getByTestId('configuration-tab-button'));
+-        expect(screen.queryByTestId('banner-section')).not.toBeInTheDocument();
+-    });
+-
+-    it('should not show banner section with enterprise license', async () => {
+-        const testState = makeTestState();
+-        testState.entities.general.license.SkuShortName = 'enterprise';
+-
+-        renderWithContext(<ChannelSettingsModal {...baseProps}/>, testState);
+-        await userEvent.click(screen.getByTestId('configuration-tab-button'));
+-        expect(screen.queryByTestId('banner-section')).not.toBeInTheDocument();
++        expect(screen.getByTestId('banner-section')).toBeInTheDocument();
+     });
+diff --git a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
+index 5b9140bf..bb0c8313 100644
+--- a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
++++ b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
+@@ -17,3 +17,3 @@ import Permissions from 'mattermost-redux/constants/permissions';
+ import {getChannel} from 'mattermost-redux/selectors/entities/channels';
+-import {getConfig, getLicense, isChannelPermissionPoliciesEnabled} from 'mattermost-redux/selectors/entities/general';
++import {getConfig, isChannelPermissionPoliciesEnabled} from 'mattermost-redux/selectors/entities/general';
+ import {haveIChannelPermission, haveISystemPermission} from 'mattermost-redux/selectors/entities/roles';
+@@ -28,3 +28,2 @@ import {focusElement} from 'utils/a11y_utils';
+ import Constants from 'utils/constants';
+-import {isMinimumEnterpriseAdvancedLicense} from 'utils/license_utils';
+ 
+@@ -103,3 +102,2 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+     const isDMorGM = channel.type === Constants.DM_CHANNEL || channel.type === Constants.GM_CHANNEL;
+-    const channelBannerEnabled = isMinimumEnterpriseAdvancedLicense(useSelector(getLicense));
+ 
+@@ -132,3 +130,3 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+ 
+-    const canManageBanner = channelBannerEnabled && hasManageChannelBannerPermission;
++    const canManageBanner = hasManageChannelBannerPermission;
+     const canManageChannelProperties = useSelector((state: GlobalState) => {
