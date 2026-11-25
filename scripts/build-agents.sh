@@ -34,6 +34,15 @@ if (cd "$WORK" && go list -deps ./server/) | grep -q 'mattermost-plugin-agents/v
     exit 1
 fi
 
+# The plugin pins its Node version in .nvmrc. A newer npm rejects the plugin's
+# lockfile, so a mismatch fails here, loudly, and not partway through npm ci.
+want="$(tr -d '[:space:]v' < "$WORK/.nvmrc")"
+have="$(node -v | tr -d 'v')"
+case "$have" in
+    "$want"|"$want".*) ;;
+    *) echo "the plugin wants Node $want (.nvmrc) but this is Node $have" >&2; exit 1 ;;
+esac
+
 # The webapp is installed up front for the same reason the calls build does it.
 ( cd "$WORK/webapp" && npm ci --no-audit --no-fund )
 

@@ -95,8 +95,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The plugin pins its Node version in .nvmrc, and a newer npm rejects its
+      # lockfile, so this matches the pin and does not float.
       - uses: actions/setup-node@v4
-        with: { node-version: '24' }
+        with: { node-version: '24.11' }
       - uses: actions/setup-go@v5
         with: { go-version: '1.26' }
       - run: ./scripts/build-agents.sh dist
