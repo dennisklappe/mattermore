@@ -1,0 +1,70 @@
+diff --git a/server/channels/api4/report_test.go b/server/channels/api4/report_test.go
+index 9e171dfb..e3894a7b 100644
+--- a/server/channels/api4/report_test.go
++++ b/server/channels/api4/report_test.go
+@@ -303,6 +303,2 @@ func TestGetPostsForReporting(t *testing.T) {
+ 
+-	// Set up Enterprise license for compliance/reporting features
+-	license := model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise)
+-	th.App.Srv().SetLicense(license)
+-
+ 	// Create test posts with controlled timestamps using App layer
+@@ -325,10 +321,5 @@ func TestGetPostsForReporting(t *testing.T) {
+ 
+-	t.Run("should return bad request when license is not Enterprise", func(t *testing.T) {
+-		// Remove license temporarily
++	t.Run("should return posts when no license is installed", func(t *testing.T) {
++		// Mattermore is AGPL: the posts reporting endpoint must not require an Enterprise license.
+ 		th.App.Srv().SetLicense(nil)
+-		defer func() {
+-			// Restore Enterprise license for remaining tests
+-			license := model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise)
+-			th.App.Srv().SetLicense(license)
+-		}()
+ 
+@@ -342,15 +333,12 @@ func TestGetPostsForReporting(t *testing.T) {
+ 
+-		resp, _ := doPostJSON(t, th.SystemAdminClient, "/api/v4/reports/posts", requestBody)
+-		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
++		resp, body := doPostJSON(t, th.SystemAdminClient, "/api/v4/reports/posts", requestBody)
++		require.Equal(t, http.StatusOK, resp.StatusCode)
++
++		var result model.ReportPostListResponse
++		require.NoError(t, json.Unmarshal(body, &result))
++		require.GreaterOrEqual(t, len(result.Posts), 10)
+ 	})
+ 
+-	t.Run("should return bad request when license is Professional (not Enterprise)", func(t *testing.T) {
+-		// Set Professional license (not sufficient)
+-		professionalLicense := model.NewTestLicenseSKU(model.LicenseShortSkuProfessional)
+-		th.App.Srv().SetLicense(professionalLicense)
+-		defer func() {
+-			// Restore Enterprise license for remaining tests
+-			license := model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise)
+-			th.App.Srv().SetLicense(license)
+-		}()
++	t.Run("should return posts with a Professional license", func(t *testing.T) {
++		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
+ 
+@@ -364,4 +352,8 @@ func TestGetPostsForReporting(t *testing.T) {
+ 
+-		resp, _ := doPostJSON(t, th.SystemAdminClient, "/api/v4/reports/posts", requestBody)
+-		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
++		resp, body := doPostJSON(t, th.SystemAdminClient, "/api/v4/reports/posts", requestBody)
++		require.Equal(t, http.StatusOK, resp.StatusCode)
++
++		var result model.ReportPostListResponse
++		require.NoError(t, json.Unmarshal(body, &result))
++		require.GreaterOrEqual(t, len(result.Posts), 10)
+ 	})
+diff --git a/server/channels/app/report.go b/server/channels/app/report.go
+index 23cfd7af..2b18a193 100644
+--- a/server/channels/app/report.go
++++ b/server/channels/app/report.go
+@@ -315,6 +315,2 @@ func getTranslatedDateRange(dateRange string) string {
+ func (a *App) GetPostsForReporting(rctx request.CTX, queryParams model.ReportPostQueryParams, includeMetadata bool) (*model.ReportPostListResponse, *model.AppError) {
+-	if !model.MinimumEnterpriseLicense(a.Srv().License()) {
+-		return nil, model.NewAppError("GetPostsForReporting", "app.post.get_posts_for_reporting.license_error", nil, "", http.StatusBadRequest)
+-	}
+-
+ 	response, err := a.Srv().Store().Post().GetPostsForReporting(rctx, queryParams)
