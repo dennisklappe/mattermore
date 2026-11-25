@@ -1,5 +1,5 @@
 diff --git a/plugin.json b/plugin.json
-index fd820bf..fbfe90b 100644
+index 8617389d..fcbf916f 100644
 --- a/plugin.json
 +++ b/plugin.json
 @@ -82,7 +82,7 @@
@@ -9,13 +9,13 @@ index fd820bf..fbfe90b 100644
 -            "default": false,
 +            "default": true,
              "help_text": "When set to true, video calls are enabled in direct message channels."
-           }
-         ]
+           },
+           {
 diff --git a/server/configuration.go b/server/configuration.go
-index 3b2c712..c6f07fc 100644
+index 4b6e5a10..5d3d4bf6 100644
 --- a/server/configuration.go
 +++ b/server/configuration.go
-@@ -200,8 +200,10 @@ func (c *configuration) SetDefaults() {
+@@ -206,8 +206,10 @@ func (c *configuration) SetDefaults() {
  
  	c.AllowEnableCalls = model.NewPointer(true)
  
