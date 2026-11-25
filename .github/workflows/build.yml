@@ -70,6 +70,15 @@ jobs:
             echo "applied $(basename "$p")"
           done
 
+      - name: Agents patches apply to the pinned tag
+        run: |
+          git clone --quiet --depth 1 --branch "${{ steps.upstream.outputs.AGENTS_TAG }}" \
+            https://github.com/mattermost/mattermost-plugin-agents.git /tmp/agents
+          for p in patches/agents/*.patch; do
+            git -C /tmp/agents apply "$PWD/$p" || { echo "::error::$p does not apply"; exit 1; }
+            echo "applied $(basename "$p")"
+          done
+
   plugin:
     name: calls plugin compiles
     runs-on: ubuntu-latest
@@ -80,6 +89,17 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version: '1.26' }
       - run: ./scripts/build-calls.sh dist
+
+  agents:
+    name: agents plugin compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.26' }
+      - run: ./scripts/build-agents.sh dist
 
   server:
     name: server compiles
