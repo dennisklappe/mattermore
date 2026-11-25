@@ -1,0 +1,228 @@
+diff --git a/server/channels/api4/post.go b/server/channels/api4/post.go
+index 7d07b462..782d3a00 100644
+--- a/server/channels/api4/post.go
++++ b/server/channels/api4/post.go
+@@ -1474,8 +1474,2 @@ func unpinPost(c *Context, w http.ResponseWriter, _ *http.Request) {
+ func acknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
+-	// license check
+-	if !model.MinimumProfessionalLicense(c.App.Srv().License()) {
+-		c.Err = model.NewAppError("", model.NoTranslation, nil, "feature is not available for the current license", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	c.RequirePostId().RequireUserId()
+@@ -1513,8 +1507,2 @@ func acknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
+ func unacknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
+-	// license check
+-	if !model.MinimumProfessionalLicense(c.App.Srv().License()) {
+-		c.Err = model.NewAppError("", "license_error.feature_unavailable", nil, "feature is not available for the current license", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	c.RequirePostId().RequireUserId()
+diff --git a/server/channels/api4/post_test.go b/server/channels/api4/post_test.go
+index 6f4d0e0c..cef188c6 100644
+--- a/server/channels/api4/post_test.go
++++ b/server/channels/api4/post_test.go
+@@ -548,3 +548,3 @@ func TestCreatePostForPriority(t *testing.T) {
+ 
+-	t.Run("should return statusNotImplemented when min. pro. license not available", func(t *testing.T) {
++	t.Run("should allow an acknowledgement request and persistent notifications without a license", func(t *testing.T) {
+ 		appErr := th.App.Srv().RemoveLicense()
+@@ -559,8 +559,7 @@ func TestCreatePostForPriority(t *testing.T) {
+ 		}}
+-		_, resp, err := client.CreatePost(context.Background(), p1)
+-		require.Error(t, err)
+-		CheckNotImplementedStatus(t, resp)
++		_, _, err := client.CreatePost(context.Background(), p1)
++		require.NoError(t, err)
+ 
+ 		//  for Persistent Notification
+-		p2 := &model.Post{ChannelId: th.BasicChannel.Id, Message: "test", Metadata: &model.PostMetadata{
++		p2 := &model.Post{ChannelId: th.BasicChannel.Id, Message: "test @" + th.BasicUser2.Username, Metadata: &model.PostMetadata{
+ 			Priority: &model.PostPriority{
+@@ -570,5 +569,4 @@ func TestCreatePostForPriority(t *testing.T) {
+ 		}}
+-		_, resp, err = client.CreatePost(context.Background(), p2)
+-		require.Error(t, err)
+-		CheckNotImplementedStatus(t, resp)
++		_, _, err = client.CreatePost(context.Background(), p2)
++		require.NoError(t, err)
+ 	})
+@@ -7260,2 +7258,25 @@ func TestAcknowledgePost(t *testing.T) {
+ 
++func TestAcknowledgePostWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++
++	th := Setup(t).InitBasic(t)
++	require.Nil(t, th.App.Srv().RemoveLicense())
++	client := th.Client
++
++	ack, _, err := client.AcknowledgePost(context.Background(), th.BasicPost.Id, th.BasicUser.Id)
++	require.NoError(t, err)
++
++	acks, appErr := th.App.GetAcknowledgementsForPost(th.BasicPost.Id)
++	require.Nil(t, appErr)
++	require.Len(t, acks, 1)
++	require.Equal(t, acks[0], ack)
++
++	_, err = client.UnacknowledgePost(context.Background(), th.BasicPost.Id, th.BasicUser.Id)
++	require.NoError(t, err)
++
++	acks, appErr = th.App.GetAcknowledgementsForPost(th.BasicPost.Id)
++	require.Nil(t, appErr)
++	require.Empty(t, acks)
++}
++
+ func TestUnacknowledgePost(t *testing.T) {
+diff --git a/server/channels/app/post_permission_utils.go b/server/channels/app/post_permission_utils.go
+index 224f63fa..fe7430c8 100644
+--- a/server/channels/app/post_permission_utils.go
++++ b/server/channels/app/post_permission_utils.go
+@@ -22,5 +22,4 @@ func PostPriorityCheckWithApp(where string, a *App, rctx request.CTX, userId str
+ 	allowPersistentNotificationsForGuests := *a.Config().ServiceSettings.AllowPersistentNotificationsForGuests
+-	license := a.License()
+ 
+-	appErr = postPriorityCheck(user, priority, rootId, isPostPriorityEnabled, IsPersistentNotificationsEnabled, allowPersistentNotificationsForGuests, license)
++	appErr = postPriorityCheck(user, priority, rootId, isPostPriorityEnabled, IsPersistentNotificationsEnabled, allowPersistentNotificationsForGuests)
+ 	if appErr != nil {
+@@ -40,3 +39,2 @@ func postPriorityCheck(
+ 	allowPersistentNotificationsForGuests bool,
+-	license *model.License,
+ ) *model.AppError {
+@@ -56,12 +54,3 @@ func postPriorityCheck(
+ 
+-	if ack := priority.RequestedAck; ack != nil && *ack {
+-		if !model.MinimumProfessionalLicense(license) {
+-			return model.NewAppError("", "license_error.feature_unavailable", nil, "feature is not available for the current license", http.StatusNotImplemented)
+-		}
+-	}
+-
+ 	if notification := priority.PersistentNotifications; notification != nil && *notification {
+-		if !model.MinimumProfessionalLicense(license) {
+-			return model.NewAppError("", "license_error.feature_unavailable", nil, "feature is not available for the current license", http.StatusNotImplemented)
+-		}
+ 		if !isPersistentNotificationsEnabled {
+diff --git a/server/channels/app/post_permission_utils_test.go b/server/channels/app/post_permission_utils_test.go
+index a70e0296..57c7eb10 100644
+--- a/server/channels/app/post_permission_utils_test.go
++++ b/server/channels/app/post_permission_utils_test.go
+@@ -43 +43,32 @@ func TestPostCardTypeCheckWithApp(t *testing.T) {
+ }
++
++func TestPostPriorityCheckWithoutLicense(t *testing.T) {
++	user := &model.User{Id: model.NewId()}
++	important := "important"
++	urgent := model.PostPriorityUrgent
++
++	t.Run("requesting an acknowledgement needs no license", func(t *testing.T) {
++		priority := &model.PostPriority{Priority: &important, RequestedAck: model.NewPointer(true)}
++		assert.Nil(t, postPriorityCheck(user, priority, "", true, true, false))
++	})
++
++	t.Run("requesting an acknowledgement is still refused when priority is disabled", func(t *testing.T) {
++		priority := &model.PostPriority{Priority: &important, RequestedAck: model.NewPointer(true)}
++		assert.NotNil(t, postPriorityCheck(user, priority, "", false, true, false))
++	})
++
++	t.Run("persistent notifications need no license", func(t *testing.T) {
++		priority := &model.PostPriority{Priority: &urgent, PersistentNotifications: model.NewPointer(true)}
++		assert.Nil(t, postPriorityCheck(user, priority, "", true, true, false))
++	})
++
++	t.Run("persistent notifications still require the setting", func(t *testing.T) {
++		priority := &model.PostPriority{Priority: &urgent, PersistentNotifications: model.NewPointer(true)}
++		assert.NotNil(t, postPriorityCheck(user, priority, "", true, false, false))
++	})
++
++	t.Run("persistent notifications still require urgent priority", func(t *testing.T) {
++		priority := &model.PostPriority{Priority: &important, PersistentNotifications: model.NewPointer(true)}
++		assert.NotNil(t, postPriorityCheck(user, priority, "", true, true, false))
++	})
++}
+diff --git a/server/channels/app/server.go b/server/channels/app/server.go
+index 0e7b7381..a4e746ea 100644
+--- a/server/channels/app/server.go
++++ b/server/channels/app/server.go
+@@ -1811,3 +1811,3 @@ func (s *Server) initJobs() {
+ 		post_persistent_notifications.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+-		post_persistent_notifications.MakeScheduler(s.Jobs, func() *model.License { return s.License() }),
++		post_persistent_notifications.MakeScheduler(s.Jobs),
+ 	)
+diff --git a/server/channels/jobs/post_persistent_notifications/scheduler.go b/server/channels/jobs/post_persistent_notifications/scheduler.go
+index 4fa702a5..877b9810 100644
+--- a/server/channels/jobs/post_persistent_notifications/scheduler.go
++++ b/server/channels/jobs/post_persistent_notifications/scheduler.go
+@@ -21,5 +21,5 @@ func (scheduler *Scheduler) NextScheduleTime(cfg *model.Config, _ time.Time, _ b
+ 
+-func MakeScheduler(jobServer *jobs.JobServer, licenseFunc func() *model.License) *Scheduler {
+-	enabledFunc := func(_ *model.Config) bool {
+-		return model.MinimumProfessionalLicense(licenseFunc())
++func MakeScheduler(jobServer *jobs.JobServer) *Scheduler {
++	enabledFunc := func(cfg *model.Config) bool {
++		return *cfg.ServiceSettings.PostPriority && *cfg.ServiceSettings.AllowPersistentNotifications
+ 	}
+diff --git a/server/channels/jobs/post_persistent_notifications/scheduler_test.go b/server/channels/jobs/post_persistent_notifications/scheduler_test.go
+new file mode 100644
+index 00000000..008bbe94
+--- /dev/null
++++ b/server/channels/jobs/post_persistent_notifications/scheduler_test.go
+@@ -0,0 +1,37 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package post_persistent_notifications
++
++import (
++	"testing"
++
++	"github.com/stretchr/testify/assert"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++func TestSchedulerEnabledWithoutLicense(t *testing.T) {
++	scheduler := MakeScheduler(nil)
++
++	cfg := &model.Config{}
++	cfg.SetDefaults()
++
++	t.Run("enabled by the settings alone, with no license", func(t *testing.T) {
++		*cfg.ServiceSettings.PostPriority = true
++		*cfg.ServiceSettings.AllowPersistentNotifications = true
++		assert.True(t, scheduler.Enabled(cfg))
++	})
++
++	t.Run("disabled when persistent notifications are off", func(t *testing.T) {
++		*cfg.ServiceSettings.PostPriority = true
++		*cfg.ServiceSettings.AllowPersistentNotifications = false
++		assert.False(t, scheduler.Enabled(cfg))
++	})
++
++	t.Run("disabled when message priority is off", func(t *testing.T) {
++		*cfg.ServiceSettings.PostPriority = false
++		*cfg.ServiceSettings.AllowPersistentNotifications = true
++		assert.False(t, scheduler.Enabled(cfg))
++	})
++}
+diff --git a/server/config/client.go b/server/config/client.go
+index d977af27..ed350175 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -149,2 +149,3 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["PostPriority"] = strconv.FormatBool(*c.ServiceSettings.PostPriority)
++	props["PostAcknowledgements"] = "true"
+ 	props["AllowPersistentNotifications"] = strconv.FormatBool(*c.ServiceSettings.AllowPersistentNotifications)
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index fa55d0d6..f768a09a 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -15,2 +15,8 @@ import (
+ 
++func TestPostAcknowledgementsClientConfigWithoutLicense(t *testing.T) {
++	cfg := &model.Config{}
++	cfg.SetDefaults()
++	assert.Equal(t, "true", GenerateClientConfig(cfg, "", nil)["PostAcknowledgements"])
++}
++
+ func TestGetClientConfig(t *testing.T) {
