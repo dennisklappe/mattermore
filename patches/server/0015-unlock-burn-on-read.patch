@@ -1,0 +1,356 @@
+diff --git a/server/channels/app/post.go b/server/channels/app/post.go
+index 9a1191d..2eb45d8 100644
+--- a/server/channels/app/post.go
++++ b/server/channels/app/post.go
+@@ -704,10 +704,6 @@ func (a *App) FillInPostProps(rctx request.CTX, post *model.Post, channel *model
+ 	}
+ 
+ 	if post.Type == model.PostTypeBurnOnRead {
+-		if !model.MinimumEnterpriseAdvancedLicense(a.Srv().License()) {
+-			return model.NewAppError("FillInPostProps", "api.post.fill_in_post_props.burn_on_read.license.app_error", nil, "", http.StatusNotImplemented)
+-		}
+-
+ 		if !a.Config().FeatureFlags.BurnOnRead || !model.SafeDereference(a.Config().ServiceSettings.EnableBurnOnRead) {
+ 			return model.NewAppError("FillInPostProps", "api.post.fill_in_post_props.burn_on_read.config.app_error", nil, "", http.StatusNotImplemented)
+ 		}
+diff --git a/server/channels/app/post_test.go b/server/channels/app/post_test.go
+index 84b04ed..f7a34fb 100644
+--- a/server/channels/app/post_test.go
++++ b/server/channels/app/post_test.go
+@@ -3981,6 +3981,107 @@ func TestCountMentionsFromPost(t *testing.T) {
+ 	})
+ }
+ 
++// TestFillInPostPropsBurnOnReadWithoutLicense locks in the Mattermore unlock: the
++// Enterprise Advanced licence check is gone from FillInPostProps, while the
++// feature-flag and service-setting gates that protect the feature remain.
++func TestFillInPostPropsBurnOnReadWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++
++	enableBurnOnRead := func(th *TestHelper) {
++		th.App.UpdateConfig(func(cfg *model.Config) {
++			cfg.FeatureFlags.BurnOnRead = true
++			cfg.ServiceSettings.EnableBurnOnRead = new(true)
++		})
++	}
++
++	t.Run("accepts a burn-on-read post with no licence installed", func(t *testing.T) {
++		mainHelper.Parallel(t)
++		th := Setup(t).InitBasic(t)
++
++		appErr := th.App.Srv().RemoveLicense()
++		require.Nil(t, appErr)
++		enableBurnOnRead(th)
++
++		post := &model.Post{
++			UserId:    th.BasicUser.Id,
++			ChannelId: th.BasicChannel.Id,
++			Message:   "burn after reading",
++			Type:      model.PostTypeBurnOnRead,
++		}
++
++		appErr = th.App.FillInPostProps(th.Context, post, th.BasicChannel)
++		require.Nil(t, appErr)
++		require.NotNil(t, post.GetProp(model.PostPropsExpireAt))
++		require.NotNil(t, post.GetProp(model.PostPropsReadDurationSeconds))
++	})
++
++	t.Run("creates a burn-on-read post end to end with no licence installed", func(t *testing.T) {
++		mainHelper.Parallel(t)
++		th := Setup(t).InitBasic(t)
++
++		appErr := th.App.Srv().RemoveLicense()
++		require.Nil(t, appErr)
++		enableBurnOnRead(th)
++
++		created, _, appErr := th.App.CreatePost(th.Context, &model.Post{
++			UserId:    th.BasicUser.Id,
++			ChannelId: th.BasicChannel.Id,
++			Message:   "burn after reading",
++			Type:      model.PostTypeBurnOnRead,
++		}, th.BasicChannel, model.CreatePostFlags{SetOnline: false})
++		require.Nil(t, appErr)
++		require.Equal(t, model.PostTypeBurnOnRead, created.Type)
++	})
++
++	t.Run("unlicensed recipient can reveal and author can permanently burn", func(t *testing.T) {
++		mainHelper.Parallel(t)
++		th := Setup(t).InitBasic(t)
++		require.Nil(t, th.App.Srv().RemoveLicense())
++		enableBurnOnRead(th)
++		th.AddUserToChannel(t, th.BasicUser2, th.BasicChannel)
++		post, _, appErr := th.App.CreatePost(th.Context, &model.Post{
++			UserId: th.BasicUser.Id, ChannelId: th.BasicChannel.Id,
++			Message: "synthetic temporary message", Type: model.PostTypeBurnOnRead,
++		}, th.BasicChannel, model.CreatePostFlags{})
++		require.Nil(t, appErr)
++		_, err := th.App.Srv().Store().TemporaryPost().Get(th.Context, post.Id, true)
++		require.NoError(t, err)
++		revealed, appErr := th.App.RevealPost(th.Context, post, th.BasicUser2.Id, "")
++		require.Nil(t, appErr)
++		require.Equal(t, "synthetic temporary message", revealed.Message)
++		receipt, err := th.App.Srv().Store().ReadReceipt().Get(th.Context, post.Id, th.BasicUser2.Id)
++		require.NoError(t, err)
++		require.Equal(t, revealed.Metadata.ExpireAt, receipt.ExpireAt)
++		require.Greater(t, receipt.ExpireAt, model.GetMillis())
++		require.Nil(t, th.App.BurnPost(th.Context, post, th.BasicUser.Id, ""))
++		_, err = th.App.Srv().Store().TemporaryPost().Get(th.Context, post.Id, true)
++		require.Error(t, err)
++	})
++
++	t.Run("still refuses when the service setting is disabled", func(t *testing.T) {
++		mainHelper.Parallel(t)
++		th := Setup(t).InitBasic(t)
++
++		appErr := th.App.Srv().RemoveLicense()
++		require.Nil(t, appErr)
++		th.App.UpdateConfig(func(cfg *model.Config) {
++			cfg.FeatureFlags.BurnOnRead = true
++			cfg.ServiceSettings.EnableBurnOnRead = new(false)
++		})
++
++		post := &model.Post{
++			UserId:    th.BasicUser.Id,
++			ChannelId: th.BasicChannel.Id,
++			Message:   "burn after reading",
++			Type:      model.PostTypeBurnOnRead,
++		}
++
++		appErr = th.App.FillInPostProps(th.Context, post, th.BasicChannel)
++		require.NotNil(t, appErr)
++		require.Equal(t, "api.post.fill_in_post_props.burn_on_read.config.app_error", appErr.Id)
++	})
++}
++
+ func TestFillInPostProps(t *testing.T) {
+ 	mainHelper.Parallel(t)
+ 	t.Run("should not add disable group highlight to post props for user with group mention permissions", func(t *testing.T) {
+diff --git a/server/config/client.go b/server/config/client.go
+index d977af2..e958936 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -152,7 +152,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["PersistentNotificationMaxCount"] = strconv.FormatInt(int64(*c.ServiceSettings.PersistentNotificationMaxCount), 10)
+ 	props["PersistentNotificationIntervalMinutes"] = strconv.FormatInt(int64(*c.ServiceSettings.PersistentNotificationIntervalMinutes), 10)
+ 	props["PersistentNotificationMaxRecipients"] = strconv.FormatInt(int64(*c.ServiceSettings.PersistentNotificationMaxRecipients), 10)
+-	props["EnableBurnOnRead"] = strconv.FormatBool(*c.ServiceSettings.EnableBurnOnRead)
++	props["EnableBurnOnRead"] = strconv.FormatBool(*c.ServiceSettings.EnableBurnOnRead && c.FeatureFlags.BurnOnRead)
+ 	props["BurnOnReadDurationSeconds"] = strconv.Itoa(*c.ServiceSettings.BurnOnReadDurationSeconds)
+ 	props["BurnOnReadMaximumTimeToLiveSeconds"] = strconv.Itoa(*c.ServiceSettings.BurnOnReadMaximumTimeToLiveSeconds)
+ 	props["AllowSyncedDrafts"] = strconv.FormatBool(*c.ServiceSettings.AllowSyncedDrafts)
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index fa55d0d..351dddd 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -13,6 +13,21 @@ import (
+ 	"github.com/mattermost/mattermost/server/public/model"
+ )
+ 
++func TestBurnOnReadClientConfigRequiresBothGates(t *testing.T) {
++	cfg := &model.Config{}
++	cfg.SetDefaults()
++	for _, tc := range []struct {
++		setting, flag bool
++		want          string
++	}{
++		{true, true, "true"}, {true, false, "false"}, {false, true, "false"}, {false, false, "false"},
++	} {
++		cfg.ServiceSettings.EnableBurnOnRead = &tc.setting
++		cfg.FeatureFlags.BurnOnRead = tc.flag
++		assert.Equal(t, tc.want, GenerateClientConfig(cfg, "", nil)["EnableBurnOnRead"])
++	}
++}
++
+ func TestGetClientConfig(t *testing.T) {
+ 	t.Parallel()
+ 	testCases := []struct {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 8d94358..65b5f90 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -91,7 +91,6 @@ import {
+ } from './feature_discovery/features';
+ import AttributeBasedAccessControlFeatureDiscovery from './feature_discovery/features/attribute_based_access_control';
+ import AutoTranslationFeatureDiscovery from './feature_discovery/features/auto_translation';
+-import BurnOnReadSVG from './feature_discovery/features/images/burn_on_read_svg';
+ import IntuneMAMSvg from './feature_discovery/features/images/intune_mam_svg';
+ import SessionAttributesFeatureDiscovery from './feature_discovery/features/session_attributes';
+ import UserAttributesFeatureDiscovery from './feature_discovery/features/user_attributes';
+@@ -3780,18 +3779,6 @@ const AdminDefinition: AdminDefinitionType = {
+                             key: 'PostSettings.BurnOnRead',
+                             title: defineMessage({id: 'admin.posts.sections.burnOnRead.title', defaultMessage: 'Burn-on-Read Messages'}),
+                             description: defineMessage({id: 'admin.posts.sections.burnOnRead.description', defaultMessage: 'Controls for messages that delete automatically a certain time after being read.'}),
+-                            license_sku: LicenseSkus.EnterpriseAdvanced,
+-                            component: LicensedSectionContainer,
+-                            componentProps: {
+-                                requiredSku: LicenseSkus.EnterpriseAdvanced,
+-                                featureDiscoveryConfig: {
+-                                    featureName: 'burn_on_read',
+-                                    title: defineMessage({id: 'admin.burn_on_read_feature_discovery.title', defaultMessage: 'Send burn-on-read messages that are automatically deleted after being read'}),
+-                                    description: defineMessage({id: 'admin.burn_on_read_feature_discovery.description', defaultMessage: 'With Mattermost Enterprise Advanced, users can send transient messages that are automatically deleted a fixed time after they are read by a recipient.'}),
+-                                    learnMoreURL: 'https://docs.mattermost.com/end-user-guide/collaborate/send-messages.html#send-burn-on-read-messages',
+-                                    svgImage: BurnOnReadSVG,
+-                                },
+-                            },
+                             settings: [
+                                 {
+                                     type: 'bool',
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_burn_on_read.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_burn_on_read.test.tsx
+index a6b7330..b1ed99a 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_burn_on_read.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_burn_on_read.test.tsx
+@@ -3,8 +3,6 @@
+ 
+ import type {AdminConfig} from '@mattermost/types/config';
+ 
+-import {LicenseSkus} from 'utils/constants';
+-
+ import AdminDefinition from './admin_definition';
+ import type {AdminDefinitionSetting, AdminDefinitionConfigSchemaSection} from './types';
+ 
+@@ -105,7 +103,7 @@ describe('AdminDefinition - Burn-on-Read Settings', () => {
+         });
+     });
+ 
+-    test('Burn-on-Read section should use LicensedSectionContainer with proper feature discovery', () => {
++    test('Burn-on-Read section is not licence-gated', () => {
+         const postsSection = AdminDefinition.site.subsections.posts;
+         const sections = 'sections' in postsSection.schema! ? postsSection.schema.sections : undefined;
+ 
+@@ -113,17 +111,11 @@ describe('AdminDefinition - Burn-on-Read Settings', () => {
+         const burnOnReadSection = sections?.find((section: AdminDefinitionConfigSchemaSection) => section.key === 'PostSettings.BurnOnRead');
+         expect(burnOnReadSection).toBeDefined();
+ 
+-        // Check that the section uses LicensedSectionContainer
+-        expect(burnOnReadSection?.component).toBeDefined();
+-
+-        // Check that it has proper license SKU requirement
+-        expect(burnOnReadSection?.license_sku).toBe(LicenseSkus.EnterpriseAdvanced);
+-
+-        // Check that component props include feature discovery config
+-        expect(burnOnReadSection?.componentProps).toBeDefined();
+-        expect(burnOnReadSection?.componentProps?.requiredSku).toBe(LicenseSkus.EnterpriseAdvanced);
+-        expect(burnOnReadSection?.componentProps?.featureDiscoveryConfig).toBeDefined();
+-        expect(burnOnReadSection?.componentProps?.featureDiscoveryConfig?.featureName).toBe('burn_on_read');
++        // Mattermore removes the Enterprise Advanced wrapper: a plain section
++        // renders the settings for any admin with site posts write permission.
++        expect(burnOnReadSection?.component).toBeUndefined();
++        expect(burnOnReadSection?.license_sku).toBeUndefined();
++        expect(burnOnReadSection?.componentProps).toBeUndefined();
+     });
+ 
+     test('Burn-on-Read section isHidden should return true when feature flag is disabled', () => {
+diff --git a/webapp/channels/src/selectors/burn_on_read.test.ts b/webapp/channels/src/selectors/burn_on_read.test.ts
+index 6ef5857..dc45043 100644
+--- a/webapp/channels/src/selectors/burn_on_read.test.ts
++++ b/webapp/channels/src/selectors/burn_on_read.test.ts
+@@ -46,44 +46,34 @@ describe('selectors/burn_on_read', () => {
+     });
+ 
+     describe('isBurnOnReadEnabled', () => {
+-        it('should return true when config is enabled AND license is Enterprise Advanced', () => {
++        it('should return true when config is enabled and no license is installed', () => {
++            // Mattermore lifts the Enterprise Advanced licence requirement: an
++            // unlicensed server must expose the control when the setting is on.
+             state.entities.general.config.EnableBurnOnRead = 'true';
+-            state.entities.general.license = WebappTestHelper.getLicenseMock({
+-                IsLicensed: 'true',
+-                SkuShortName: LicenseSkus.EnterpriseAdvanced,
+-            });
++            state.entities.general.license = {} as any;
+             const result = isBurnOnReadEnabled(state);
+             expect(result).toBe(true);
+         });
+ 
+-        it('should return true when config is enabled AND license is Entry (legacy tier)', () => {
++        it('should return true when config is enabled and license is Enterprise Advanced', () => {
+             state.entities.general.config.EnableBurnOnRead = 'true';
+             state.entities.general.license = WebappTestHelper.getLicenseMock({
+                 IsLicensed: 'true',
+-                SkuShortName: LicenseSkus.Entry,
++                SkuShortName: LicenseSkus.EnterpriseAdvanced,
+             });
+             const result = isBurnOnReadEnabled(state);
+             expect(result).toBe(true);
+         });
+ 
+-        it('should return false when config is enabled but license is Enterprise (not Advanced)', () => {
+-            state.entities.general.config.EnableBurnOnRead = 'true';
+-            state.entities.general.license = WebappTestHelper.getLicenseMock({
+-                IsLicensed: 'true',
+-                SkuShortName: LicenseSkus.Enterprise,
+-            });
+-            const result = isBurnOnReadEnabled(state);
+-            expect(result).toBe(false);
+-        });
+-
+-        it('should return false when config is enabled but license is Professional', () => {
++        it('should return true when config is enabled and license is Professional', () => {
++            // The SKU no longer decides; only the service setting does.
+             state.entities.general.config.EnableBurnOnRead = 'true';
+             state.entities.general.license = WebappTestHelper.getLicenseMock({
+                 IsLicensed: 'true',
+                 SkuShortName: LicenseSkus.Professional,
+             });
+             const result = isBurnOnReadEnabled(state);
+-            expect(result).toBe(false);
++            expect(result).toBe(true);
+         });
+ 
+         it('should return false when license is Enterprise Advanced but config is disabled', () => {
+@@ -100,13 +90,6 @@ describe('selectors/burn_on_read', () => {
+             const result = isBurnOnReadEnabled(state);
+             expect(result).toBe(false);
+         });
+-
+-        it('should return false when no license exists', () => {
+-            state.entities.general.config.EnableBurnOnRead = 'true';
+-            state.entities.general.license = {} as any;
+-            const result = isBurnOnReadEnabled(state);
+-            expect(result).toBe(false);
+-        });
+     });
+ 
+     describe('getBurnOnReadDurationMinutes', () => {
+diff --git a/webapp/channels/src/selectors/burn_on_read.ts b/webapp/channels/src/selectors/burn_on_read.ts
+index 381cf3e..03834ed 100644
+--- a/webapp/channels/src/selectors/burn_on_read.ts
++++ b/webapp/channels/src/selectors/burn_on_read.ts
+@@ -1,34 +1,24 @@
+ // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+ // See LICENSE.txt for license information.
+ 
+-import type {ClientLicense} from '@mattermost/types/config';
+-
+ import {createSelector} from 'mattermost-redux/selectors/create_selector';
+ import {getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ import {getInt} from 'mattermost-redux/selectors/entities/preferences';
+ 
+-import {isMinimumEnterpriseAdvancedLicense} from 'utils/license_utils';
+-
+ import type {GlobalState} from 'types/store';
+ 
+ // Preference category for storing whether user has seen the Burn-on-Read tour tip
+ export const BURN_ON_READ_TOUR_TIP_PREFERENCE = 'burn_on_read_tour_tip';
+ 
+ /**
+- * Returns whether the Burn-on-Read feature is enabled system-wide AND
+- * the license supports it (Enterprise Advanced or higher).
++ * Returns whether the Burn-on-Read feature is enabled system-wide.
+  * When enabled, users can send messages that auto-delete after being read by recipients.
+  */
+ export const isBurnOnReadEnabled: (state: GlobalState) => boolean = createSelector(
+     'isBurnOnReadEnabled',
+     getConfig,
+-    getLicense,
+-    (config, license: ClientLicense): boolean => {
+-        const configEnabled = config.EnableBurnOnRead === 'true';
+-        const licenseSupportsFeature = isMinimumEnterpriseAdvancedLicense(license);
+-        return configEnabled && licenseSupportsFeature;
+-    },
++    (config): boolean => config.EnableBurnOnRead === 'true',
+ );
+ 
+ /**
