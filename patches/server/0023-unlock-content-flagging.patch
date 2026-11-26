@@ -1,0 +1,321 @@
+diff --git a/server/channels/api4/content_flagging.go b/server/channels/api4/content_flagging.go
+index e5166ed1..5cad8799 100644
+--- a/server/channels/api4/content_flagging.go
++++ b/server/channels/api4/content_flagging.go
+@@ -39,15 +39,3 @@ func (api *API) InitContentFlagging() {
+ 
+-func requireContentFlaggingAvailable(c *Context) {
+-	if !model.MinimumEnterpriseAdvancedLicense(c.App.License()) {
+-		c.Err = model.NewAppError("requireContentFlaggingEnabled", "api.data_spillage.error.license", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-}
+-
+ func requireContentFlaggingEnabled(c *Context) {
+-	requireContentFlaggingAvailable(c)
+-	if c.Err != nil {
+-		return
+-	}
+-
+ 	contentFlaggingEnabled := c.App.Config().ContentFlaggingSettings.EnableContentFlagging
+@@ -483,7 +471,2 @@ func keepRemoveFlaggedPostChecks(c *Context, r *http.Request) (*model.FlagConten
+ func saveContentFlaggingSettings(c *Context, w http.ResponseWriter, r *http.Request) {
+-	requireContentFlaggingAvailable(c)
+-	if c.Err != nil {
+-		return
+-	}
+-
+ 	var config model.ContentFlaggingSettingsRequest
+@@ -519,7 +502,2 @@ func saveContentFlaggingSettings(c *Context, w http.ResponseWriter, r *http.Requ
+ func getContentFlaggingSettings(c *Context, w http.ResponseWriter, r *http.Request) {
+-	requireContentFlaggingAvailable(c)
+-	if c.Err != nil {
+-		return
+-	}
+-
+ 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSystem) {
+diff --git a/server/channels/api4/content_flagging_test.go b/server/channels/api4/content_flagging_test.go
+index f0ac0de1..f3575ea6 100644
+--- a/server/channels/api4/content_flagging_test.go
++++ b/server/channels/api4/content_flagging_test.go
+@@ -147,4 +147,10 @@ func TestRequireContentFlaggingEnabled(t *testing.T) {
+ 
+-	t.Run("Should set error when license is not valid", func(t *testing.T) {
++	t.Run("Should not set error without a license when the feature is enabled", func(t *testing.T) {
+ 		th.RemoveLicense(t)
++
++		th.App.UpdateConfig(func(config *model.Config) {
++			config.ContentFlaggingSettings.EnableContentFlagging = new(true)
++			config.ContentFlaggingSettings.SetDefaults()
++		})
++
+ 		c := &Context{
+@@ -155,5 +161,3 @@ func TestRequireContentFlaggingEnabled(t *testing.T) {
+ 		requireContentFlaggingEnabled(c)
+-		require.NotNil(t, c.Err)
+-		require.Equal(t, "api.data_spillage.error.license", c.Err.Id)
+-		require.Equal(t, http.StatusNotImplemented, c.Err.StatusCode)
++		require.Nil(t, c.Err)
+ 	})
+@@ -1556 +1560,35 @@ func TestKeepFlaggedPost(t *testing.T) {
+ }
++
++func TestContentFlaggingWithoutLicense(t *testing.T) {
++	th := Setup(t).InitBasic(t)
++	th.RemoveLicense(t)
++	require.Nil(t, th.App.Srv().License())
++
++	appErr := setBasicCommonReviewerConfig(th)
++	require.Nil(t, appErr)
++
++	t.Run("an admin can read the settings", func(t *testing.T) {
++		settings, resp, err := th.SystemAdminClient.GetContentFlaggingSettings(context.Background())
++		require.NoError(t, err)
++		require.Equal(t, http.StatusOK, resp.StatusCode)
++		require.NotNil(t, settings.EnableContentFlagging)
++		require.True(t, *settings.EnableContentFlagging)
++	})
++
++	t.Run("a user can flag a post", func(t *testing.T) {
++		post := th.CreatePost(t)
++		resp, err := th.Client.FlagPostForContentReview(context.Background(), post.Id, &model.FlagContentRequest{
++			Reason:  "Classification mismatch",
++			Comment: "This is sensitive data",
++		})
++		require.NoError(t, err)
++		require.Equal(t, http.StatusOK, resp.StatusCode)
++	})
++
++	t.Run("permissions still apply without a license", func(t *testing.T) {
++		settings, resp, err := th.Client.GetContentFlaggingSettings(context.Background())
++		require.Error(t, err)
++		require.Equal(t, http.StatusForbidden, resp.StatusCode)
++		require.Nil(t, settings)
++	})
++}
+diff --git a/server/config/client.go b/server/config/client.go
+index a9e0d44d..529b7e60 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -163,2 +163,3 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["UniqueEmojiReactionLimitPerPost"] = strconv.FormatInt(int64(*c.ServiceSettings.UniqueEmojiReactionLimitPerPost), 10)
++	props["ContentFlaggingEnabled"] = strconv.FormatBool(c.FeatureFlags.ContentFlagging && model.SafeDereference(c.ContentFlaggingSettings.EnableContentFlagging))
+ 
+@@ -255,3 +256,2 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 
+-			props["ContentFlaggingEnabled"] = strconv.FormatBool(c.FeatureFlags.ContentFlagging && *c.ContentFlaggingSettings.EnableContentFlagging)
+ 			props["EnableAutoTranslation"] = strconv.FormatBool(c.FeatureFlags.AutoTranslation && *c.AutoTranslationSettings.Enable)
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index 1ea14066..44573dd6 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -913,2 +913,26 @@ func TestGetClientConfigEnableCustomGroupsWithoutLicense(t *testing.T) {
+ 
++func TestGetClientConfigContentFlaggingWithoutLicense(t *testing.T) {
++	t.Parallel()
++
++	for name, tc := range map[string]struct {
++		flag     bool
++		enabled  bool
++		expected string
++	}{
++		"feature flag and setting on": {flag: true, enabled: true, expected: "true"},
++		"setting off":                 {flag: true, enabled: false, expected: "false"},
++		"feature flag off":            {flag: false, enabled: true, expected: "false"},
++	} {
++		t.Run(name, func(t *testing.T) {
++			cfg := &model.Config{}
++			cfg.SetDefaults()
++			cfg.FeatureFlags.ContentFlagging = tc.flag
++			cfg.ContentFlaggingSettings.EnableContentFlagging = model.NewPointer(tc.enabled)
++
++			props := GenerateClientConfig(cfg, "", nil)
++			assert.Equal(t, tc.expected, props["ContentFlaggingEnabled"])
++		})
++	}
++}
++
+ func TestGenerateClientConfigLockProfileFieldsForEmailUsers(t *testing.T) {
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index ee3f9f2a..8c0eafb6 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -2747,7 +2747,2 @@
+   },
+-  {
+-    "id": "api.data_spillage.error.license",
+-    "translation": "Your license does not support Data Spillage Handling.",
+-    "description": "API error when using the data spillage (flagged content review) feature without a license that includes it; 'Data Spillage Handling' is a feature name."
+-  },
+   {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 5d48eb7d..c5af3ced 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -79,3 +79,2 @@ import {
+     CustomTermsOfServiceFeatureDiscovery,
+-    DataSpillageFeatureDiscovery,
+     DataRetentionFeatureDiscovery,
+@@ -4168,3 +4167,2 @@ const AdminDefinition: AdminDefinitionType = {
+                 isHidden: it.any(
+-                    it.not(it.minLicenseTier(LicenseSkus.EnterpriseAdvanced)),
+                     it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+@@ -4173,3 +4171,2 @@ const AdminDefinition: AdminDefinitionType = {
+                 isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+-                restrictedIndicator: getRestrictedIndicator(false, LicenseSkus.EnterpriseAdvanced),
+                 schema: {
+@@ -4179,24 +4176,2 @@ const AdminDefinition: AdminDefinitionType = {
+             },
+-            content_flagging_feature_discovery: {
+-                url: 'site_config/data_spillage',
+-                isDiscovery: true,
+-                title: defineMessage({id: 'admin.sidebar.dataSpillage', defaultMessage: 'Data Spillage Handling'}),
+-                isHidden: it.any(
+-                    it.minLicenseTier(LicenseSkus.EnterpriseAdvanced),
+-                    it.configIsFalse('FeatureFlags', 'ContentFlagging'),
+-                ),
+-                schema: {
+-                    id: 'ContentFlaggingSettings',
+-                    name: defineMessage({id: 'admin.sidebar.dataSpillage', defaultMessage: 'Data Spillage Handling'}),
+-                    settings: [
+-                        {
+-                            type: 'custom',
+-                            component: DataSpillageFeatureDiscovery,
+-                            key: 'DataSpillageFeatureDiscovery',
+-                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE)),
+-                        },
+-                    ],
+-                },
+-                restrictedIndicator: getRestrictedIndicator(true, LicenseSkus.EnterpriseAdvanced),
+-            },
+             wrangler: {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_data_spillage.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_data_spillage.test.tsx
+index 3d95a813..f0a0ba28 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_data_spillage.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_data_spillage.test.tsx
+@@ -10,4 +10,3 @@ import {LicenseSkus} from 'utils/constants';
+ import AdminDefinition from './admin_definition';
+-import DataSpillageFeatureDiscovery from './feature_discovery/features/data_spillage';
+-import type {AdminDefinitionSetting, AdminDefinitionSubSection, Check, ConsoleAccess} from './types';
++import type {AdminDefinitionSubSection, Check, ConsoleAccess} from './types';
+ 
+@@ -33,3 +32,2 @@ const consoleAccess = {
+         [RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES]: true,
+-        [RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE]: true,
+     },
+@@ -37,7 +35,10 @@ const consoleAccess = {
+ 
+-const consoleAccessWithoutLicenseWrite = {
+-    ...consoleAccess,
++const noSystemRolesAccess = {
++    read: {
++        [RESOURCE_KEYS.SITE.POSTS]: true,
++        [RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES]: false,
++    },
+     write: {
+-        ...consoleAccess.write,
+-        [RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE]: false,
++        [RESOURCE_KEYS.SITE.POSTS]: true,
++        [RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES]: false,
+     },
+@@ -45,80 +46,36 @@ const consoleAccessWithoutLicenseWrite = {
+ 
+-const professionalLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Professional,
+-} as ClientLicense;
++const licenses: Record<string, ClientLicense> = {
++    'no licence': {IsLicensed: 'false'} as ClientLicense,
++    'an empty licence record': {} as ClientLicense,
++    Entry: {IsLicensed: 'true', SkuShortName: LicenseSkus.Entry} as ClientLicense,
++    Professional: {IsLicensed: 'true', SkuShortName: LicenseSkus.Professional} as ClientLicense,
++    'Enterprise Advanced': {IsLicensed: 'true', SkuShortName: LicenseSkus.EnterpriseAdvanced} as ClientLicense,
++};
+ 
+-const enterpriseAdvancedLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.EnterpriseAdvanced,
+-} as ClientLicense;
+-
+-const entryLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Entry,
+-} as ClientLicense;
+-
+-type CustomAdminDefinitionSetting = Extract<AdminDefinitionSetting, {type: 'custom'}>;
+-
+-function isHidden(subsection: AdminDefinitionSubSection, config: Partial<AdminConfig>, license: ClientLicense) {
++function isHidden(subsection: AdminDefinitionSubSection, config: Partial<AdminConfig>, license: ClientLicense, access: ConsoleAccess = consoleAccess) {
+     const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, license, true, consoleAccess);
++    return check(config, {}, license, true, access);
+ }
+ 
+-function isDisabled(check: Check | undefined, access: ConsoleAccess) {
+-    const disabledCheck = check as Extract<Check, (...args: any[]) => boolean>;
+-    return disabledCheck(contentFlaggingConfigEnabled, {}, professionalLicense, true, access);
+-}
+-
+-describe('AdminDefinition - Data Spillage discovery', () => {
++describe('AdminDefinition - Data Spillage settings', () => {
+     const settingsSubsection = AdminDefinition.site.subsections.content_flagging;
+-    const discoverySubsection = AdminDefinition.site.subsections.content_flagging_feature_discovery;
+-
+-    test('includes a discovery route at the Data Spillage URL', () => {
+-        expect(discoverySubsection).toBeDefined();
+-        expect(discoverySubsection.url).toBe(settingsSubsection.url);
+-        expect(discoverySubsection.isDiscovery).toBe(true);
+-        expect(discoverySubsection.title).toEqual(settingsSubsection.title);
+-        expect(discoverySubsection.restrictedIndicator).toBeDefined();
+ 
+-        const schema = discoverySubsection.schema;
+-        expect('name' in schema ? schema.name : undefined).toEqual(settingsSubsection.title);
++    test('has no feature discovery (upsell) route', () => {
++        expect('content_flagging_feature_discovery' in AdminDefinition.site.subsections).toBe(false);
+     });
+ 
+-    test('shows discovery instead of settings for Professional licenses', () => {
+-        const siteSectionHiddenCheck = AdminDefinition.site.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-
+-        expect(siteSectionHiddenCheck(contentFlaggingConfigEnabled, {}, professionalLicense, true, consoleAccess)).toBe(false);
+-        expect(isHidden(settingsSubsection, contentFlaggingConfigEnabled, professionalLicense)).toBe(true);
+-        expect(isHidden(discoverySubsection, contentFlaggingConfigEnabled, professionalLicense)).toBe(false);
++    test('is not marked as a restricted feature', () => {
++        expect(settingsSubsection.restrictedIndicator).toBeUndefined();
+     });
+ 
+-    test('shows settings instead of discovery for Enterprise Advanced licenses', () => {
+-        expect(isHidden(settingsSubsection, contentFlaggingConfigEnabled, enterpriseAdvancedLicense)).toBe(false);
+-        expect(isHidden(discoverySubsection, contentFlaggingConfigEnabled, enterpriseAdvancedLicense)).toBe(true);
++    test.each(Object.keys(licenses))('is visible with %s', (name) => {
++        expect(isHidden(settingsSubsection, contentFlaggingConfigEnabled, licenses[name])).toBe(false);
+     });
+ 
+-    test('hides discovery for Entry licenses', () => {
+-        expect(isHidden(discoverySubsection, contentFlaggingConfigEnabled, entryLicense)).toBe(true);
++    test('is hidden when the Content Flagging feature flag is disabled', () => {
++        expect(isHidden(settingsSubsection, contentFlaggingConfigDisabled, licenses['no licence'])).toBe(true);
+     });
+ 
+-    test('hides discovery when the Content Flagging feature flag is disabled', () => {
+-        expect(isHidden(settingsSubsection, contentFlaggingConfigDisabled, professionalLicense)).toBe(true);
+-        expect(isHidden(discoverySubsection, contentFlaggingConfigDisabled, professionalLicense)).toBe(true);
+-    });
+-
+-    test('renders the Data Spillage feature discovery component through a custom setting', () => {
+-        const schema = discoverySubsection.schema;
+-        expect('settings' in schema).toBe(true);
+-
+-        const settings = 'settings' in schema ? schema.settings ?? [] : [];
+-        const discoverySetting = settings.find((setting): setting is CustomAdminDefinitionSetting => (
+-            setting.type === 'custom' && setting.key === 'DataSpillageFeatureDiscovery'
+-        ));
+-
+-        expect(discoverySetting).toBeDefined();
+-        expect(discoverySetting?.type).toBe('custom');
+-        expect(discoverySetting?.component).toBe(DataSpillageFeatureDiscovery);
+-        expect(isDisabled(discoverySetting?.isDisabled, consoleAccess)).toBe(false);
+-        expect(isDisabled(discoverySetting?.isDisabled, consoleAccessWithoutLicenseWrite)).toBe(true);
++    test('is hidden from admins without read access to system roles', () => {
++        expect(isHidden(settingsSubsection, contentFlaggingConfigEnabled, licenses['no licence'], noSystemRolesAccess)).toBe(true);
+     });
