@@ -1,0 +1,236 @@
+diff --git a/server/channels/api4/user.go b/server/channels/api4/user.go
+index 8b1f5bcf..81537ea1 100644
+--- a/server/channels/api4/user.go
++++ b/server/channels/api4/user.go
+@@ -1738,14 +1738,2 @@ func updateUserRoles(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	// require license feature to assign "new system roles"
+-	for roleName := range strings.FieldsSeq(newRoles) {
+-		for _, id := range model.NewSystemRoleIDs {
+-			if roleName == id {
+-				if license := c.App.Channels().License(); license == nil || !*license.Features.CustomPermissionsSchemes {
+-					c.Err = model.NewAppError("updateUserRoles", "api.user.update_user_roles.license.app_error", nil, "", http.StatusBadRequest)
+-					return
+-				}
+-			}
+-		}
+-	}
+-
+ 	auditRec := c.MakeAuditRecord(model.AuditEventUpdateUserRoles, model.AuditStatusFail)
+diff --git a/server/channels/api4/user_test.go b/server/channels/api4/user_test.go
+index a6e40117..1c584872 100644
+--- a/server/channels/api4/user_test.go
++++ b/server/channels/api4/user_test.go
+@@ -3203,2 +3203,31 @@ func TestUpdateUserRoles(t *testing.T) {
+ 
++func TestUpdateUserRolesNewSystemRolesWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	th.RemoveLicense(t)
++	require.Nil(t, th.App.Srv().License())
++
++	for _, roleID := range model.NewSystemRoleIDs {
++		t.Run(roleID, func(t *testing.T) {
++			th.TestForSystemAdminAndLocal(t, func(t *testing.T, client *model.Client4) {
++				_, err := client.UpdateUserRoles(context.Background(), th.BasicUser.Id, model.SystemUserRoleId+" "+roleID)
++				require.NoError(t, err)
++
++				user, appErr := th.App.GetUser(th.Context, th.BasicUser.Id)
++				require.Nil(t, appErr)
++				assert.Contains(t, strings.Fields(user.Roles), roleID)
++
++				_, err = client.UpdateUserRoles(context.Background(), th.BasicUser.Id, model.SystemUserRoleId)
++				require.NoError(t, err)
++			})
++		})
++	}
++
++	t.Run("a regular user still cannot assign them", func(t *testing.T) {
++		resp, err := th.Client.UpdateUserRoles(context.Background(), th.BasicUser2.Id, model.SystemUserRoleId+" "+model.SystemManagerRoleId)
++		require.Error(t, err)
++		CheckForbiddenStatus(t, resp)
++	})
++}
++
+ func assertExpectedWebsocketEvent(t *testing.T, client *model.WebSocketClient, event model.WebsocketEventType, test func(*model.WebSocketEvent)) {
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index 4aa45591..2ef5d6f1 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -6501,7 +6501,2 @@
+   },
+-  {
+-    "id": "api.user.update_user_roles.license.app_error",
+-    "translation": "Custom Permission Schemes not supported by current license",
+-    "description": "API error when assigning custom roles to a user requires the Custom Permission Schemes feature, which the license lacks; admin-facing."
+-  },
+   {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index f7f50c5e..4abda15b 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -87,3 +87,2 @@ import {
+     SAMLFeatureDiscovery,
+-    SystemRolesFeatureDiscovery,
+ } from './feature_discovery/features';
+@@ -598,7 +597,3 @@ const AdminDefinition: AdminDefinitionType = {
+                 url: `user_management/system_roles/:role_id(${ID_PATH_PATTERN})`,
+-                isHidden: it.any(
+-                    it.not(it.licensedForFeature('LDAPGroups')),
+-                    it.licensedForSku(LicenseSkus.Entry),
+-                    it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+-                ),
++                isHidden: it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+                 isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+@@ -612,7 +607,3 @@ const AdminDefinition: AdminDefinitionType = {
+                 title: defineMessage({id: 'admin.sidebar.systemRoles', defaultMessage: 'Delegated Granular Administration'}),
+-                isHidden: it.any(
+-                    it.not(it.licensedForFeature('LDAPGroups')),
+-                    it.licensedForSku(LicenseSkus.Entry),
+-                    it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+-                ),
++                isHidden: it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+                 isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+@@ -622,24 +613,2 @@ const AdminDefinition: AdminDefinitionType = {
+                 },
+-                restrictedIndicator: getRestrictedIndicator(),
+-            },
+-            system_roles_feature_discovery: {
+-                url: 'user_management/system_roles',
+-                isDiscovery: true,
+-                title: defineMessage({id: 'admin.sidebar.systemRoles', defaultMessage: 'Delegated Granular Administration'}),
+-                isHidden: it.any(
+-                    it.licensedForFeature('LDAPGroups'),
+-                ),
+-                schema: {
+-                    id: 'SystemRoles',
+-                    name: defineMessage({id: 'admin.permissions.systemRoles', defaultMessage: 'Delegated Granular Administration'}),
+-                    settings: [
+-                        {
+-                            type: 'custom',
+-                            component: SystemRolesFeatureDiscovery,
+-                            key: 'SystemRolesFeatureDiscovery',
+-                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE)),
+-                        },
+-                    ],
+-                },
+-                restrictedIndicator: getRestrictedIndicator(true, LicenseSkus.Enterprise),
+             },
+diff --git a/webapp/channels/src/components/admin_console/manage_roles_modal/index.ts b/webapp/channels/src/components/admin_console/manage_roles_modal/index.ts
+index b831275b..2fb151ef 100644
+--- a/webapp/channels/src/components/admin_console/manage_roles_modal/index.ts
++++ b/webapp/channels/src/components/admin_console/manage_roles_modal/index.ts
+@@ -9,7 +9,4 @@ import {loadRolesIfNeeded} from 'mattermost-redux/actions/roles';
+ import {updateUserRoles} from 'mattermost-redux/actions/users';
+-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+ import {getRoles} from 'mattermost-redux/selectors/entities/roles_helpers';
+ 
+-import {isLicensedForDelegatedAdministration} from 'utils/license_utils';
+-
+ import type {GlobalState} from 'types/store';
+@@ -22,3 +19,2 @@ function mapStateToProps(state: GlobalState) {
+         roles: getRoles(state),
+-        isLicensedForDelegatedAdmin: isLicensedForDelegatedAdministration(getLicense(state)),
+     };
+diff --git a/webapp/channels/src/components/admin_console/manage_roles_modal/manage_roles_modal.test.tsx b/webapp/channels/src/components/admin_console/manage_roles_modal/manage_roles_modal.test.tsx
+index fb030043..8c4e96d9 100644
+--- a/webapp/channels/src/components/admin_console/manage_roles_modal/manage_roles_modal.test.tsx
++++ b/webapp/channels/src/components/admin_console/manage_roles_modal/manage_roles_modal.test.tsx
+@@ -30,3 +30,2 @@ function getBaseProps(userOverride: Partial<UserProfile> = {}) {
+         roles: buildRoles(),
+-        isLicensedForDelegatedAdmin: true,
+         onSuccess,
+@@ -184,12 +183,4 @@ describe('admin_console/manage_roles_modal', () => {
+ 
+-    test('does not render the delegated roles section without an enterprise license', () => {
+-        const props = {...getBaseProps({roles: 'system_user system_manager'}), isLicensedForDelegatedAdmin: false};
+-        renderWithContext(<ManageRolesModal {...props}/>);
+-
+-        expect(screen.queryByText('Delegated Administration Roles')).not.toBeInTheDocument();
+-        expect(screen.queryByRole('checkbox', {name: /System Manager/})).not.toBeInTheDocument();
+-    });
+-
+-    test('renders the delegated roles section with an enterprise license', () => {
+-        const props = {...getBaseProps({roles: 'system_user'}), isLicensedForDelegatedAdmin: true};
++    test('renders the delegated roles section', () => {
++        const props = getBaseProps({roles: 'system_user'});
+         renderWithContext(<ManageRolesModal {...props}/>);
+diff --git a/webapp/channels/src/components/admin_console/manage_roles_modal/manage_roles_modal.tsx b/webapp/channels/src/components/admin_console/manage_roles_modal/manage_roles_modal.tsx
+index de0671a8..284c58bf 100644
+--- a/webapp/channels/src/components/admin_console/manage_roles_modal/manage_roles_modal.tsx
++++ b/webapp/channels/src/components/admin_console/manage_roles_modal/manage_roles_modal.tsx
+@@ -42,5 +42,2 @@ export type Props = {
+ 
+-    // Delegated administration roles are an Enterprise/Enterprise Advanced feature.
+-    isLicensedForDelegatedAdmin: boolean;
+-
+     // defining custom function type instead of using React.MouseEventHandler
+@@ -195,6 +192,2 @@ export default class ManageRolesModal extends React.PureComponent<Props, State>
+     renderDelegatedAdminRoles = () => {
+-        if (!this.props.isLicensedForDelegatedAdmin) {
+-            return null;
+-        }
+-
+         // System Admins already have access to all System Console areas, so the delegated roles are irrelevant.
+diff --git a/webapp/channels/src/utils/license_utils.test.ts b/webapp/channels/src/utils/license_utils.test.ts
+index f1c7132e..253a63e3 100644
+--- a/webapp/channels/src/utils/license_utils.test.ts
++++ b/webapp/channels/src/utils/license_utils.test.ts
+@@ -3,4 +3,3 @@
+ 
+-import {LicenseSkus} from 'utils/constants';
+-import {isLicenseExpired, isLicenseExpiring, isLicensedForDelegatedAdministration, isLicensePastGracePeriod} from 'utils/license_utils';
++import {isLicenseExpired, isLicenseExpiring, isLicensePastGracePeriod} from 'utils/license_utils';
+ 
+@@ -9,37 +8,2 @@ describe('license_utils', () => {
+ 
+-    describe('isLicensedForDelegatedAdministration', () => {
+-        it('should return true for an Enterprise license with LDAPGroups enabled', () => {
+-            const license = {IsLicensed: 'true', LDAPGroups: 'true', SkuShortName: LicenseSkus.Enterprise};
+-
+-            expect(isLicensedForDelegatedAdministration(license)).toBe(true);
+-        });
+-
+-        it('should return true for an Enterprise Advanced license with LDAPGroups enabled', () => {
+-            const license = {IsLicensed: 'true', LDAPGroups: 'true', SkuShortName: LicenseSkus.EnterpriseAdvanced};
+-
+-            expect(isLicensedForDelegatedAdministration(license)).toBe(true);
+-        });
+-
+-        it('should return false for an Entry license even with LDAPGroups enabled', () => {
+-            const license = {IsLicensed: 'true', LDAPGroups: 'true', SkuShortName: LicenseSkus.Entry};
+-
+-            expect(isLicensedForDelegatedAdministration(license)).toBe(false);
+-        });
+-
+-        it('should return false when LDAPGroups is not enabled', () => {
+-            const license = {IsLicensed: 'true', LDAPGroups: 'false', SkuShortName: LicenseSkus.Professional};
+-
+-            expect(isLicensedForDelegatedAdministration(license)).toBe(false);
+-        });
+-
+-        it('should return false when not licensed', () => {
+-            const license = {IsLicensed: 'false', LDAPGroups: 'true', SkuShortName: LicenseSkus.Enterprise};
+-
+-            expect(isLicensedForDelegatedAdministration(license)).toBe(false);
+-        });
+-
+-        it('should return false when license is undefined', () => {
+-            expect(isLicensedForDelegatedAdministration(undefined)).toBe(false);
+-        });
+-    });
+     describe('isLicenseExpiring', () => {
+diff --git a/webapp/channels/src/utils/license_utils.ts b/webapp/channels/src/utils/license_utils.ts
+index 26aa3c15..de77ef0e 100644
+--- a/webapp/channels/src/utils/license_utils.ts
++++ b/webapp/channels/src/utils/license_utils.ts
+@@ -100,9 +100,2 @@ export const isNonEnterpriseLicense = (license?: ClientLicense) => !isEnterprise
+ 
+-// Delegated Granular Administration is gated behind the LDAPGroups license feature and is
+-// not available on the Entry SKU. Mirrors the gating used by the Delegated Granular
+-// Administration screen in admin_definition (system_roles).
+-export const isLicensedForDelegatedAdministration = (license?: ClientLicense) => {
+-    return Boolean(license?.IsLicensed === 'true' && license.LDAPGroups === 'true' && license.SkuShortName !== LicenseSkus.Entry);
+-};
+-
+ export const licenseSKUWithFirstLetterCapitalized = (license: ClientLicense) => {
