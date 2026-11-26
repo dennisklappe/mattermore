@@ -1,0 +1,1039 @@
+diff --git a/server/channels/api4/custom_profile_attributes.go b/server/channels/api4/custom_profile_attributes.go
+index 09385bcb..f4688310 100644
+--- a/server/channels/api4/custom_profile_attributes.go
++++ b/server/channels/api4/custom_profile_attributes.go
+@@ -324,10 +324,2 @@ func deleteCPAField(c *Context, w http.ResponseWriter, r *http.Request) {
+ func getCPAGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+-	// Every other CPA endpoint enforces MinimumEnterpriseLicense via the
+-	// LicenseCheckHook on field/value operations. GetPropertyGroup is not
+-	// hooked, so we enforce the same contract here inline.
+-	if !model.MinimumEnterpriseLicense(c.App.License()) {
+-		c.Err = model.NewAppError("getCPAGroup", "app.property.license_error", nil, "an Enterprise license is required", http.StatusForbidden)
+-		return
+-	}
+-
+ 	group, appErr := c.App.GetPropertyGroup(c.AppContext, model.AccessControlPropertyGroupName)
+diff --git a/server/channels/api4/custom_profile_attributes_test.go b/server/channels/api4/custom_profile_attributes_test.go
+index 732b29df..defaf123 100644
+--- a/server/channels/api4/custom_profile_attributes_test.go
++++ b/server/channels/api4/custom_profile_attributes_test.go
+@@ -33,12 +33,2 @@ func TestCreateCPAField(t *testing.T) {
+ 
+-	th.TestForSystemAdminAndLocal(t, func(t *testing.T, client *model.Client4) {
+-		field := &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText}
+-
+-		createdField, resp, err := client.CreateCPAField(context.Background(), field)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, createdField)
+-	}, "endpoint should not work if no valid license is present")
+-
+ 	// add a valid license
+@@ -201,13 +191,2 @@ func TestListCPAFields(t *testing.T) {
+ 
+-	t.Run("endpoint should not work if no valid license is present", func(t *testing.T) {
+-		th.App.Srv().SetLicense(nil)
+-		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+-		fields, resp, err := th.Client.ListCPAFields(context.Background())
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, fields)
+-	})
+-
+ 	t.Run("any user should be able to list fields", func(t *testing.T) {
+@@ -239,20 +218,2 @@ func TestPatchCPAField(t *testing.T) {
+ 
+-	th.TestForSystemAdminAndLocal(t, func(t *testing.T, client *model.Client4) {
+-		// Create a field with a license so we can test the license check on patch.
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-		field := &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText}
+-		createdField, _, createErr := th.SystemAdminClient.CreateCPAField(context.Background(), field)
+-		require.NoError(t, createErr)
+-		require.NotNil(t, createdField)
+-
+-		// Remove the license and verify patch is blocked.
+-		th.App.Srv().SetLicense(nil)
+-		patch := &model.PropertyFieldPatch{Name: model.NewPointer(celSafeName())}
+-		patchedField, resp, err := client.PatchCPAField(context.Background(), createdField.ID, patch)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, patchedField)
+-	}, "endpoint should not work if no valid license is present")
+-
+ 	// add a valid license
+@@ -589,18 +550,2 @@ func TestDeleteCPAField(t *testing.T) {
+ 
+-	th.TestForSystemAdminAndLocal(t, func(t *testing.T, client *model.Client4) {
+-		// Create a field with a license so we can test the license check on delete.
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-		field := &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText}
+-		createdField, _, createErr := th.SystemAdminClient.CreateCPAField(context.Background(), field)
+-		require.NoError(t, createErr)
+-		require.NotNil(t, createdField)
+-
+-		// Remove the license and verify delete is blocked.
+-		th.App.Srv().SetLicense(nil)
+-		resp, err := client.DeleteCPAField(context.Background(), createdField.ID)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-	}, "endpoint should not work if no valid license is present")
+-
+ 	// add a valid license
+@@ -696,13 +641,2 @@ func TestListCPAValues(t *testing.T) {
+ 
+-	t.Run("endpoint should not work if no valid license is present", func(t *testing.T) {
+-		th.App.Srv().SetLicense(nil)
+-		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+-		values, resp, err := th.Client.ListCPAValues(context.Background(), th.BasicUser.Id)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, values)
+-	})
+-
+ 	// login with Client2 from this point on
+@@ -782,14 +716,2 @@ func TestPatchCPAValues(t *testing.T) {
+ 
+-	t.Run("endpoint should not work if no valid license is present", func(t *testing.T) {
+-		th.App.Srv().SetLicense(nil)
+-		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+-		values := map[string]json.RawMessage{createdField.ID: json.RawMessage(`"Field Value"`)}
+-		patchedValues, resp, err := th.Client.PatchCPAValues(context.Background(), values)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, patchedValues)
+-	})
+-
+ 	t.Run("any team member should be able to create their own values", func(t *testing.T) {
+@@ -1239,14 +1161,2 @@ func TestPatchCPAValuesForUser(t *testing.T) {
+ 
+-	t.Run("endpoint should not work if no valid license is present", func(t *testing.T) {
+-		th.App.Srv().SetLicense(nil)
+-		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+-		values := map[string]json.RawMessage{createdField.ID: json.RawMessage(`"Field Value"`)}
+-		patchedValues, resp, err := th.Client.PatchCPAValuesForUser(context.Background(), th.BasicUser.Id, values)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, patchedValues)
+-	})
+-
+ 	// add a valid license
+@@ -2663 +2573,50 @@ func TestCPALinkedFieldBlocked(t *testing.T) {
+ }
++
++func TestCPAWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	th.App.Srv().SetLicense(nil)
++	require.Nil(t, th.App.Srv().License())
++
++	ctx := context.Background()
++
++	field, resp, err := th.SystemAdminClient.CreateCPAField(ctx, &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText})
++	require.NoError(t, err)
++	CheckCreatedStatus(t, resp)
++
++	fields, resp, err := th.Client.ListCPAFields(ctx)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	ids := make([]string, 0, len(fields))
++	for _, f := range fields {
++		ids = append(ids, f.ID)
++	}
++	require.Contains(t, ids, field.ID)
++
++	renamed := celSafeName()
++	patched, resp, err := th.SystemAdminClient.PatchCPAField(ctx, field.ID, &model.PropertyFieldPatch{Name: &renamed})
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.Equal(t, renamed, patched.Name)
++
++	values := map[string]json.RawMessage{field.ID: json.RawMessage(`"Field Value"`)}
++	patchedValues, resp, err := th.Client.PatchCPAValues(ctx, values)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.NotEmpty(t, patchedValues)
++
++	listed, resp, err := th.Client.ListCPAValues(ctx, th.BasicUser.Id)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.NotEmpty(t, listed)
++
++	t.Run("permissions still apply without a license", func(t *testing.T) {
++		_, resp, err := th.Client.CreateCPAField(ctx, &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText})
++		require.Error(t, err)
++		CheckForbiddenStatus(t, resp)
++	})
++
++	resp, err = th.SystemAdminClient.DeleteCPAField(ctx, field.ID)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++}
+diff --git a/server/channels/app/migrations_test.go b/server/channels/app/migrations_test.go
+index 2b6e2854..40e04b46 100644
+--- a/server/channels/app/migrations_test.go
++++ b/server/channels/app/migrations_test.go
+@@ -196,7 +196,2 @@ func TestCPADisplayNameBackfill_BackfillsMissing(t *testing.T) {
+ 	th := Setup(t)
+-	// LicenseCheckHook gates writes to the access_control group on an
+-	// Enterprise license; the seed CreatePropertyField calls below would
+-	// otherwise be rejected with app.property.license_error.
+-	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+ 	clearCPABackfillMarker(t, th)
+@@ -254,7 +249,2 @@ func TestCPADisplayNameBackfill_Idempotent(t *testing.T) {
+ 	th := Setup(t)
+-	// LicenseCheckHook gates writes to the access_control group on an
+-	// Enterprise license; the seed CreatePropertyField call below would
+-	// otherwise be rejected with app.property.license_error.
+-	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+ 	clearCPABackfillMarker(t, th)
+diff --git a/server/channels/app/properties/access_control.go b/server/channels/app/properties/access_control.go
+index ecdeeebf..bee63b86 100644
+--- a/server/channels/app/properties/access_control.go
++++ b/server/channels/app/properties/access_control.go
+@@ -271,3 +271,3 @@ func (h *AccessControlHook) PreUpdatePropertyFields(rctx request.CTX, groupID st
+ // PreCountPropertyFields is a no-op — counts don't expose per-row metadata,
+-// so access control doesn't apply. License gating happens in LicenseCheckHook.
++// so access control doesn't apply.
+ func (h *AccessControlHook) PreCountPropertyFields(_ request.CTX, _ string) error {
+diff --git a/server/channels/app/properties/license_check.go b/server/channels/app/properties/license_check.go
+deleted file mode 100644
+index 63a13dd4..00000000
+--- a/server/channels/app/properties/license_check.go
++++ /dev/null
+@@ -1,162 +0,0 @@
+-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+-// See LICENSE.txt for license information.
+-
+-package properties
+-
+-import (
+-	"errors"
+-
+-	"github.com/mattermost/mattermost/server/public/model"
+-	"github.com/mattermost/mattermost/server/public/shared/request"
+-)
+-
+-var ErrLicenseRequired = errors.New("license_error: an Enterprise license is required")
+-
+-// LicenseProvider is a function that returns the current license.
+-type LicenseProvider func() *model.License
+-
+-// LicenseCheckHook enforces license requirements for property operations on
+-// specific groups. Operations on groups without a license requirement pass
+-// through without checks.
+-type LicenseCheckHook struct {
+-	BasePropertyHook
+-	licenseProvider LicenseProvider
+-	managedGroupIDs map[string]struct{}
+-}
+-
+-var _ PropertyHook = (*LicenseCheckHook)(nil)
+-
+-// NewLicenseCheckHook creates a hook that requires an Enterprise license for
+-// all field and value operations on the given property groups.
+-func NewLicenseCheckHook(licenseProvider LicenseProvider, managedGroupIDs ...string) *LicenseCheckHook {
+-	ids := make(map[string]struct{}, len(managedGroupIDs))
+-	for _, id := range managedGroupIDs {
+-		ids[id] = struct{}{}
+-	}
+-	return &LicenseCheckHook{
+-		licenseProvider: licenseProvider,
+-		managedGroupIDs: ids,
+-	}
+-}
+-
+-// requireLicense returns ErrLicenseRequired when groupID is in the managed set
+-// and no Enterprise license is active. Unmanaged groups and licensed calls
+-// return nil.
+-func (h *LicenseCheckHook) requireLicense(groupID string) error {
+-	if _, managed := h.managedGroupIDs[groupID]; !managed {
+-		return nil
+-	}
+-	if !model.MinimumEnterpriseLicense(h.licenseProvider()) {
+-		return ErrLicenseRequired
+-	}
+-	return nil
+-}
+-
+-// Field pre-hooks
+-
+-func (h *LicenseCheckHook) PreCreatePropertyField(_ request.CTX, field *model.PropertyField) (*model.PropertyField, error) {
+-	return field, h.requireLicense(field.GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PreUpdatePropertyField(_ request.CTX, groupID string, field *model.PropertyField) (*model.PropertyField, error) {
+-	return field, h.requireLicense(groupID)
+-}
+-
+-func (h *LicenseCheckHook) PreUpdatePropertyFields(_ request.CTX, groupID string, fields []*model.PropertyField) ([]*model.PropertyField, error) {
+-	return fields, h.requireLicense(groupID)
+-}
+-
+-func (h *LicenseCheckHook) PreDeletePropertyField(_ request.CTX, groupID string, _ string) error {
+-	return h.requireLicense(groupID)
+-}
+-
+-func (h *LicenseCheckHook) PreCountPropertyFields(_ request.CTX, groupID string) error {
+-	return h.requireLicense(groupID)
+-}
+-
+-// Field option hooks
+-
+-func (h *LicenseCheckHook) PreChangePropertyFieldOptions(_ request.CTX, field *model.PropertyField) error {
+-	return h.requireLicense(field.GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PostGetPropertyFieldOptions(_ request.CTX, field *model.PropertyField, _ *model.PropertyFieldOptionPageFilter, options []*model.PropertyFieldOption) ([]*model.PropertyFieldOption, error) {
+-	return options, h.requireLicense(field.GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PreGetPropertyFieldOptions(_ request.CTX, field *model.PropertyField, filter *model.PropertyFieldOptionPageFilter) (*model.PropertyFieldOptionPageFilter, error) {
+-	return filter, h.requireLicense(field.GroupID)
+-}
+-
+-// Field post-hooks
+-
+-func (h *LicenseCheckHook) PostGetPropertyField(_ request.CTX, field *model.PropertyField) (*model.PropertyField, error) {
+-	return field, h.requireLicense(field.GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PostGetPropertyFields(_ request.CTX, fields []*model.PropertyField) ([]*model.PropertyField, error) {
+-	if len(fields) == 0 {
+-		return fields, nil
+-	}
+-	return fields, h.requireLicense(fields[0].GroupID)
+-}
+-
+-// Value pre-hooks
+-
+-func (h *LicenseCheckHook) PreCreatePropertyValue(_ request.CTX, value *model.PropertyValue) (*model.PropertyValue, error) {
+-	return value, h.requireLicense(value.GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PreCreatePropertyValues(_ request.CTX, values []*model.PropertyValue) ([]*model.PropertyValue, error) {
+-	if len(values) == 0 {
+-		return values, nil
+-	}
+-	return values, h.requireLicense(values[0].GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PreUpdatePropertyValue(_ request.CTX, groupID string, value *model.PropertyValue) (*model.PropertyValue, error) {
+-	return value, h.requireLicense(groupID)
+-}
+-
+-func (h *LicenseCheckHook) PreUpdatePropertyValues(_ request.CTX, groupID string, values []*model.PropertyValue) ([]*model.PropertyValue, error) {
+-	return values, h.requireLicense(groupID)
+-}
+-
+-func (h *LicenseCheckHook) PreUpsertPropertyValue(_ request.CTX, value *model.PropertyValue) (*model.PropertyValue, error) {
+-	return value, h.requireLicense(value.GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PreUpsertPropertyValues(_ request.CTX, values []*model.PropertyValue) ([]*model.PropertyValue, error) {
+-	if len(values) == 0 {
+-		return values, nil
+-	}
+-	return values, h.requireLicense(values[0].GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PreDeletePropertyValue(_ request.CTX, groupID string, _ string) error {
+-	return h.requireLicense(groupID)
+-}
+-
+-func (h *LicenseCheckHook) PreDeletePropertyValuesForTarget(_ request.CTX, groupID string, _ string, _ string) error {
+-	return h.requireLicense(groupID)
+-}
+-
+-func (h *LicenseCheckHook) PreDeletePropertyValuesForField(_ request.CTX, groupID string, _ string) error {
+-	return h.requireLicense(groupID)
+-}
+-
+-// Value post-hooks
+-
+-func (h *LicenseCheckHook) PostGetPropertyValue(_ request.CTX, value *model.PropertyValue) (*model.PropertyValue, error) {
+-	if value == nil {
+-		return value, nil
+-	}
+-	return value, h.requireLicense(value.GroupID)
+-}
+-
+-func (h *LicenseCheckHook) PostGetPropertyValues(_ request.CTX, values []*model.PropertyValue) ([]*model.PropertyValue, error) {
+-	if len(values) == 0 {
+-		return values, nil
+-	}
+-	return values, h.requireLicense(values[0].GroupID)
+-}
+diff --git a/server/channels/app/properties/license_check_test.go b/server/channels/app/properties/license_check_test.go
+deleted file mode 100644
+index 1c1d5cd0..00000000
+--- a/server/channels/app/properties/license_check_test.go
++++ /dev/null
+@@ -1,174 +0,0 @@
+-// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+-// See LICENSE.txt for license information.
+-
+-package properties
+-
+-import (
+-	"encoding/json"
+-	"testing"
+-
+-	"github.com/mattermost/mattermost/server/public/model"
+-	"github.com/stretchr/testify/assert"
+-	"github.com/stretchr/testify/require"
+-)
+-
+-func TestLicenseCheckHook(t *testing.T) {
+-	th := Setup(t)
+-
+-	group, err := th.service.RegisterPropertyGroup(&model.PropertyGroup{Name: "test_license_check", Version: model.PropertyGroupVersionV2})
+-	require.NoError(t, err)
+-
+-	var currentLicense *model.License
+-	hook := NewLicenseCheckHook(func() *model.License {
+-		return currentLicense
+-	}, group.ID)
+-	th.service.AddHook(hook)
+-
+-	enterpriseLicense := model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise)
+-
+-	makeField := func() *model.PropertyField {
+-		return &model.PropertyField{
+-			GroupID:    group.ID,
+-			Name:       "field_" + model.NewId(),
+-			Type:       model.PropertyFieldTypeText,
+-			TargetType: "system",
+-			ObjectType: "user",
+-		}
+-	}
+-
+-	t.Run("blocks field create without license", func(t *testing.T) {
+-		currentLicense = nil
+-		_, createErr := th.service.CreatePropertyField(th.Context, makeField())
+-		require.Error(t, createErr)
+-		assert.Contains(t, createErr.Error(), "license_error")
+-	})
+-
+-	t.Run("allows field create with license, blocks read after license loss", func(t *testing.T) {
+-		currentLicense = enterpriseLicense
+-		created, createErr := th.service.CreatePropertyField(th.Context, makeField())
+-		require.NoError(t, createErr)
+-		assert.NotEmpty(t, created.ID)
+-
+-		currentLicense = nil
+-		_, getErr := th.service.GetPropertyField(th.Context, group.ID, created.ID)
+-		require.Error(t, getErr)
+-		assert.Contains(t, getErr.Error(), "license_error")
+-	})
+-
+-	t.Run("blocks value upsert without license", func(t *testing.T) {
+-		currentLicense = enterpriseLicense
+-		field := th.CreatePropertyFieldDirect(t, makeField())
+-
+-		currentLicense = nil
+-		value := &model.PropertyValue{
+-			GroupID:    group.ID,
+-			FieldID:    field.ID,
+-			TargetID:   model.NewId(),
+-			TargetType: "user",
+-			Value:      json.RawMessage(`"hello"`),
+-		}
+-		_, upsertErr := th.service.UpsertPropertyValue(th.Context, value)
+-		require.Error(t, upsertErr)
+-		assert.Contains(t, upsertErr.Error(), "license_error")
+-	})
+-
+-	t.Run("blocks option read and change without license", func(t *testing.T) {
+-		currentLicense = enterpriseLicense
+-		field := makeField()
+-		field.Type = model.PropertyFieldTypeMultiselect
+-		field.Attrs = model.StringInterface{
+-			model.PropertyFieldAttributeOptions: []any{
+-				map[string]any{"id": model.NewId(), "name": "Air"},
+-			},
+-		}
+-		created := th.CreatePropertyFieldDirect(t, field)
+-
+-		// A field's options are the field, licensing included: reading or changing
+-		// them one at a time writes no field row, so this is the only place the
+-		// requirement can be applied to that path.
+-		currentLicense = nil
+-		_, getErr := th.service.GetFieldOptions(th.Context, created.GroupID, created.ID, 0, "", 100)
+-		require.Error(t, getErr)
+-		assert.Contains(t, getErr.Error(), "license_error")
+-
+-		_, createErr := th.service.CreateFieldOptions(th.Context, created.GroupID, created.ID, []*model.PropertyFieldOption{{Name: "Sea"}})
+-		require.Error(t, createErr)
+-		assert.Contains(t, createErr.Error(), "license_error")
+-
+-		// GetFieldOptions has no hook that answers ShowNothing, so the early exit
+-		// this hook backs is never reached through the service; call it directly.
+-		_, preErr := hook.PreGetPropertyFieldOptions(th.Context, created, nil)
+-		require.Error(t, preErr)
+-		assert.Contains(t, preErr.Error(), "license_error")
+-
+-		currentLicense = enterpriseLicense
+-		_, preErr = hook.PreGetPropertyFieldOptions(th.Context, created, nil)
+-		require.NoError(t, preErr)
+-	})
+-
+-	t.Run("allows operations on unmanaged groups without license", func(t *testing.T) {
+-		currentLicense = nil
+-		otherGroup, groupErr := th.service.RegisterPropertyGroup(&model.PropertyGroup{Name: "test_no_license_needed", Version: model.PropertyGroupVersionV2})
+-		require.NoError(t, groupErr)
+-
+-		field := &model.PropertyField{
+-			GroupID:    otherGroup.ID,
+-			Name:       "field_" + model.NewId(),
+-			Type:       model.PropertyFieldTypeText,
+-			TargetType: "system",
+-			ObjectType: "user",
+-		}
+-		created, createErr := th.service.CreatePropertyField(th.Context, field)
+-		require.NoError(t, createErr)
+-		assert.NotEmpty(t, created.ID)
+-	})
+-
+-	countCalls := []struct {
+-		name string
+-		call func(groupID string) error
+-	}{
+-		{"CountActivePropertyFieldsForGroup", func(id string) error {
+-			_, err := th.service.CountActivePropertyFieldsForGroup(th.Context, id)
+-			return err
+-		}},
+-		{"CountAllPropertyFieldsForGroup", func(id string) error {
+-			_, err := th.service.CountAllPropertyFieldsForGroup(th.Context, id)
+-			return err
+-		}},
+-		{"CountActivePropertyFieldsForTarget", func(id string) error {
+-			_, err := th.service.CountActivePropertyFieldsForTarget(th.Context, id, "user", model.NewId())
+-			return err
+-		}},
+-		{"CountAllPropertyFieldsForTarget", func(id string) error {
+-			_, err := th.service.CountAllPropertyFieldsForTarget(th.Context, id, "user", model.NewId())
+-			return err
+-		}},
+-	}
+-
+-	t.Run("blocks field counts without license on managed group", func(t *testing.T) {
+-		currentLicense = enterpriseLicense
+-		th.CreatePropertyFieldDirect(t, makeField())
+-		currentLicense = nil
+-		for _, c := range countCalls {
+-			err := c.call(group.ID)
+-			require.Error(t, err, c.name)
+-			assert.Contains(t, err.Error(), "license_error", c.name)
+-		}
+-	})
+-
+-	t.Run("allows field counts with license on managed group", func(t *testing.T) {
+-		currentLicense = enterpriseLicense
+-		for _, c := range countCalls {
+-			require.NoError(t, c.call(group.ID), c.name)
+-		}
+-	})
+-
+-	t.Run("allows field counts without license on unmanaged group", func(t *testing.T) {
+-		currentLicense = nil
+-		otherGroup, groupErr := th.service.RegisterPropertyGroup(&model.PropertyGroup{Name: "count_no_license_needed", Version: model.PropertyGroupVersionV2})
+-		require.NoError(t, groupErr)
+-		for _, c := range countCalls {
+-			require.NoError(t, c.call(otherGroup.ID), c.name)
+-		}
+-	})
+-}
+diff --git a/server/channels/app/property_errors.go b/server/channels/app/property_errors.go
+index d17472f6..2f00d56c 100644
+--- a/server/channels/app/property_errors.go
++++ b/server/channels/app/property_errors.go
+@@ -45,4 +45,2 @@ func mapPropertyServiceError(where string, err error) *model.AppError {
+ 		return model.NewAppError(where, "app.property_field.create.target_limit_reached.app_error", nil, err.Error(), http.StatusUnprocessableEntity).Wrap(err)
+-	case errors.Is(err, properties.ErrLicenseRequired):
+-		return model.NewAppError(where, "app.property.license_error", nil, "", http.StatusForbidden).Wrap(err)
+ 	case errors.Is(err, properties.ErrInvalidFieldAttrs):
+diff --git a/server/channels/app/property_errors_test.go b/server/channels/app/property_errors_test.go
+index 6f9c09de..25c2b4e9 100644
+--- a/server/channels/app/property_errors_test.go
++++ b/server/channels/app/property_errors_test.go
+@@ -82,9 +82,2 @@ func TestMapPropertyServiceError(t *testing.T) {
+ 		},
+-		{
+-			name:           "license required",
+-			sentinel:       properties.ErrLicenseRequired,
+-			expectedID:     "app.property.license_error",
+-			expectedStatus: http.StatusForbidden,
+-			expectDetail:   false,
+-		},
+ 		{
+diff --git a/server/channels/app/server.go b/server/channels/app/server.go
+index a4e746ea..bfe8f3ea 100644
+--- a/server/channels/app/server.go
++++ b/server/channels/app/server.go
+@@ -325,9 +325,2 @@ func NewServer(options ...Option) (*Server, error) {
+ 
+-	// License check hook — must run before other hooks so unlicensed
+-	// operations are rejected early.
+-	licenseCheckHook := properties.NewLicenseCheckHook(func() *model.License {
+-		return s.License()
+-	}, cpaGroup.ID)
+-	s.propertyService.AddHook(licenseCheckHook)
+-
+ 	pluginChecker := func(pluginID string) bool {
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index 10d3e2cf..4aa45591 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -10972,7 +10972,2 @@
+   },
+-  {
+-    "id": "app.property.license_error",
+-    "translation": "Your license does not support this property group.",
+-    "description": "API error when accessing a property group (custom attributes feature area) not included in the server's license."
+-  },
+   {
+diff --git a/webapp/channels/src/actions/websocket_actions.test.ts b/webapp/channels/src/actions/websocket_actions.test.ts
+index 2c4bfff7..e4a72a67 100644
+--- a/webapp/channels/src/actions/websocket_actions.test.ts
++++ b/webapp/channels/src/actions/websocket_actions.test.ts
+@@ -977,5 +977,6 @@ describe('reconnect', () => {
+     test.each([
++        {SkuShortName: ''},
+         {SkuShortName: 'starter'},
+         {SkuShortName: 'professional'},
+-    ])('should not reload custom profile attribute fields on reconnect without an Enterprise license', ({SkuShortName}) => {
++    ])('should reload custom profile attribute fields on reconnect without an Enterprise license', ({SkuShortName}) => {
+         const clonedMockState = cloneDeep(mockState);
+@@ -996,3 +997,3 @@ describe('reconnect', () => {
+         reconnect();
+-        expect(getCustomProfileAttributeFields).not.toHaveBeenCalled();
++        expect(getCustomProfileAttributeFields).toHaveBeenCalled();
+ 
+diff --git a/webapp/channels/src/actions/websocket_actions.ts b/webapp/channels/src/actions/websocket_actions.ts
+index 1387600f..764046ad 100644
+--- a/webapp/channels/src/actions/websocket_actions.ts
++++ b/webapp/channels/src/actions/websocket_actions.ts
+@@ -186,3 +186,2 @@ import {getIntl} from 'utils/i18n';
+ import {MAX_OPEN_DIALOGS, getOpenDialogCount} from 'utils/interactive_dialog';
+-import {isEnterpriseLicense} from 'utils/license_utils';
+ import {isChannelPopoutWindow} from 'utils/popouts/popout_windows';
+@@ -353,5 +352,3 @@ export function reconnect() {
+     // Refresh custom profile attributes on reconnect
+-    if (isEnterpriseLicense(getLicense(state))) {
+-        dispatch(getCustomProfileAttributeFields());
+-    }
++    dispatch(getCustomProfileAttributeFields());
+ 
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index c5af3ced..f7f50c5e 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -93,3 +93,2 @@ import IntuneMAMSvg from './feature_discovery/features/images/intune_mam_svg';
+ import SessionAttributesFeatureDiscovery from './feature_discovery/features/session_attributes';
+-import UserAttributesFeatureDiscovery from './feature_discovery/features/user_attributes';
+ import FeatureFlags, {messages as featureFlagsMessages} from './feature_flags';
+@@ -658,21 +657,2 @@ const AdminDefinition: AdminDefinitionType = {
+         subsections: {
+-            user_attributes_feature_discovery: {
+-                url: 'system_attributes/user_attributes',
+-                isDiscovery: true,
+-                title: defineMessage({id: 'admin.sidebar.user_attributes', defaultMessage: 'User Attributes'}),
+-                isHidden: it.minLicenseTier(LicenseSkus.Enterprise),
+-                schema: {
+-                    id: 'SystemProperties',
+-                    name: defineMessage({id: 'admin.sidebar.user_attributes', defaultMessage: 'User Attributes'}),
+-                    settings: [
+-                        {
+-                            type: 'custom',
+-                            component: UserAttributesFeatureDiscovery,
+-                            key: 'UserAttributesFeatureDiscovery',
+-                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE)),
+-                        },
+-                    ],
+-                },
+-                restrictedIndicator: getRestrictedIndicator(true, LicenseSkus.EnterpriseAdvanced),
+-            },
+             user_attributes_redirect: {
+@@ -680,9 +660,6 @@ const AdminDefinition: AdminDefinitionType = {
+ 
+-                // Exact complement of user_attributes_feature_discovery's
+-                // isHidden above: Enterprise+ has no page of its own here
+-                // anymore (CPA fields now show in Manage Attributes as
+-                // non-template fields), so this URL redirects there instead
+-                // of falling through to the admin console's unrelated
+-                // default-page redirect.
+-                isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
++                // There is no page of its own here anymore (CPA fields show in
++                // Manage Attributes as non-template fields), so this URL
++                // redirects there instead of falling through to the admin
++                // console's unrelated default-page redirect.
+                 schema: {
+@@ -723,3 +700,2 @@ const AdminDefinition: AdminDefinitionType = {
+                 url: `system_attributes/manage_attributes/attribute_details/:field_id(${ID_PATH_PATTERN})`,
+-                isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 isDisabled: it.not(it.isSystemAdmin),
+@@ -732,3 +708,2 @@ const AdminDefinition: AdminDefinitionType = {
+                 url: 'system_attributes/manage_attributes/attribute_details',
+-                isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 isDisabled: it.not(it.isSystemAdmin),
+@@ -743,3 +718,2 @@ const AdminDefinition: AdminDefinitionType = {
+                 searchableStrings: globalAttributesSearchableStrings,
+-                isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 isDisabled: it.not(it.isSystemAdmin),
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_global_attributes.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_global_attributes.test.tsx
+index 4321d472..c9c363dc 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_global_attributes.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_global_attributes.test.tsx
+@@ -11,29 +11,21 @@ import type {Check, ConsoleAccess} from './types';
+ const config = {} as Partial<AdminConfig>;
+-
+-const enterpriseLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Enterprise,
+-} as ClientLicense;
+-
+-const professionalLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Professional,
+-} as ClientLicense;
+-
+-const unlicensed = {
+-    IsLicensed: 'false',
+-} as ClientLicense;
+-
+ const consoleAccess = {read: {}, write: {}} as ConsoleAccess;
+ 
+-function isHidden(config: Partial<AdminConfig>, license: ClientLicense) {
+-    const subsection = AdminDefinition.system_attributes.subsections.global_attributes;
+-    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, license, true, consoleAccess);
+-}
+-
+-function isDisabled(isSystemAdmin: boolean) {
+-    const subsection = AdminDefinition.system_attributes.subsections.global_attributes;
++const licenses: Record<string, ClientLicense> = {
++    'no license': {IsLicensed: 'false'} as ClientLicense,
++    'an empty license record': {} as ClientLicense,
++    Professional: {IsLicensed: 'true', SkuShortName: LicenseSkus.Professional} as ClientLicense,
++    Enterprise: {IsLicensed: 'true', SkuShortName: LicenseSkus.Enterprise} as ClientLicense,
++};
++
++const pages = [
++    'global_attributes',
++    'global_attribute_details',
++    'global_attribute_details_edit',
++] as const;
++
++function isDisabled(page: typeof pages[number], isSystemAdmin: boolean) {
++    const subsection = AdminDefinition.system_attributes.subsections[page];
+     const check = subsection.isDisabled as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, enterpriseLicense, true, consoleAccess, undefined, isSystemAdmin);
++    return check(config, {}, licenses.Enterprise, true, consoleAccess, undefined, isSystemAdmin);
+ }
+@@ -41,17 +33,15 @@ function isDisabled(isSystemAdmin: boolean) {
+ describe('AdminDefinition - Global Attributes access gate', () => {
+-    test('is hidden below Enterprise license', () => {
+-        expect(isHidden(config, professionalLicense)).toBe(true);
+-    });
+-
+-    test('is hidden when unlicensed', () => {
+-        expect(isHidden(config, unlicensed)).toBe(true);
++    test.each(pages)('%s is never hidden by a license check', (page) => {
++        expect(AdminDefinition.system_attributes.subsections[page].isHidden).toBeUndefined();
+     });
+ 
+-    test('is visible on Enterprise+ license', () => {
+-        expect(isHidden(config, enterpriseLicense)).toBe(false);
++    test.each(Object.keys(licenses))('the attributes page is reachable with %s', (name) => {
++        const subsection = AdminDefinition.system_attributes.subsections.global_attributes;
++        const hidden = subsection.isHidden as Extract<Check, (...args: any[]) => boolean> | undefined;
++        expect(hidden ? hidden(config, {}, licenses[name], true, consoleAccess) : false).toBe(false);
+     });
+ 
+-    test('disables the page for non-sysadmins', () => {
+-        expect(isDisabled(true)).toBe(false);
+-        expect(isDisabled(false)).toBe(true);
++    test.each(pages)('%s is still disabled for non-sysadmins', (page) => {
++        expect(isDisabled(page, true)).toBe(false);
++        expect(isDisabled(page, false)).toBe(true);
+     });
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_user_attributes.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_user_attributes.test.tsx
+index 80a68d60..fd587bee 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_user_attributes.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_user_attributes.test.tsx
+@@ -3,81 +3,26 @@
+ 
+-import type {AdminConfig, ClientLicense} from '@mattermost/types/config';
+-
+-import {LicenseSkus} from 'utils/constants';
+-
+ import AdminDefinition from './admin_definition';
+-import type {Check, ConsoleAccess} from './types';
+-
+-const config = {} as Partial<AdminConfig>;
+-
+-const enterpriseLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Enterprise,
+-} as ClientLicense;
+-
+-const professionalLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Professional,
+-} as ClientLicense;
+ 
+-const unlicensed = {
+-    IsLicensed: 'false',
+-} as ClientLicense;
+-
+-const consoleAccess = {read: {}, write: {}} as ConsoleAccess;
+-
+-function isDiscoveryHidden(license: ClientLicense) {
+-    const subsection = AdminDefinition.system_attributes.subsections.user_attributes_feature_discovery;
+-    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, license, true, consoleAccess);
+-}
+-
+-function isRedirectHidden(license: ClientLicense) {
+-    const subsection = AdminDefinition.system_attributes.subsections.user_attributes_redirect;
+-    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, license, true, consoleAccess);
+-}
+-
+-describe('AdminDefinition - user_attributes_feature_discovery access gate', () => {
+-    test('is visible below Enterprise license', () => {
+-        expect(isDiscoveryHidden(professionalLicense)).toBe(false);
+-    });
++const subsections = AdminDefinition.system_attributes.subsections as Record<string, {url: string; isHidden?: unknown}>;
+ 
+-    test('is visible when unlicensed', () => {
+-        expect(isDiscoveryHidden(unlicensed)).toBe(false);
++describe('AdminDefinition - user attributes', () => {
++    test('has no feature discovery (upsell) route', () => {
++        expect('user_attributes_feature_discovery' in subsections).toBe(false);
+     });
+ 
+-    test('is hidden on Enterprise+ license', () => {
+-        expect(isDiscoveryHidden(enterpriseLicense)).toBe(true);
++    test('the legacy user attributes URL always redirects to Manage Attributes', () => {
++        expect(subsections.user_attributes_redirect).toBeDefined();
++        expect(subsections.user_attributes_redirect.isHidden).toBeUndefined();
+     });
+-});
+-
+-describe('AdminDefinition - user_attributes_redirect access gate', () => {
+-    test('is hidden below Enterprise license', () => {
+-        expect(isRedirectHidden(professionalLicense)).toBe(true);
+-    });
+-
+-    test('is hidden when unlicensed', () => {
+-        expect(isRedirectHidden(unlicensed)).toBe(true);
+-    });
+-
+-    test('is visible on Enterprise+ license', () => {
+-        expect(isRedirectHidden(enterpriseLicense)).toBe(false);
+-    });
+-});
+-
+-describe('AdminDefinition - system_attributes/user_attributes always has a registered route', () => {
+-    // Both subsections above are registered at the same URL. If both are ever
+-    // hidden for a given license, the admin console has no route for that URL
+-    // and silently redirects elsewhere (admin_console.tsx's catch-all
+-    // <Redirect>) instead of showing anything -- this is exactly the
+-    // regression this test exists to catch.
+-    const cases: Array<[string, ClientLicense]> = [
+-        ['unlicensed', unlicensed],
+-        ['below Enterprise', professionalLicense],
+-        ['Enterprise+', enterpriseLicense],
+-    ];
+ 
+-    test.each(cases)('at least one of the two is visible when %s', (_name, license) => {
+-        expect(isDiscoveryHidden(license) && isRedirectHidden(license)).toBe(false);
++    test.each([
++        'system_attributes/manage_attributes',
++        'system_attributes/manage_attributes/attribute_details',
++        'system_attributes/manage_attributes/attribute_details/:field_id',
++    ])('%s is not hidden by a license check', (urlPrefix) => {
++        const matches = Object.values(subsections).filter((s) => s.url.startsWith(urlPrefix) && !s.url.includes('/classification'));
++        expect(matches.length).toBeGreaterThan(0);
++        for (const subsection of matches.filter((s) => s.url === urlPrefix || s.url.startsWith(urlPrefix + '('))) {
++            expect(subsection.isHidden).toBeUndefined();
++        }
+     });
+diff --git a/webapp/channels/src/components/admin_console/system_user_detail/index.ts b/webapp/channels/src/components/admin_console/system_user_detail/index.ts
+index b4850c14..798bbdea 100644
+--- a/webapp/channels/src/components/admin_console/system_user_detail/index.ts
++++ b/webapp/channels/src/components/admin_console/system_user_detail/index.ts
+@@ -13,3 +13,3 @@ import {updateUserActive, updateUserAuth, getUser, patchUser, updateUserMfa, get
+ import {Permissions} from 'mattermost-redux/constants';
+-import {getConfig, getCustomProfileAttributes, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig, getCustomProfileAttributes} from 'mattermost-redux/selectors/entities/general';
+ import {haveISystemPermission} from 'mattermost-redux/selectors/entities/roles';
+@@ -21,4 +21,2 @@ import {getShowLockedManageUserSettings, getShowManageUserSettings} from 'select
+ 
+-import {isEnterpriseLicense} from 'utils/license_utils';
+-
+ import SystemUserDetail from './system_user_detail';
+@@ -26,5 +24,4 @@ import SystemUserDetail from './system_user_detail';
+ function mapStateToProps(state: GlobalState) {
+-    const license = getLicense(state);
+     const config = getConfig(state);
+-    const customProfileAttributeEnabled = isEnterpriseLicense(license);
++    const customProfileAttributeEnabled = true;
+     const customProfileAttributeFields = customProfileAttributeEnabled ? getCustomProfileAttributes(state) : [];
+diff --git a/webapp/channels/src/components/integrations/bots/add_bot/index.ts b/webapp/channels/src/components/integrations/bots/add_bot/index.ts
+index 61bf9837..721347f1 100644
+--- a/webapp/channels/src/components/integrations/bots/add_bot/index.ts
++++ b/webapp/channels/src/components/integrations/bots/add_bot/index.ts
+@@ -15,3 +15,3 @@ import {Permissions} from 'mattermost-redux/constants';
+ import {getBotAccounts} from 'mattermost-redux/selectors/entities/bots';
+-import {getConfig, getCustomProfileAttributes, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig, getCustomProfileAttributes} from 'mattermost-redux/selectors/entities/general';
+ import {haveISystemPermission} from 'mattermost-redux/selectors/entities/roles';
+@@ -19,4 +19,2 @@ import {getCurrentUserId, getUser} from 'mattermost-redux/selectors/entities/use
+ 
+-import {isEnterpriseLicense} from 'utils/license_utils';
+-
+ import type {GlobalState} from 'types/store';
+@@ -44,3 +42,3 @@ function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
+     const maxLifetimeDays = parseInt(config.MaximumPersonalAccessTokenLifetimeDays || '0', 10);
+-    const attributesEnabled = isEnterpriseLicense(getLicense(state)) && canManageBotAttributes(bot, getCurrentUserId(state), {
++    const attributesEnabled = canManageBotAttributes(bot, getCurrentUserId(state), {
+         manageBots: haveISystemPermission(state, {permission: Permissions.MANAGE_BOTS}),
+diff --git a/webapp/channels/src/components/logged_in/index.test.ts b/webapp/channels/src/components/logged_in/index.test.ts
+index 6f602ab5..4b21dc8e 100644
+--- a/webapp/channels/src/components/logged_in/index.test.ts
++++ b/webapp/channels/src/components/logged_in/index.test.ts
+@@ -57,3 +57,3 @@ describe('LoggedIn mapStateToProps', () => {
+     describe('customProfileAttributesEnabled', () => {
+-        it('should be false when not Enterprise license', () => {
++        it('should be true without a license', () => {
+             const state = mergeObjects(baseState, {
+@@ -70,3 +70,3 @@ describe('LoggedIn mapStateToProps', () => {
+ 
+-            expect(props.customProfileAttributesEnabled).toBe(false);
++            expect(props.customProfileAttributesEnabled).toBe(true);
+         });
+@@ -90,3 +90,3 @@ describe('LoggedIn mapStateToProps', () => {
+ 
+-        it('should be false when no license information available', () => {
++        it('should be true when no license information is available', () => {
+             const state = mergeObjects(baseState, {
+@@ -101,3 +101,3 @@ describe('LoggedIn mapStateToProps', () => {
+ 
+-            expect(props.customProfileAttributesEnabled).toBe(false);
++            expect(props.customProfileAttributesEnabled).toBe(true);
+         });
+diff --git a/webapp/channels/src/components/logged_in/index.ts b/webapp/channels/src/components/logged_in/index.ts
+index c6753eb4..0dbc9221 100644
+--- a/webapp/channels/src/components/logged_in/index.ts
++++ b/webapp/channels/src/components/logged_in/index.ts
+@@ -17,3 +17,2 @@ import {getChannelURL} from 'selectors/urls';
+ import {getHistory} from 'utils/browser_history';
+-import {isEnterpriseLicense} from 'utils/license_utils';
+ import {checkIfMFARequired} from 'utils/route';
+@@ -43,3 +42,3 @@ export function mapStateToProps(state: GlobalState, ownProps: Props) {
+         showTermsOfService,
+-        customProfileAttributesEnabled: isEnterpriseLicense(license),
++        customProfileAttributesEnabled: true,
+     };
+diff --git a/webapp/channels/src/components/profile_popover/profile_popover.test.tsx b/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
+index ccfeef8f..cd7e979e 100644
+--- a/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
++++ b/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
+@@ -586,2 +586,4 @@ describe('components/ProfilePopover', () => {
+         const [props, initialState] = getBasePropsAndState();
++        (Client4.getUserCustomProfileAttributesValues as jest.Mock).mockImplementation(async () => ({}));
++        initialState.entities!.general!.customProfileAttributes = {};
+ 
+@@ -607,5 +609,3 @@ describe('components/ProfilePopover', () => {
+         renderWithPluginReducers(<ProfilePopover {...props}/>, initialState);
+-        await act(async () => {
+-            expect(await screen.findByLabelText('Start Call')).toBeInTheDocument();
+-        });
++        expect(await screen.findByLabelText('Start Call')).toBeInTheDocument();
+     });
+@@ -725,3 +725,3 @@ describe('components/ProfilePopover', () => {
+ 
+-    test('should not display attributes without Enterprise license', async () => {
++    test('should display attributes without a license', async () => {
+         const [props, initialState] = getBasePropsAndState();
+@@ -744,8 +744,5 @@ describe('components/ProfilePopover', () => {
+         renderWithPluginReducers(<ProfilePopover {...props}/>, initialState);
+-        await act(async () => {
+-            expect(await screen.queryByText('Rank')).not.toBeInTheDocument();
+-            expect(await screen.queryByText('CO')).not.toBeInTheDocument();
+-            expect(await screen.queryByText('Private')).not.toBeInTheDocument();
+-            expect(await screen.queryByText('Seargent York')).not.toBeInTheDocument();
+-        });
++
++        expect(await screen.findByText('Private')).toBeInTheDocument();
++        expect(await screen.findByText('Seargent York')).toBeInTheDocument();
+     });
+@@ -861,3 +858,3 @@ describe('components/ProfilePopover', () => {
+ 
+-    test('should neither fetch nor display bot attributes without Enterprise license', async () => {
++    test('should display and fetch bot attributes without a license', async () => {
+         const [props, initialState] = getBasePropsAndState();
+@@ -872,6 +869,5 @@ describe('components/ProfilePopover', () => {
+ 
+-        expect(await screen.findByText('bot description')).toBeInTheDocument();
+-        expect(screen.queryByText('Clearance')).not.toBeInTheDocument();
+-        expect(screen.queryByText('Top Secret')).not.toBeInTheDocument();
+-        expect(Client4.getUserCustomProfileAttributesValues).not.toHaveBeenCalled();
++        expect(await screen.findByText('Top Secret')).toBeInTheDocument();
++        expect(screen.getByText('Clearance')).toBeInTheDocument();
++        expect(Client4.getUserCustomProfileAttributesValues).toHaveBeenCalledWith(props.userId);
+     });
+diff --git a/webapp/channels/src/components/profile_popover/profile_popover.tsx b/webapp/channels/src/components/profile_popover/profile_popover.tsx
+index 9f9f34d4..3202cbcb 100644
+--- a/webapp/channels/src/components/profile_popover/profile_popover.tsx
++++ b/webapp/channels/src/components/profile_popover/profile_popover.tsx
+@@ -7,3 +7,2 @@ import {useDispatch, useSelector} from 'react-redux';
+ import {getCurrentChannelId, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
+-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+ import {getCurrentRelativeTeamUrl, getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
+@@ -23,3 +22,2 @@ import {A11yCustomEventTypes, UserStatuses} from 'utils/constants';
+ import type {A11yFocusEventDetail} from 'utils/constants';
+-import {isEnterpriseLicense} from 'utils/license_utils';
+ import * as Utils from 'utils/utils';
+@@ -82,5 +80,3 @@ const ProfilePopover = ({
+     const currentUserId = useSelector(getCurrentUserId);
+-    const license = useSelector((state: GlobalState) => getLicense(state));
+-    const isEnterprise = isEnterpriseLicense(license);
+-    const enableCustomProfileAttributes = isEnterprise && !fromWebhook;
++    const enableCustomProfileAttributes = !fromWebhook;
+ 
+diff --git a/webapp/channels/src/components/user_settings/general/index.ts b/webapp/channels/src/components/user_settings/general/index.ts
+index 580092c4..ed820b70 100644
+--- a/webapp/channels/src/components/user_settings/general/index.ts
++++ b/webapp/channels/src/components/user_settings/general/index.ts
+@@ -17,3 +17,3 @@ import {
+ import {Permissions} from 'mattermost-redux/constants';
+-import {getConfig, getCustomProfileAttributes, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig, getCustomProfileAttributes} from 'mattermost-redux/selectors/entities/general';
+ import {haveISystemPermission} from 'mattermost-redux/selectors/entities/roles';
+@@ -23,3 +23,2 @@ import {getIsMobileView} from 'selectors/views/browser';
+ import {normalizeLockProfileFieldsSetting} from 'utils/constants';
+-import {isEnterpriseLicense} from 'utils/license_utils';
+ 
+@@ -46,5 +45,3 @@ function mapStateToProps(state: GlobalState) {
+ 
+-    const license = getLicense(state);
+-    const isEnterprise = isEnterpriseLicense(license);
+-    const enableCustomProfileAttributes = isEnterprise;
++    const enableCustomProfileAttributes = true;
+ 
