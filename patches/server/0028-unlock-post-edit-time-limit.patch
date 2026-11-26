@@ -1,0 +1,46 @@
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/utils/post_utils.test.ts b/webapp/channels/src/packages/mattermost-redux/src/utils/post_utils.test.ts
+index 90b7e3be..f54c5df6 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/utils/post_utils.test.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/utils/post_utils.test.ts
+@@ -108,2 +108,32 @@ describe('PostUtils', () => {
+ 
++        it.each([
++            ['no license', {IsLicensed: 'false'}],
++            ['an empty license record', {}],
++        ])('should enforce the edit time limit with %s', (_name, noLicense) => {
++            const state = {
++                entities: {
++                    general: {serverVersion: '4.9.0'},
++                    users: {currentUserId: userId, profiles: {'user-id': {roles: 'system_role'}}},
++                    teams: {currentTeamId: teamId, myMembers: {'team-id': {roles: 'team_role'}}},
++                    channels: {
++                        currentChannelId: channelId,
++                        myMembers: {'channel-id': {roles: 'channel_role'}},
++                        roles: {'channel-id': ['channel_role']},
++                    },
++                    roles: {
++                        roles: {
++                            system_role: {permissions: ['edit_post']},
++                            team_role: {permissions: []},
++                            channel_role: {permissions: []},
++                        },
++                    },
++                },
++            } as unknown as GlobalState;
++            const own = (createAt: number) => TestHelper.getPostMock({user_id: userId, create_at: createAt});
++
++            expect(canEditPost(state, {PostEditTimeLimit: -1}, noLicense, teamId, channelId, userId, own(Date.now() - 6000000))).toBe(true);
++            expect(canEditPost(state, {PostEditTimeLimit: 300}, noLicense, teamId, channelId, userId, own(Date.now() - 100))).toBe(true);
++            expect(canEditPost(state, {PostEditTimeLimit: 300}, noLicense, teamId, channelId, userId, own(Date.now() - 6000000))).toBe(false);
++        });
++
+         it('should work with new permissions version', () => {
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/utils/post_utils.ts b/webapp/channels/src/packages/mattermost-redux/src/utils/post_utils.ts
+index 65f012a5..aa8d5d62 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/utils/post_utils.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/utils/post_utils.ts
+@@ -80,3 +80,3 @@ export function canEditPost(state: GlobalState, config: any, license: any, teamI
+     canEdit = haveIChannelPermission(state, teamId, channelId, permission);
+-    if (license.IsLicensed === 'true' && config.PostEditTimeLimit !== '-1' && config.PostEditTimeLimit !== -1) {
++    if (config.PostEditTimeLimit !== '-1' && config.PostEditTimeLimit !== -1) {
+         const timeLeft = (post.create_at + (config.PostEditTimeLimit * 1000)) - Date.now();
