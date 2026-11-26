@@ -1,0 +1,125 @@
+diff --git a/webapp/src/components/channel_settings/autoreply_schema.test.ts b/webapp/src/components/channel_settings/autoreply_schema.test.ts
+index 25a24f6..f3bf8f9 100644
+--- a/webapp/src/components/channel_settings/autoreply_schema.test.ts
++++ b/webapp/src/components/channel_settings/autoreply_schema.test.ts
+@@ -144,4 +144,4 @@ describe('shouldRenderChannelAutoReplyTab', () => {
+         {name: 'private channel with the private manage permission and an agent', type: 'P', perms: [PERMISSION_MANAGE_PRIVATE_CHANNEL_PROPERTIES], bots: [bot], want: true},
+-        {name: 'open channel with permission and an agent on an Enterprise license', type: 'O', perms: bothPerms, bots: [bot], sku: 'enterprise', want: false},
+-        {name: 'open channel with permission and an agent without a license', type: 'O', perms: bothPerms, bots: [bot], sku: '', want: false},
++        {name: 'open channel with permission and an agent on an Enterprise license (no tier gate in Mattermore)', type: 'O', perms: bothPerms, bots: [bot], sku: 'enterprise', want: true},
++        {name: 'open channel with permission and an agent without a license (no tier gate in Mattermore)', type: 'O', perms: bothPerms, bots: [bot], sku: '', want: true},
+     ])('$name -> $want', ({type, perms, bots, sku, want}: {type: string; perms: string[]; bots: LLMBot[] | null; sku?: string; want: boolean}) => {
+diff --git a/webapp/src/license.test.ts b/webapp/src/license.test.ts
+new file mode 100644
+index 0000000..4530b1a
+--- /dev/null
++++ b/webapp/src/license.test.ts
+@@ -0,0 +1,44 @@
++// Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {GlobalState} from '@mattermost/types/store';
++
++import {Capability, LicenseLevel, licenseAllows, requiredLevelFor} from './license';
++
++const everyCapability: Capability[] = [
++    'multiplayer_channels', 'thread_summarization', 'channel_summarization', 'provider_web_search',
++    'agent_access_controls', 'token_accounting', 'multiple_llm_services', 'model_fallback',
++    'state_changing_tools', 'sovereign_web_search', 'tool_approval_policies', 'remote_mcp',
++    'semantic_search', 'meetings', 'mcp_service_account', 'shared_prompts', 'channel_auto_reply',
++    'attribute_based_access',
++];
++
++const stateWith = (license: Record<string, string> | null) => ({
++    entities: {general: {license, config: {}}},
++} as unknown as GlobalState);
++
++// Mattermore ships every capability to every server, so no licence state changes
++// the answer, the same way the server side checker ignores the licence.
++describe('licenseAllows', () => {
++    const licenses: Array<[string, Record<string, string> | null]> = [
++        ['no licence installed', {IsLicensed: 'false'}],
++        ['a missing licence object', null],
++        ['an empty licence record', {}],
++        ['a professional licence', {IsLicensed: 'true', SkuShortName: 'professional'}],
++    ];
++
++    test.each(licenses)('%s allows every capability', (_name, license) => {
++        for (const capability of everyCapability) {
++            expect(licenseAllows(stateWith(license), capability)).toBe(true);
++        }
++    });
++});
++
++// The chart itself still drives the badges and wording in the System Console.
++describe('requiredLevelFor', () => {
++    test('follows the published tier chart', () => {
++        expect(requiredLevelFor('multiplayer_channels')).toBe(LicenseLevel.Professional);
++        expect(requiredLevelFor('semantic_search')).toBe(LicenseLevel.Enterprise);
++        expect(requiredLevelFor('channel_auto_reply')).toBe(LicenseLevel.EnterpriseAdvanced);
++    });
++});
+diff --git a/webapp/src/license.tsx b/webapp/src/license.tsx
+index f4a4396..81f6897 100644
+--- a/webapp/src/license.tsx
++++ b/webapp/src/license.tsx
+@@ -8,10 +8,2 @@ import {GlobalState} from '@mattermost/types/store';
+ 
+-// SKU short names align with model.LicenseShortSku* in Mattermost server public.
+-const skuE10 = 'E10';
+-const skuE20 = 'E20';
+-const skuProfessional = 'professional';
+-const skuEnterprise = 'enterprise';
+-const skuEnterpriseAdvanced = 'advanced';
+-const skuEntry = 'entry';
+-
+ // LicenseLevel mirrors enterprise.Level on the server. Higher levels include
+@@ -75,43 +67,7 @@ const BASE_SERVICE_LIMIT = 1;
+ 
+-// licenseLevelFromLicense mirrors enterprise.LevelFor. The Entry SKU maps to
+-// Enterprise; unknown SKUs fall back to feature flags.
+-const licenseLevelFromLicense = (license: Record<string, string> | undefined | null): LicenseLevel => {
+-    if (!license) {
+-        return LicenseLevel.Unlicensed;
+-    }
+-    switch (license.SkuShortName) {
+-    case skuEnterpriseAdvanced:
+-        return LicenseLevel.EnterpriseAdvanced;
+-    case skuEnterprise:
+-    case skuEntry:
+-    case skuE20:
+-        return LicenseLevel.Enterprise;
+-    case skuProfessional:
+-    case skuE10:
+-        return LicenseLevel.Professional;
+-    default:
+-        break;
+-    }
+-    if (license.FutureFeatures === 'true') {
+-        return LicenseLevel.Enterprise;
+-    }
+-    if (license.LDAP === 'true') {
+-        return LicenseLevel.Professional;
+-    }
+-    return LicenseLevel.Unlicensed;
+-};
+-
+-const isConfiguredForDevelopment = (state: GlobalState): boolean => {
+-    const config = state.entities.general.config;
+-
+-    return config.EnableTesting === 'true' && config.EnableDeveloper === 'true';
+-};
+-
+-// getLicenseLevel returns the current license level. A development server
+-// (EnableTesting and EnableDeveloper) reports EnterpriseAdvanced.
+-const getLicenseLevel = (state: GlobalState): LicenseLevel => {
+-    if (isConfiguredForDevelopment(state)) {
+-        return LicenseLevel.EnterpriseAdvanced;
+-    }
+-    return licenseLevelFromLicense(state.entities.general.license);
++// Mattermore ships every capability to every server, so the level is always the
++// top one and no licence is read. This mirrors the server side checker.
++// eslint-disable-next-line @typescript-eslint/no-unused-vars
++const getLicenseLevel = (_state: GlobalState): LicenseLevel => {
++    return LicenseLevel.EnterpriseAdvanced;
+ };

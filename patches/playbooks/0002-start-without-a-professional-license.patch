@@ -1,0 +1,14 @@
+diff --git a/server/plugin.go b/server/plugin.go
+index fa9c34f..5325cdb 100644
+--- a/server/plugin.go
++++ b/server/plugin.go
+@@ -107,9 +107,2 @@ func (p *Plugin) OnActivate() error {
+ 
+-	if !pluginapi.IsE10LicensedOrDevelopment(
+-		pluginAPIClient.Configuration.GetConfig(),
+-		pluginAPIClient.System.GetLicense(),
+-	) {
+-		return errors.New("this plugin requires a professional license or higher")
+-	}
+-
+ 	p.config = config.NewConfigService(pluginAPIClient, manifest)

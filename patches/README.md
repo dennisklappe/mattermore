@@ -5,7 +5,9 @@ named in `upstream.env`:
 
 | Directory | Upstream | Produces |
 | --- | --- | --- |
+| `agents/` | `mattermost/mattermost-plugin-agents` | the Mattermore Agents plugin bundle |
 | `calls/` | `mattermost/mattermost-plugin-calls` | the Mattermore calls plugin bundle |
+| `playbooks/` | `mattermost/mattermost-plugin-playbooks` | the Mattermore Playbooks plugin bundle |
 | `server/` | `mattermost/mattermost` | the Mattermore server binary and image |
 | `transcriber/` | `mattermost/calls-transcriber` | the transcriber image |
 
@@ -42,6 +44,27 @@ go list -deps ./server/ | grep -c server/enterprise   # 0
 
 That is what makes the bundle distributable, and it is the reason that patch
 exists at all rather than simply flipping the checks.
+
+The agents plugin has the same problem and gets the same answer.
+`agents/0001` adds a `license` package of its own, switches every import to it
+under the existing `enterprise` name so each file changes by one line, and
+leaves upstream's `enterprise/` directory in the tree but out of the build.
+`scripts/build-agents.sh` fails if that package is ever compiled back in. The
+tier chart in the new package is the one published in the plugin's own
+`docs/admin_guide.md`. A server with no licence installed is treated as having
+every tier, while an installed licence still maps to its own.
+
+Playbooks gets the same answer with less to replace. Its licence checker sits
+behind the `app.LicenseChecker` interface, and only `server/plugin.go` names
+the Source Available implementation, so `playbooks/0001` adds a `license`
+package of its own that allows every feature and switches that one import.
+Upstream's `server/enterprise` directory stays in the tree but out of the
+build, and `scripts/build-playbooks.sh` fails if it is ever compiled back in.
+Every Playbooks feature is available at every tier, so a server with no
+licence has all of them, and so does one with any licence. Three more small
+patches remove checks that were never behind the interface: `0002` the
+startup refusal without a Professional licence, `0003` the insights check, and
+`0004` the web app's licence level.
 
 ## Features whose code does not ship
 
