@@ -1,0 +1,155 @@
+diff --git a/server/config/client.go b/server/config/client.go
+index 529b7e60..54cc30c0 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -128,7 +128,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["EnableMetrics"] = "false"
+-	props["EnableBanner"] = "false"
+-	props["BannerText"] = ""
+-	props["BannerColor"] = ""
+-	props["BannerTextColor"] = ""
+-	props["AllowBannerDismissal"] = "false"
++	props["EnableBanner"] = strconv.FormatBool(*c.AnnouncementSettings.EnableBanner)
++	props["BannerText"] = *c.AnnouncementSettings.BannerText
++	props["BannerColor"] = *c.AnnouncementSettings.BannerColor
++	props["BannerTextColor"] = *c.AnnouncementSettings.BannerTextColor
++	props["AllowBannerDismissal"] = strconv.FormatBool(*c.AnnouncementSettings.AllowBannerDismissal)
+ 	props["EnableThemeSelection"] = "true"
+@@ -213,10 +213,2 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 
+-		if *license.Features.Announcement {
+-			props["EnableBanner"] = strconv.FormatBool(*c.AnnouncementSettings.EnableBanner)
+-			props["BannerText"] = *c.AnnouncementSettings.BannerText
+-			props["BannerColor"] = *c.AnnouncementSettings.BannerColor
+-			props["BannerTextColor"] = *c.AnnouncementSettings.BannerTextColor
+-			props["AllowBannerDismissal"] = strconv.FormatBool(*c.AnnouncementSettings.AllowBannerDismissal)
+-		}
+-
+ 		if *license.Features.ThemeManagement {
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index 44573dd6..57f08ef3 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -957,2 +957,21 @@ func TestGenerateClientConfigLockProfileFieldsForEmailUsers(t *testing.T) {
+ 
++func TestGetClientConfigAnnouncementBannerWithoutLicense(t *testing.T) {
++	t.Parallel()
++
++	cfg := &model.Config{}
++	cfg.SetDefaults()
++	*cfg.AnnouncementSettings.EnableBanner = true
++	*cfg.AnnouncementSettings.BannerText = "Maintenance tonight"
++	*cfg.AnnouncementSettings.BannerColor = "#112233"
++	*cfg.AnnouncementSettings.BannerTextColor = "#ffffff"
++	*cfg.AnnouncementSettings.AllowBannerDismissal = false
++
++	props := GenerateClientConfig(cfg, "", nil)
++	assert.Equal(t, "true", props["EnableBanner"])
++	assert.Equal(t, "Maintenance tonight", props["BannerText"])
++	assert.Equal(t, "#112233", props["BannerColor"])
++	assert.Equal(t, "#ffffff", props["BannerTextColor"])
++	assert.Equal(t, "false", props["AllowBannerDismissal"])
++}
++
+ func TestGetLimitedClientConfig(t *testing.T) {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index d5c68fa8..4ecfb867 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -75,3 +75,2 @@ import ElasticSearchSettings, {searchableStrings as elasticSearchSearchableStrin
+ import {
+-    AnnouncementBannerFeatureDiscovery,
+     ClassificationMarkingsFeatureDiscovery,
+@@ -3386,6 +3385,3 @@ const AdminDefinition: AdminDefinitionType = {
+                 title: defineMessage({id: 'admin.sidebar.announcement', defaultMessage: 'System-wide Notifications'}),
+-                isHidden: it.any(
+-                    it.not(it.licensedForFeature('Announcement')),
+-                    it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.SITE.ANNOUNCEMENT_BANNER)),
+-                ),
++                isHidden: it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.SITE.ANNOUNCEMENT_BANNER)),
+                 schema: {
+@@ -3441,24 +3437,2 @@ const AdminDefinition: AdminDefinitionType = {
+                 },
+-                restrictedIndicator: getRestrictedIndicator(),
+-            },
+-            announcement_banner_feature_discovery: {
+-                url: 'site_config/announcement_banner',
+-                isDiscovery: true,
+-                title: defineMessage({id: 'admin.sidebar.announcement', defaultMessage: 'System-wide Notifications'}),
+-                isHidden: it.any(
+-                    it.licensedForFeature('Announcement'),
+-                ),
+-                schema: {
+-                    id: 'AnnouncementSettings',
+-                    name: defineMessage({id: 'admin.site.announcementBanner', defaultMessage: 'System-wide Notifications'}),
+-                    settings: [
+-                        {
+-                            type: 'custom',
+-                            component: AnnouncementBannerFeatureDiscovery,
+-                            key: 'AnnouncementBannerFeatureDiscovery',
+-                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE)),
+-                        },
+-                    ],
+-                },
+-                restrictedIndicator: getRestrictedIndicator(true),
+             },
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_announcement_banner.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_announcement_banner.test.tsx
+new file mode 100644
+index 00000000..7644f339
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_announcement_banner.test.tsx
+@@ -0,0 +1,54 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {AdminConfig, ClientLicense} from '@mattermost/types/config';
++
++import {RESOURCE_KEYS} from 'mattermost-redux/constants/permissions_sysconsole';
++
++import {LicenseSkus} from 'utils/constants';
++
++import AdminDefinition from './admin_definition';
++import type {AdminDefinitionSubSection, Check, ConsoleAccess} from './types';
++
++const config = {} as Partial<AdminConfig>;
++
++const canRead = {
++    read: {[RESOURCE_KEYS.SITE.ANNOUNCEMENT_BANNER]: true},
++    write: {[RESOURCE_KEYS.SITE.ANNOUNCEMENT_BANNER]: true},
++} as ConsoleAccess;
++
++const cannotRead = {
++    read: {[RESOURCE_KEYS.SITE.ANNOUNCEMENT_BANNER]: false},
++    write: {[RESOURCE_KEYS.SITE.ANNOUNCEMENT_BANNER]: false},
++} as ConsoleAccess;
++
++const licenses: Record<string, ClientLicense> = {
++    'no license': {IsLicensed: 'false'} as ClientLicense,
++    'an empty license record': {} as ClientLicense,
++    Professional: {IsLicensed: 'true', SkuShortName: LicenseSkus.Professional, Announcement: 'false'} as ClientLicense,
++};
++
++const subsections = AdminDefinition.site.subsections as Record<string, AdminDefinitionSubSection>;
++
++function isHidden(subsection: AdminDefinitionSubSection, license: ClientLicense, access: ConsoleAccess) {
++    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
++    return check(config, {}, license, true, access);
++}
++
++describe('AdminDefinition - System-wide Notifications (announcement banner)', () => {
++    test('has no feature discovery (upsell) page', () => {
++        expect('announcement_banner_feature_discovery' in subsections).toBe(false);
++    });
++
++    test('is not marked as a restricted feature', () => {
++        expect(subsections.announcement_banner.restrictedIndicator).toBeUndefined();
++    });
++
++    test.each(Object.keys(licenses))('is visible with %s', (name) => {
++        expect(isHidden(subsections.announcement_banner, licenses[name], canRead)).toBe(false);
++    });
++
++    test('is hidden from admins without read access', () => {
++        expect(isHidden(subsections.announcement_banner, licenses['no license'], cannotRead)).toBe(true);
++    });
++});
