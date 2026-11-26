@@ -1,0 +1,373 @@
+diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
+index ea20f184..1c36d6fc 100644
+--- a/server/channels/api4/channel.go
++++ b/server/channels/api4/channel.go
+@@ -3008,7 +3008,2 @@ func updateChannelScheme(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("Api4.UpdateChannelScheme", "api.channel.update_channel_scheme.license.error", nil, "", http.StatusForbidden)
+-		return
+-	}
+-
+ 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSystem) {
+diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
+index caa86522..20f7e615 100644
+--- a/server/channels/api4/channel_test.go
++++ b/server/channels/api4/channel_test.go
+@@ -6990,7 +6990,6 @@ func TestUpdateChannelScheme(t *testing.T) {
+ 
+-	// Test that a license is required.
++	// Test that no license is required.
+ 	th.App.Srv().SetLicense(nil)
+-	resp, err = th.SystemAdminClient.UpdateChannelScheme(context.Background(), channel.Id, channelScheme.Id)
+-	require.Error(t, err)
+-	CheckForbiddenStatus(t, resp)
++	_, err = th.SystemAdminClient.UpdateChannelScheme(context.Background(), channel.Id, channelScheme.Id)
++	require.NoError(t, err)
+ 	th.App.Srv().SetLicense(model.NewTestLicense(""))
+diff --git a/server/channels/api4/scheme.go b/server/channels/api4/scheme.go
+index b943fd86..0cac1443 100644
+--- a/server/channels/api4/scheme.go
++++ b/server/channels/api4/scheme.go
+@@ -34,7 +34,2 @@ func createScheme(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if c.App.Channels().License() == nil || (!*c.App.Channels().License().Features.CustomPermissionsSchemes && c.App.Channels().License().SkuShortName != model.LicenseShortSkuProfessional) {
+-		c.Err = model.NewAppError("Api4.CreateScheme", "api.scheme.create_scheme.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleWriteUserManagementPermissions) {
+@@ -201,7 +196,2 @@ func patchScheme(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if c.App.Channels().License() == nil || (!*c.App.Channels().License().Features.CustomPermissionsSchemes && c.App.Channels().License().SkuShortName != model.LicenseShortSkuProfessional) {
+-		c.Err = model.NewAppError("Api4.PatchScheme", "api.scheme.patch_scheme.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	model.AddEventParameterToAuditRec(auditRec, "scheme_id", c.Params.SchemeId)
+@@ -246,7 +236,2 @@ func deleteScheme(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if c.App.Channels().License() == nil || (!*c.App.Channels().License().Features.CustomPermissionsSchemes && c.App.Channels().License().SkuShortName != model.LicenseShortSkuProfessional) {
+-		c.Err = model.NewAppError("Api4.DeleteScheme", "api.scheme.delete_scheme.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleWriteUserManagementPermissions) {
+diff --git a/server/channels/api4/scheme_test.go b/server/channels/api4/scheme_test.go
+index 85ead0e3..f96fa276 100644
+--- a/server/channels/api4/scheme_test.go
++++ b/server/channels/api4/scheme_test.go
+@@ -142,3 +142,3 @@ func TestCreateScheme(t *testing.T) {
+ 
+-	// Try and create a scheme without a license.
++	// A scheme can be created without a license.
+ 	th.App.Srv().SetLicense(nil)
+@@ -150,4 +150,5 @@ func TestCreateScheme(t *testing.T) {
+ 	}
+-	_, r6, _ := th.SystemAdminClient.CreateScheme(context.Background(), scheme6)
+-	CheckNotImplementedStatus(t, r6)
++	_, r6, err := th.SystemAdminClient.CreateScheme(context.Background(), scheme6)
++	require.NoError(t, err)
++	CheckCreatedStatus(t, r6)
+ 
+@@ -679,6 +680,7 @@ func TestPatchScheme(t *testing.T) {
+ 
+-	// Test without license.
++	// A scheme can be patched without a license.
+ 	th.App.Srv().SetLicense(nil)
+-	_, r11, _ := th.SystemAdminClient.PatchScheme(context.Background(), s6.Id, schemePatch)
+-	CheckNotImplementedStatus(t, r11)
++	_, r11, err := th.SystemAdminClient.PatchScheme(context.Background(), s6.Id, schemePatch)
++	require.NoError(t, err)
++	CheckOKStatus(t, r11)
+ 
+@@ -896,7 +898,15 @@ func TestDeleteScheme(t *testing.T) {
+ 
+-		// Test without license.
++		// A scheme can be deleted without a license. A separate scheme is used so
++		// the later steps still have s1 to work with.
+ 		th.App.Srv().SetLicense(nil)
+-		r5, err := th.SystemAdminClient.DeleteScheme(context.Background(), s1.Id)
+-		require.Error(t, err)
+-		CheckNotImplementedStatus(t, r5)
++		s3, _, err := th.SystemAdminClient.CreateScheme(context.Background(), &model.Scheme{
++			DisplayName: model.NewId(),
++			Name:        model.NewId(),
++			Description: model.NewId(),
++			Scope:       model.SchemeScopeChannel,
++		})
++		require.NoError(t, err)
++		r5, err := th.SystemAdminClient.DeleteScheme(context.Background(), s3.Id)
++		require.NoError(t, err)
++		CheckOKStatus(t, r5)
+ 
+@@ -964 +974,73 @@ func TestUpdateTeamSchemeWithTeamMembers(t *testing.T) {
+ }
++
++func TestSchemesWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	require.NoError(t, th.App.SetPhase2PermissionsMigrationStatus(true))
++	th.App.Srv().SetLicense(nil)
++	require.Nil(t, th.App.Srv().License())
++
++	ctx := context.Background()
++
++	teamScheme, resp, err := th.SystemAdminClient.CreateScheme(ctx, &model.Scheme{
++		DisplayName: model.NewId(),
++		Name:        model.NewId(),
++		Description: model.NewId(),
++		Scope:       model.SchemeScopeTeam,
++	})
++	require.NoError(t, err)
++	CheckCreatedStatus(t, resp)
++
++	channelScheme, resp, err := th.SystemAdminClient.CreateScheme(ctx, &model.Scheme{
++		DisplayName: model.NewId(),
++		Name:        model.NewId(),
++		Description: model.NewId(),
++		Scope:       model.SchemeScopeChannel,
++	})
++	require.NoError(t, err)
++	CheckCreatedStatus(t, resp)
++
++	renamed := "renamed"
++	patched, resp, err := th.SystemAdminClient.PatchScheme(ctx, teamScheme.Id, &model.SchemePatch{DisplayName: &renamed})
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.Equal(t, renamed, patched.DisplayName)
++
++	resp, err = th.SystemAdminClient.UpdateTeamScheme(ctx, th.BasicTeam.Id, teamScheme.Id)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	team, _, err := th.SystemAdminClient.GetTeam(ctx, th.BasicTeam.Id, "")
++	require.NoError(t, err)
++	require.NotNil(t, team.SchemeId)
++	require.Equal(t, teamScheme.Id, *team.SchemeId)
++
++	resp, err = th.SystemAdminClient.UpdateChannelScheme(ctx, th.BasicChannel.Id, channelScheme.Id)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	channel, _, err := th.SystemAdminClient.GetChannel(ctx, th.BasicChannel.Id)
++	require.NoError(t, err)
++	require.NotNil(t, channel.SchemeId)
++	require.Equal(t, channelScheme.Id, *channel.SchemeId)
++
++	t.Run("permissions still apply without a license", func(t *testing.T) {
++		_, resp, err := th.Client.CreateScheme(ctx, &model.Scheme{
++			DisplayName: model.NewId(),
++			Name:        model.NewId(),
++			Description: model.NewId(),
++			Scope:       model.SchemeScopeTeam,
++		})
++		require.Error(t, err)
++		CheckForbiddenStatus(t, resp)
++
++		resp, err = th.Client.UpdateTeamScheme(ctx, th.BasicTeam.Id, teamScheme.Id)
++		require.Error(t, err)
++		CheckForbiddenStatus(t, resp)
++	})
++
++	resp, err = th.SystemAdminClient.DeleteScheme(ctx, channelScheme.Id)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	resp, err = th.SystemAdminClient.DeleteScheme(ctx, teamScheme.Id)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++}
+diff --git a/server/channels/api4/team.go b/server/channels/api4/team.go
+index b34ed99b..967efb35 100644
+--- a/server/channels/api4/team.go
++++ b/server/channels/api4/team.go
+@@ -2070,7 +2070,2 @@ func updateTeamScheme(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("Api4.UpdateTeamScheme", "api.team.update_team_scheme.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionSysconsoleWriteUserManagementPermissions) {
+diff --git a/server/channels/api4/team_test.go b/server/channels/api4/team_test.go
+index 0f6ce730..5a7bd65d 100644
+--- a/server/channels/api4/team_test.go
++++ b/server/channels/api4/team_test.go
+@@ -5013,7 +5013,6 @@ func TestUpdateTeamScheme(t *testing.T) {
+ 
+-	// Test that a license is required.
++	// Test that no license is required.
+ 	th.App.Srv().SetLicense(nil)
+-	resp, err = th.SystemAdminClient.UpdateTeamScheme(context.Background(), team.Id, teamScheme.Id)
+-	require.Error(t, err)
+-	CheckNotImplementedStatus(t, resp)
++	_, err = th.SystemAdminClient.UpdateTeamScheme(context.Background(), team.Id, teamScheme.Id)
++	require.NoError(t, err)
+ 	th.App.Srv().SetLicense(model.NewTestLicense(""))
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index a6099280..ee3f9f2a 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -971,7 +971,2 @@
+   },
+-  {
+-    "id": "api.channel.update_channel_scheme.license.error",
+-    "translation": "Your license does not support updating a channel's scheme",
+-    "description": "API error when setting a channel's permissions scheme without a supporting license; 'scheme' is a permissions scheme."
+-  },
+   {
+@@ -4571,12 +4566,2 @@
+   },
+-  {
+-    "id": "api.scheme.create_scheme.license.error",
+-    "translation": "Your license does not support creating permissions schemes.",
+-    "description": "API error shown to a system admin when creating a permissions scheme is not supported by the server license; 'scheme' is a named set of role permissions."
+-  },
+-  {
+-    "id": "api.scheme.delete_scheme.license.error",
+-    "translation": "Your license does not support deleting permissions schemes.",
+-    "description": "API error shown to a system admin when deleting a permissions scheme is not supported by the server license; source English is ungrammatical ('license not support')."
+-  },
+   {
+@@ -4591,7 +4576,2 @@
+   },
+-  {
+-    "id": "api.scheme.patch_scheme.license.error",
+-    "translation": "Your license does not support updating permissions schemes.",
+-    "description": "API error shown to a system admin when updating a permissions scheme is not supported by the server license."
+-  },
+   {
+@@ -5071,7 +5051,2 @@
+   },
+-  {
+-    "id": "api.team.update_team_scheme.license.error",
+-    "translation": "Your license does not support updating a team's scheme",
+-    "description": "API error shown to a system admin when assigning a permissions scheme to a team is not supported by the server license."
+-  },
+   {
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_schemes_settings.test.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_schemes_settings.test.tsx
+index d7881dc9..ab55dbea 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_schemes_settings.test.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_schemes_settings.test.tsx
+@@ -74,2 +74,18 @@ describe('components/admin_console/permission_schemes_settings/permission_scheme
+ 
++    test('should show the team override schemes panel without a licence', async () => {
++        const loadSchemes = jest.fn(() => Promise.resolve({data: [], error: {}}));
++        renderWithContext(
++            <PermissionSchemesSettings
++                {...defaultProps}
++                schemes={{}}
++                license={{CustomPermissionsSchemes: 'false', SkuShortName: ''}}
++                actions={{...defaultProps.actions, loadSchemes}}
++            />,
++        );
++        await waitFor(() => {
++            expect(screen.getByText('Team Override Schemes')).toBeInTheDocument();
++        });
++        expect(screen.getByText('No team override schemes created.')).toBeInTheDocument();
++    });
++
+     test('should show migration in-progress view', async () => {
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_schemes_settings.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_schemes_settings.tsx
+index 4aae5756..53d12779 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_schemes_settings.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_schemes_settings.tsx
+@@ -20,3 +20,3 @@ import LoadingWrapper from 'components/widgets/loading/loading_wrapper';
+ 
+-import {DocLinks, LicenseSkus} from 'utils/constants';
++import {DocLinks} from 'utils/constants';
+ 
+@@ -176,52 +176,48 @@ export default class PermissionSchemesSettings extends React.PureComponent<Props
+         ));
+-        const hasCustomSchemes = this.props.license.CustomPermissionsSchemes === 'true' || this.props.license.SkuShortName === LicenseSkus.Professional;
+         const teamOverrideView = this.teamOverrideSchemesMigrationView();
+ 
+-        if (hasCustomSchemes) {
+-            return (
+-                <AdminPanelWithLink
+-                    id='team-override-schemes'
+-                    className='permissions-block'
+-                    title={messages.teamOverrideSchemesTitle}
+-                    subtitle={messages.teamOverrideSchemesBannerText}
+-                    subtitleValues={{
+-                        link: (msg: React.ReactNode) => (
+-                            <ExternalLink
+-                                href={DocLinks.ONBOARD_ADVANCED_PERMISSIONS}
+-                                location='permission_scheme_settings'
+-                            >
+-                                {msg}
+-                            </ExternalLink>
+-                        ),
+-                    }}
+-                    url='/admin_console/user_management/permissions/team_override_scheme'
+-                    disabled={(teamOverrideView !== null) || this.props.isDisabled}
+-                    linkText={messages.teamOverrideSchemesNewButton}
+-                >
+-                    {schemes.length === 0 && teamOverrideView === null &&
+-                        <div className='no-team-schemes'>
+-                            <FormattedMessage
+-                                {...messages.teamOverrideSchemesNoSchemes}
+-                            />
+-                        </div>}
+-                    {teamOverrideView}
+-                    {schemes.length > 0 && schemes}
+-                    {schemes.length === (PAGE_SIZE * (this.state.page + 1)) &&
+-                        <button
+-                            type='button'
+-                            className='more-schemes theme style--none color--link'
+-                            onClick={this.loadMoreSchemes}
+-                            disabled={this.props.isDisabled || this.state.loadingMore}
++        return (
++            <AdminPanelWithLink
++                id='team-override-schemes'
++                className='permissions-block'
++                title={messages.teamOverrideSchemesTitle}
++                subtitle={messages.teamOverrideSchemesBannerText}
++                subtitleValues={{
++                    link: (msg: React.ReactNode) => (
++                        <ExternalLink
++                            href={DocLinks.ONBOARD_ADVANCED_PERMISSIONS}
++                            location='permission_scheme_settings'
+                         >
+-                            <LoadingWrapper
+-                                loading={this.state.loadingMore}
+-                                text={defineMessage({id: 'admin.permissions.loadingMoreSchemes', defaultMessage: 'Loading...'})}
+-                            >
+-                                <FormattedMessage {...messages.loadMoreSchemes}/>
+-                            </LoadingWrapper>
+-                        </button>}
+-                </AdminPanelWithLink>
+-            );
+-        }
+-        return false;
++                            {msg}
++                        </ExternalLink>
++                    ),
++                }}
++                url='/admin_console/user_management/permissions/team_override_scheme'
++                disabled={(teamOverrideView !== null) || this.props.isDisabled}
++                linkText={messages.teamOverrideSchemesNewButton}
++            >
++                {schemes.length === 0 && teamOverrideView === null &&
++                    <div className='no-team-schemes'>
++                        <FormattedMessage
++                            {...messages.teamOverrideSchemesNoSchemes}
++                        />
++                    </div>}
++                {teamOverrideView}
++                {schemes.length > 0 && schemes}
++                {schemes.length === (PAGE_SIZE * (this.state.page + 1)) &&
++                    <button
++                        type='button'
++                        className='more-schemes theme style--none color--link'
++                        onClick={this.loadMoreSchemes}
++                        disabled={this.props.isDisabled || this.state.loadingMore}
++                    >
++                        <LoadingWrapper
++                            loading={this.state.loadingMore}
++                            text={defineMessage({id: 'admin.permissions.loadingMoreSchemes', defaultMessage: 'Loading...'})}
++                        >
++                            <FormattedMessage {...messages.loadMoreSchemes}/>
++                        </LoadingWrapper>
++                    </button>}
++            </AdminPanelWithLink>
++        );
+     };
