@@ -1,0 +1,142 @@
+diff --git a/server/api_graphql_property_test.go b/server/api_graphql_property_test.go
+index 08ab470..645e2f7 100644
+--- a/server/api_graphql_property_test.go
++++ b/server/api_graphql_property_test.go
+@@ -625,3 +625,3 @@ func TestGraphQLPropertyFields(t *testing.T) {
+ 
+-func TestGraphQLPropertyFieldsLicenseEnforcement(t *testing.T) {
++func TestGraphQLPropertyFieldsWithoutLicense(t *testing.T) {
+ 	e := Setup(t)
+@@ -662,3 +662,3 @@ func TestGraphQLPropertyFieldsLicenseEnforcement(t *testing.T) {
+ 
+-	t.Run("add property field without license should fail", func(t *testing.T) {
++	t.Run("add property field without license", func(t *testing.T) {
+ 		e.RemoveLicence()
+@@ -684,6 +684,6 @@ func TestGraphQLPropertyFieldsLicenseEnforcement(t *testing.T) {
+ 		require.NoError(t, err)
+-		require.NotEmpty(t, response.Errors, "Should return error when not licensed")
++		require.Empty(t, response.Errors, "Should succeed without a license")
+ 	})
+ 
+-	t.Run("get property field without license should fail", func(t *testing.T) {
++	t.Run("get property field without license", func(t *testing.T) {
+ 		e.RemoveLicence()
+@@ -715,6 +715,6 @@ func TestGraphQLPropertyFieldsLicenseEnforcement(t *testing.T) {
+ 		require.NoError(t, err)
+-		require.NotEmpty(t, response.Errors, "Should return error when not licensed")
++		require.Empty(t, response.Errors, "Should succeed without a license")
+ 	})
+ 
+-	t.Run("update property field without license should fail", func(t *testing.T) {
++	t.Run("update property field without license", func(t *testing.T) {
+ 		e.RemoveLicence()
+@@ -747,6 +747,6 @@ func TestGraphQLPropertyFieldsLicenseEnforcement(t *testing.T) {
+ 		require.NoError(t, err)
+-		require.NotEmpty(t, response.Errors, "Should return error when not licensed")
++		require.Empty(t, response.Errors, "Should succeed without a license")
+ 	})
+ 
+-	t.Run("delete property field without license should fail", func(t *testing.T) {
++	t.Run("delete property field without license", func(t *testing.T) {
+ 		e.RemoveLicence()
+@@ -775,3 +775,3 @@ func TestGraphQLPropertyFieldsLicenseEnforcement(t *testing.T) {
+ 		require.NoError(t, err)
+-		require.NotEmpty(t, response.Errors, "Should return error when not licensed")
++		require.Empty(t, response.Errors, "Should succeed without a license")
+ 	})
+diff --git a/server/license/license.go b/server/license/license.go
+new file mode 100644
+index 0000000..3d3f979
+--- /dev/null
++++ b/server/license/license.go
+@@ -0,0 +1,46 @@
++// Copyright (c) 2020-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++// Package license decides which Playbooks features a server may use.
++//
++// Mattermore builds Playbooks without upstream's server/enterprise package,
++// which is under the Mattermost Source Available License, and uses this one in
++// its place. Every feature is available at every tier, so a server with no
++// licence has all of them.
++package license
++
++import (
++	"github.com/mattermost/mattermost/server/public/pluginapi"
++)
++
++// LicenseChecker answers the same questions upstream's checker does, with
++// "allowed" to each of them.
++type LicenseChecker struct{}
++
++// NewLicenseChecker returns a checker. It takes the plugin API client only so
++// that it can stand in for upstream's constructor without touching its caller.
++func NewLicenseChecker(_ *pluginapi.Client) *LicenseChecker {
++	return &LicenseChecker{}
++}
++
++// PlaybookAllowed reports whether a playbook is allowed. Private playbooks are
++// allowed too.
++func (c *LicenseChecker) PlaybookAllowed(_ bool) bool { return true }
++
++// RetrospectiveAllowed reports whether the retrospective feature is allowed.
++func (c *LicenseChecker) RetrospectiveAllowed() bool { return true }
++
++// TimelineAllowed reports whether the timeline feature is allowed.
++func (c *LicenseChecker) TimelineAllowed() bool { return true }
++
++// StatsAllowed reports whether the stats feature is allowed.
++func (c *LicenseChecker) StatsAllowed() bool { return true }
++
++// ChecklistItemDueDateAllowed reports whether checklist item due dates are allowed.
++func (c *LicenseChecker) ChecklistItemDueDateAllowed() bool { return true }
++
++// PlaybookAttributesAllowed reports whether playbook attributes are allowed.
++func (c *LicenseChecker) PlaybookAttributesAllowed() bool { return true }
++
++// ConditionalPlaybooksAllowed reports whether conditional playbooks are allowed.
++func (c *LicenseChecker) ConditionalPlaybooksAllowed() bool { return true }
+diff --git a/server/license/license_test.go b/server/license/license_test.go
+new file mode 100644
+index 0000000..78656fe
+--- /dev/null
++++ b/server/license/license_test.go
+@@ -0,0 +1,29 @@
++// Copyright (c) 2020-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package license_test
++
++import (
++	"testing"
++
++	"github.com/stretchr/testify/assert"
++
++	"github.com/mattermost/mattermost-plugin-playbooks/server/app"
++	"github.com/mattermost/mattermost-plugin-playbooks/server/license"
++)
++
++// The plugin hands this checker to code that wants an app.LicenseChecker.
++var _ app.LicenseChecker = (*license.LicenseChecker)(nil)
++
++func TestLicenseCheckerAllowsEveryFeature(t *testing.T) {
++	checker := license.NewLicenseChecker(nil)
++
++	assert.True(t, checker.PlaybookAllowed(true), "public playbook")
++	assert.True(t, checker.PlaybookAllowed(false), "private playbook")
++	assert.True(t, checker.RetrospectiveAllowed(), "retrospective")
++	assert.True(t, checker.TimelineAllowed(), "timeline")
++	assert.True(t, checker.StatsAllowed(), "stats")
++	assert.True(t, checker.ChecklistItemDueDateAllowed(), "checklist item due date")
++	assert.True(t, checker.PlaybookAttributesAllowed(), "playbook attributes")
++	assert.True(t, checker.ConditionalPlaybooksAllowed(), "conditional playbooks")
++}
+diff --git a/server/plugin.go b/server/plugin.go
+index b62a8e6..fa9c34f 100644
+--- a/server/plugin.go
++++ b/server/plugin.go
+@@ -29,3 +29,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-playbooks/server/config"
+-	"github.com/mattermost/mattermost-plugin-playbooks/server/enterprise"
++	enterprise "github.com/mattermost/mattermost-plugin-playbooks/server/license"
+ 	"github.com/mattermost/mattermost-plugin-playbooks/server/metrics"

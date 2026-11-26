@@ -1,0 +1,93 @@
+diff --git a/server/app/playbook_service.go b/server/app/playbook_service.go
+index 73f3e86..e755c7b 100644
+--- a/server/app/playbook_service.go
++++ b/server/app/playbook_service.go
+@@ -590,5 +590,3 @@ func (s *playbookService) GetTopPlaybooksForUser(teamID, userID string, opts *In
+ func licenseAndGuestCheck(s *playbookService, userID string, isMyInsights bool) (bool, error) {
+-	licenseError := errors.New("invalid license/authorization to use insights API")
+ 	guestError := errors.New("Guests aren't authorized to use insights API")
+-	lic := s.api.System.GetLicense()
+ 
+@@ -603,10 +601,2 @@ func licenseAndGuestCheck(s *playbookService, userID string, isMyInsights bool)
+ 
+-	if lic == nil && !isMyInsights {
+-		return false, licenseError
+-	}
+-
+-	if !isMyInsights && (lic.SkuShortName != model.LicenseShortSkuProfessional && lic.SkuShortName != model.LicenseShortSkuEnterprise) {
+-		return false, licenseError
+-	}
+-
+ 	return true, nil
+diff --git a/server/app/playbook_service_test.go b/server/app/playbook_service_test.go
+index 8a9b2f9..81005b3 100644
+--- a/server/app/playbook_service_test.go
++++ b/server/app/playbook_service_test.go
+@@ -12,2 +12,4 @@ import (
+ 	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/plugin/plugintest"
++	"github.com/mattermost/mattermost/server/public/pluginapi"
+ 	"github.com/stretchr/testify/assert"
+@@ -22,2 +24,62 @@ import (
+ 
++func TestPlaybookService_InsightsWithoutLicense(t *testing.T) {
++	setup := func(t *testing.T, user *model.User) (app.PlaybookService, *mock_app.MockPlaybookStore) {
++		t.Helper()
++
++		ctrl := gomock.NewController(t)
++		t.Cleanup(ctrl.Finish)
++
++		mockStore := mock_app.NewMockPlaybookStore(ctrl)
++		mockAPI := &plugintest.API{}
++		mockAPI.On("GetLicense").Return(nil).Maybe()
++		mockAPI.On("GetUser", user.Id).Return(user, nil)
++		t.Cleanup(func() { mockAPI.AssertExpectations(t) })
++
++		service := app.NewPlaybookService(
++			mockStore,
++			mock_bot.NewMockPoster(ctrl),
++			pluginapi.NewClient(mockAPI, nil),
++			nil, // auditor
++			&metrics.Metrics{},
++			mock_app.NewMockPropertyService(ctrl),
++			mock_app.NewMockConditionService(ctrl),
++		)
++
++		return service, mockStore
++	}
++
++	opts := &app.InsightsOpts{}
++	insights := &app.PlaybooksInsightsList{}
++
++	t.Run("a member can read the team's insights", func(t *testing.T) {
++		service, mockStore := setup(t, &model.User{Id: "member-id", Roles: model.SystemUserRoleId})
++		mockStore.EXPECT().GetTopPlaybooksForTeam("team-id", "member-id", opts).Return(insights, nil)
++
++		got, err := service.GetTopPlaybooksForTeam("team-id", "member-id", opts)
++
++		require.NoError(t, err)
++		assert.Same(t, insights, got)
++	})
++
++	t.Run("a member can read their own insights", func(t *testing.T) {
++		service, mockStore := setup(t, &model.User{Id: "member-id", Roles: model.SystemUserRoleId})
++		mockStore.EXPECT().GetTopPlaybooksForUser("team-id", "member-id", opts).Return(insights, nil)
++
++		got, err := service.GetTopPlaybooksForUser("team-id", "member-id", opts)
++
++		require.NoError(t, err)
++		assert.Same(t, insights, got)
++	})
++
++	t.Run("a guest still cannot read insights", func(t *testing.T) {
++		service, _ := setup(t, &model.User{Id: "guest-id", Roles: model.SystemGuestRoleId})
++
++		got, err := service.GetTopPlaybooksForTeam("team-id", "guest-id", opts)
++
++		require.Error(t, err)
++		assert.Contains(t, err.Error(), "Guests")
++		assert.Nil(t, got)
++	})
++}
++
+ func TestPlaybookService_CreatePropertyField(t *testing.T) {
