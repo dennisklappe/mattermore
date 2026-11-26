@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 #
 # Builds the Mattermore server image: upstream's Team Edition image with our
-# binary and our calls and agents plugins.
+# binary and our calls, agents and playbooks plugins.
 #
 # Usage: ./scripts/build-image.sh [tag]
-# Requires: podman or docker, plus whatever build-server.sh, build-calls.sh and build-agents.sh need.
+# Requires: podman or docker, plus whatever build-server.sh, build-calls.sh, build-agents.sh and
+# build-playbooks.sh need.
 
 set -euo pipefail
 
@@ -28,8 +29,10 @@ rm -rf "$STAGE"; mkdir -p "$STAGE"
 mv "$STAGE/mattermore-calls-$CALLS_VERSION.tar.gz" "$STAGE/mattermore-calls.tar.gz"
 "$ROOT/scripts/build-agents.sh" "$STAGE"
 mv "$STAGE/mattermore-agents-$AGENTS_VERSION.tar.gz" "$STAGE/mattermore-agents.tar.gz"
+"$ROOT/scripts/build-playbooks.sh" "$STAGE"
+mv "$STAGE/mattermore-playbooks-$PLAYBOOKS_VERSION.tar.gz" "$STAGE/mattermore-playbooks.tar.gz"
 # The checksums are for people downloading the bundles, not for the image.
-rm -f "$STAGE"/mattermore-calls-*.sha256 "$STAGE"/mattermore-agents-*.sha256
+rm -f "$STAGE"/mattermore-calls-*.sha256 "$STAGE"/mattermore-agents-*.sha256 "$STAGE"/mattermore-playbooks-*.sha256
 cp "$ROOT/Containerfile" "$STAGE/Containerfile"
 
 # The image rewrites the config upstream ships, so both halves of that go into

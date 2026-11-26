@@ -79,6 +79,15 @@ jobs:
             echo "applied $(basename "$p")"
           done
 
+      - name: Playbooks patches apply to the pinned tag
+        run: |
+          git clone --quiet --depth 1 --branch "${{ steps.upstream.outputs.PLAYBOOKS_TAG }}" \
+            https://github.com/mattermost/mattermost-plugin-playbooks.git /tmp/playbooks
+          for p in patches/playbooks/*.patch; do
+            git -C /tmp/playbooks apply "$PWD/$p" || { echo "::error::$p does not apply"; exit 1; }
+            echo "applied $(basename "$p")"
+          done
+
   plugin:
     name: calls plugin compiles
     runs-on: ubuntu-latest
@@ -102,6 +111,18 @@ jobs:
       - uses: actions/setup-go@v5
         with: { go-version: '1.26' }
       - run: ./scripts/build-agents.sh dist
+
+  playbooks:
+    name: playbooks plugin compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned to the plugin's .nvmrc for the same reason as the agents job.
+      - uses: actions/setup-node@v4
+        with: { node-version: '24.11' }
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.26' }
+      - run: ./scripts/build-playbooks.sh dist
 
   server:
     name: server compiles
