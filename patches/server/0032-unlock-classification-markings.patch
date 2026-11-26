@@ -1,0 +1,851 @@
+diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
+index 1c36d6fc..0fe21825 100644
+--- a/server/channels/api4/channel.go
++++ b/server/channels/api4/channel.go
+@@ -225,3 +225,3 @@ func createChannel(c *Context, w http.ResponseWriter, r *http.Request) {
+ // required attribute has no value. Each field is gated by its own feature:
+-// classification by ClassificationMarkings + Enterprise, everything else by
++// classification by ClassificationMarkings, everything else by
+ // ChannelAttributes + Enterprise Advanced. Both off with no items keeps
+@@ -244,3 +244,3 @@ func channelAttributeValuesForCreate(c *Context, channel *model.Channel, license
+ 	channelAttributesAvailable := c.App.Config().FeatureFlags.ChannelAttributes && model.MinimumEnterpriseAdvancedLicense(license)
+-	classificationAvailable := c.App.Config().FeatureFlags.ClassificationMarkings && model.MinimumEnterpriseLicense(license)
++	classificationAvailable := c.App.Config().FeatureFlags.ClassificationMarkings
+ 	requiredAttributesEnforced := c.App.Config().FeatureFlags.IsChannelAttributesRequiredEnabled()
+diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
+index 20f7e615..eb654893 100644
+--- a/server/channels/api4/channel_test.go
++++ b/server/channels/api4/channel_test.go
+@@ -483,54 +483,62 @@ func TestCreateChannelWithPropertyValues(t *testing.T) {
+ 
+-	t.Run("classification value is accepted even when ChannelAttributes is off", func(t *testing.T) {
+-		// Classification predates channel attributes and ships behind
+-		// ClassificationMarkings + Enterprise, not ChannelAttributes + Enterprise
+-		// Advanced — so it must still work with the newer flag off.
+-		th.App.UpdateConfig(func(cfg *model.Config) {
+-			cfg.FeatureFlags.ChannelAttributes = false
+-			cfg.FeatureFlags.ClassificationMarkings = true
+-		})
+-		defer th.App.UpdateConfig(func(cfg *model.Config) {
+-			cfg.FeatureFlags.ChannelAttributes = true
+-		})
++	for name, license := range map[string]*model.License{
++		"with Enterprise Advanced": model.NewTestLicenseSKU(model.LicenseShortSkuEnterpriseAdvanced),
++		"with no license":          nil,
++	} {
++		t.Run("classification value is accepted even when ChannelAttributes is off "+name, func(t *testing.T) {
++			th.App.Srv().SetLicense(license)
++			defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterpriseAdvanced))
++
++			// Classification predates channel attributes and ships behind
++			// ClassificationMarkings, not ChannelAttributes + Enterprise
++			// Advanced, so it must still work with the newer flag off.
++			th.App.UpdateConfig(func(cfg *model.Config) {
++				cfg.FeatureFlags.ChannelAttributes = false
++				cfg.FeatureFlags.ClassificationMarkings = true
++			})
++			defer th.App.UpdateConfig(func(cfg *model.Config) {
++				cfg.FeatureFlags.ChannelAttributes = true
++			})
+ 
+-		optionID := model.NewId()
+-		templateField, fieldErr := th.App.CreatePropertyField(th.Context, &model.PropertyField{
+-			Name:       "classification",
+-			Type:       model.PropertyFieldTypeSelect,
+-			GroupID:    group.ID,
+-			ObjectType: "template",
+-			TargetType: "system",
+-			Attrs: model.StringInterface{
+-				model.PropertyFieldAttributeOptions: []map[string]any{{"id": optionID, "name": "SECRET"}},
+-			},
+-		}, false, "")
+-		require.Nil(t, fieldErr)
+-		t.Cleanup(func() {
+-			require.Nil(t, th.App.DeletePropertyField(th.Context, group.ID, templateField.ID, true, ""))
+-		})
++			optionID := model.NewId()
++			templateField, fieldErr := th.App.CreatePropertyField(th.Context, &model.PropertyField{
++				Name:       "classification",
++				Type:       model.PropertyFieldTypeSelect,
++				GroupID:    group.ID,
++				ObjectType: "template",
++				TargetType: "system",
++				Attrs: model.StringInterface{
++					model.PropertyFieldAttributeOptions: []map[string]any{{"id": optionID, "name": "SECRET"}},
++				},
++			}, false, "")
++			require.Nil(t, fieldErr)
++			t.Cleanup(func() {
++				require.Nil(t, th.App.DeletePropertyField(th.Context, group.ID, templateField.ID, true, ""))
++			})
+ 
+-		classificationField, fieldErr := th.App.CreatePropertyField(th.Context, &model.PropertyField{
+-			Name:             "classification",
+-			Type:             model.PropertyFieldTypeSelect,
+-			GroupID:          group.ID,
+-			ObjectType:       "channel",
+-			TargetType:       "system",
+-			PermissionField:  &memberLevel,
+-			PermissionValues: &memberLevel,
+-			LinkedFieldID:    &templateField.ID,
+-		}, false, "")
+-		require.Nil(t, fieldErr)
+-		t.Cleanup(func() {
+-			require.Nil(t, th.App.DeletePropertyField(th.Context, group.ID, classificationField.ID, true, ""))
+-		})
++			classificationField, fieldErr := th.App.CreatePropertyField(th.Context, &model.PropertyField{
++				Name:             "classification",
++				Type:             model.PropertyFieldTypeSelect,
++				GroupID:          group.ID,
++				ObjectType:       "channel",
++				TargetType:       "system",
++				PermissionField:  &memberLevel,
++				PermissionValues: &memberLevel,
++				LinkedFieldID:    &templateField.ID,
++			}, false, "")
++			require.Nil(t, fieldErr)
++			t.Cleanup(func() {
++				require.Nil(t, th.App.DeletePropertyField(th.Context, group.ID, classificationField.ID, true, ""))
++			})
+ 
+-		req, _ := newRequest(model.PropertyValuePatchItem{FieldID: classificationField.ID, Value: json.RawMessage(`"` + optionID + `"`)})
+-		channel, resp, err := th.Client.CreateChannelWithPropertyValues(context.Background(), req)
+-		require.NoError(t, err)
+-		CheckCreatedStatus(t, resp)
++			req, _ := newRequest(model.PropertyValuePatchItem{FieldID: classificationField.ID, Value: json.RawMessage(`"` + optionID + `"`)})
++			channel, resp, err := th.Client.CreateChannelWithPropertyValues(context.Background(), req)
++			require.NoError(t, err)
++			CheckCreatedStatus(t, resp)
+ 
+-		values := valuesFor(t, channel.Id)
+-		require.Len(t, values, 1)
+-		require.Equal(t, classificationField.ID, values[0].FieldID)
+-	})
++			values := valuesFor(t, channel.Id)
++			require.Len(t, values, 1)
++			require.Equal(t, classificationField.ID, values[0].FieldID)
++		})
++	}
+ 
+diff --git a/server/channels/api4/properties.go b/server/channels/api4/properties.go
+index c8f5291c..07ca740b 100644
+--- a/server/channels/api4/properties.go
++++ b/server/channels/api4/properties.go
+@@ -10,3 +10,2 @@ import (
+ 	"net/http"
+-	"slices"
+ 	"strconv"
+@@ -16,3 +15,2 @@ import (
+ 	"github.com/mattermost/mattermost/server/public/shared/mlog"
+-	"github.com/mattermost/mattermost/server/public/shared/request"
+ 	"github.com/mattermost/mattermost/server/v8/channels/app"
+@@ -83,58 +81,2 @@ func getV2Group(c *Context, callerName string) *model.PropertyGroup {
+ 
+-// requireChannelAttributeLicense gates channel-scoped objects in the
+-// access_control group. They are the storage behind channel attributes and
+-// classification's channel banner, which are Enterprise Advanced. The same
+-// group also holds user attributes, which are not, so the tier is checked per
+-// object type rather than on the group as a whole.
+-func requireChannelAttributeLicense(c *Context, group *model.PropertyGroup, callerName string, objectTypes ...string) bool {
+-	if group.Name != model.AccessControlPropertyGroupName {
+-		return true
+-	}
+-
+-	if !slices.Contains(objectTypes, model.PropertyFieldObjectTypeChannel) {
+-		return true
+-	}
+-
+-	if !model.MinimumEnterpriseAdvancedLicense(c.App.License()) {
+-		c.Err = model.NewAppError(callerName, "api.property.channel_attributes.license.app_error", nil, "", http.StatusNotImplemented)
+-		return false
+-	}
+-
+-	return true
+-}
+-
+-// requireChannelAttributeLicenseForTemplate refuses a request against an
+-// access_control template that a channel field links to, unless the license is
+-// Enterprise Advanced. requireChannelAttributeLicense cannot catch this case:
+-// it runs before any field is read and keys on the object type in the URL,
+-// which is "template" here. Sets c.Err and returns false on refusal.
+-//
+-// Best-effort: this catches a template a channel field links to directly.
+-// A linked field may not itself be a link target, so a chain cannot hide
+-// the template; dependents still come and go, so the answer is only as
+-// good as this moment.
+-func requireChannelAttributeLicenseForTemplate(c *Context, rctx request.CTX, group *model.PropertyGroup, field *model.PropertyField, callerName string) bool {
+-	if group.Name != model.AccessControlPropertyGroupName ||
+-		field.ObjectType != model.PropertyFieldObjectTypeTemplate ||
+-		model.MinimumEnterpriseAdvancedLicense(c.App.License()) {
+-		return true
+-	}
+-
+-	dependents, searchErr := c.App.SearchPropertyFields(rctx, group.ID, model.PropertyFieldSearchOpts{
+-		ObjectTypes:   []string{model.PropertyFieldObjectTypeChannel},
+-		LinkedFieldID: field.ID,
+-		PerPage:       1,
+-	})
+-	if searchErr != nil {
+-		c.Err = searchErr
+-		return false
+-	}
+-	if len(dependents) > 0 {
+-		c.Err = model.NewAppError(callerName, "api.property.channel_attributes.license.app_error", nil, "", http.StatusNotImplemented)
+-		return false
+-	}
+-
+-	return true
+-}
+-
+ // resolvePropertyGroupParam reads the propertyGroup query parameter and resolves it to a
+@@ -169,6 +111,2 @@ func createPropertyField(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if !requireChannelAttributeLicense(c, group, "createPropertyField", c.Params.ObjectType) {
+-		return
+-	}
+-
+ 	var field *model.PropertyField
+@@ -437,6 +375,2 @@ func searchPropertyFieldsCore(c *Context, w http.ResponseWriter, group *model.Pr
+ 
+-	if !requireChannelAttributeLicense(c, group, callerName, opts.ObjectTypes...) {
+-		return
+-	}
+-
+ 	if !resolveScopeAndCheckPermissions(c, &opts, callerName) {
+@@ -545,6 +479,2 @@ func patchPropertyField(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if !requireChannelAttributeLicense(c, group, "patchPropertyField", c.Params.ObjectType) {
+-		return
+-	}
+-
+ 	var patch *model.PropertyFieldPatch
+@@ -597,6 +527,2 @@ func patchPropertyField(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if !requireChannelAttributeLicenseForTemplate(c, rctx, group, existingField, "patchPropertyField") {
+-		return
+-	}
+-
+ 	// PermissionValues is only patchable on a linked field (any object type),
+@@ -676,6 +602,2 @@ func deletePropertyField(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if !requireChannelAttributeLicense(c, group, "deletePropertyField", c.Params.ObjectType) {
+-		return
+-	}
+-
+ 	auditRec := c.MakeAuditRecord(model.AuditEventDeletePropertyField, model.AuditStatusFail)
+@@ -697,6 +619,2 @@ func deletePropertyField(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if !requireChannelAttributeLicenseForTemplate(c, rctx, group, existingField, "deletePropertyField") {
+-		return
+-	}
+-
+ 	if !c.App.SessionHasPermissionToEditPropertyField(rctx, *c.AppContext.Session(), existingField) {
+@@ -760,6 +678,2 @@ func getPropertyValuesCore(c *Context, w http.ResponseWriter, r *http.Request, o
+ 
+-	if !requireChannelAttributeLicense(c, group, "getPropertyValues", objectType) {
+-		return
+-	}
+-
+ 	// Check target access based on object type
+@@ -875,6 +789,2 @@ func patchPropertyValuesCore(c *Context, w http.ResponseWriter, r *http.Request,
+ 
+-	if !requireChannelAttributeLicense(c, group, "patchPropertyValues", objectType) {
+-		return
+-	}
+-
+ 	var items []model.PropertyValuePatchItem
+diff --git a/server/channels/api4/properties_test.go b/server/channels/api4/properties_test.go
+index be3f3481..e91c2c55 100644
+--- a/server/channels/api4/properties_test.go
++++ b/server/channels/api4/properties_test.go
+@@ -7310,3 +7310,3 @@ func TestPatchPropertyValuesAccessControlDirectChannel(t *testing.T) {
+ 
+-func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
++func TestChannelPropertiesWithoutLicense(t *testing.T) {
+ 	mainHelper.Parallel(t)
+@@ -7314,10 +7314,21 @@ func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
+ 		cfg.FeatureFlags.ChannelAttributes = true
++		cfg.FeatureFlags.ClassificationMarkings = true
+ 	}).InitBasic(t)
+ 
+-	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
++	// No license is installed. Classification stores its levels and its channel
++	// banner as channel-scoped property objects, so those must be reachable.
+ 	groupName := model.AccessControlPropertyGroupName
+ 
+-	t.Run("listing channel fields is refused", func(t *testing.T) {
+-		_, resp, err := th.SystemAdminClient.GetPropertyFields(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, model.PropertyFieldSearch{
++	notRefused := func(t *testing.T, err error) {
++		t.Helper()
++		if err != nil {
++			// The license gate answered 501 Not Implemented.
++			var appErr *model.AppError
++			require.ErrorAs(t, err, &appErr)
++			require.NotEqual(t, http.StatusNotImplemented, appErr.StatusCode)
++		}
++	}
++
++	t.Run("listing channel fields", func(t *testing.T) {
++		_, _, err := th.SystemAdminClient.GetPropertyFields(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, model.PropertyFieldSearch{
+ 			TargetType: string(model.PropertyFieldTargetLevelSystem),
+@@ -7325,12 +7336,8 @@ func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
+ 		})
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
++		require.NoError(t, err)
+ 	})
+ 
+-	t.Run("reading channel values is refused", func(t *testing.T) {
+-		_, resp, err := th.Client.GetPropertyValues(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, th.BasicChannel.Id, model.PropertyValueSearch{PerPage: 100})
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
++	t.Run("reading channel values", func(t *testing.T) {
++		_, _, err := th.Client.GetPropertyValues(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, th.BasicChannel.Id, model.PropertyValueSearch{PerPage: 100})
++		require.NoError(t, err)
+ 	})
+@@ -7345,51 +7352,16 @@ func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
+ 
+-	t.Run("Enterprise Advanced is admitted", func(t *testing.T) {
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterpriseAdvanced))
+-		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+-		_, _, err := th.SystemAdminClient.GetPropertyFields(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, model.PropertyFieldSearch{
+-			TargetType: string(model.PropertyFieldTargetLevelSystem),
+-			PerPage:    100,
+-		})
+-		require.NoError(t, err)
+-	})
+-
+ 	fieldID := model.NewId()
+ 
+-	t.Run("listing channel field options is refused", func(t *testing.T) {
+-		_, resp, err := th.SystemAdminClient.GetPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, fieldID, 0, "", model.PropertyFieldOptionsMaxPerRequest)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+-	})
++	t.Run("channel field options are not refused for a license", func(t *testing.T) {
++		_, _, err := th.SystemAdminClient.GetPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, fieldID, 0, "", model.PropertyFieldOptionsMaxPerRequest)
++		notRefused(t, err)
+ 
+-	t.Run("creating channel field options is refused", func(t *testing.T) {
+-		_, resp, err := th.SystemAdminClient.CreatePropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, fieldID, []*model.PropertyFieldOption{
+-			{Name: "x"},
+-		})
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+-	})
++		_, _, err = th.SystemAdminClient.CreatePropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, fieldID, []*model.PropertyFieldOption{{Name: "x"}})
++		notRefused(t, err)
+ 
+-	t.Run("patching channel field options is refused", func(t *testing.T) {
+-		_, resp, err := th.SystemAdminClient.PatchPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, fieldID, []*model.PropertyFieldOption{
+-			{Name: "x"},
+-		})
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+-	})
+-
+-	t.Run("deleting channel field options is refused", func(t *testing.T) {
+-		resp, err := th.SystemAdminClient.DeletePropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, fieldID, []string{model.NewId()})
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+-	})
++		_, _, err = th.SystemAdminClient.PatchPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, fieldID, []*model.PropertyFieldOption{{Name: "x"}})
++		notRefused(t, err)
+ 
+-	t.Run("listing user field options in the same group is not a license refusal", func(t *testing.T) {
+-		_, resp, err := th.SystemAdminClient.GetPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeUser, fieldID, 0, "", model.PropertyFieldOptionsMaxPerRequest)
+-		require.Error(t, err)
+-		require.Equal(t, http.StatusNotFound, resp.StatusCode)
++		_, err = th.SystemAdminClient.DeletePropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeChannel, fieldID, []string{model.NewId()})
++		notRefused(t, err)
+ 	})
+@@ -7399,3 +7371,5 @@ func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
+ 
+-	createLinkedSelect := func(t *testing.T, objectType string) *model.PropertyField {
++	// A template field that a channel field links to is how classification
++	// levels are stored.
++	createTemplateServingChannelField := func(t *testing.T) *model.PropertyField {
+ 		t.Helper()
+@@ -7415,3 +7389,3 @@ func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
+ 
+-		linked := &model.PropertyField{
++		_, createErr = th.App.CreatePropertyField(th.Context, &model.PropertyField{
+ 			Name:          celSafeName(),
+@@ -7419,7 +7393,6 @@ func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
+ 			GroupID:       group.ID,
+-			ObjectType:    objectType,
++			ObjectType:    model.PropertyFieldObjectTypeChannel,
+ 			TargetType:    "system",
+ 			LinkedFieldID: &template.ID,
+-		}
+-		_, createErr = th.App.CreatePropertyField(th.Context, linked, false, "")
++		}, false, "")
+ 		require.Nil(t, createErr)
+@@ -7428,37 +7401,2 @@ func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
+ 
+-	t.Run("options on a template serving a channel field are refused", func(t *testing.T) {
+-		template := createLinkedSelect(t, model.PropertyFieldObjectTypeChannel)
+-
+-		_, resp, err := th.SystemAdminClient.GetPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID, 0, "", model.PropertyFieldOptionsMaxPerRequest)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+-
+-		_, resp, err = th.SystemAdminClient.CreatePropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID, []*model.PropertyFieldOption{
+-			{Name: "beta"},
+-		})
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+-	})
+-
+-	t.Run("options on a template serving only a user field are admitted", func(t *testing.T) {
+-		template := createLinkedSelect(t, model.PropertyFieldObjectTypeUser)
+-
+-		listed, _, err := th.SystemAdminClient.GetPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID, 0, "", model.PropertyFieldOptionsMaxPerRequest)
+-		require.NoError(t, err)
+-		require.Equal(t, []string{"alpha"}, optionNames(listed.Options))
+-	})
+-
+-	t.Run("Enterprise Advanced admits options on a template serving a channel field", func(t *testing.T) {
+-		template := createLinkedSelect(t, model.PropertyFieldObjectTypeChannel)
+-
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterpriseAdvanced))
+-		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+-		listed, _, err := th.SystemAdminClient.GetPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID, 0, "", model.PropertyFieldOptionsMaxPerRequest)
+-		require.NoError(t, err)
+-		require.Equal(t, []string{"alpha"}, optionNames(listed.Options))
+-	})
+-
+ 	optionsOnlyPatch := &model.PropertyFieldPatch{Attrs: &model.StringInterface{
+@@ -7467,39 +7405,22 @@ func TestChannelAttributesRequireEnterpriseAdvanced(t *testing.T) {
+ 
+-	t.Run("patching a template serving a channel field is refused", func(t *testing.T) {
+-		template := createLinkedSelect(t, model.PropertyFieldObjectTypeChannel)
+-
+-		_, resp, err := th.SystemAdminClient.PatchPropertyField(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID, optionsOnlyPatch)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
+-	})
+-
+-	t.Run("deleting a template serving a channel field is refused", func(t *testing.T) {
+-		template := createLinkedSelect(t, model.PropertyFieldObjectTypeChannel)
++	t.Run("listing the options of a template serving a channel field", func(t *testing.T) {
++		template := createTemplateServingChannelField(t)
+ 
+-		resp, err := th.SystemAdminClient.DeletePropertyField(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.property.channel_attributes.license.app_error")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
++		listed, _, err := th.SystemAdminClient.GetPropertyFieldOptions(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID, 0, "", model.PropertyFieldOptionsMaxPerRequest)
++		require.NoError(t, err)
++		require.Equal(t, []string{"alpha"}, optionNames(listed.Options))
+ 	})
+ 
+-	t.Run("patching a template serving only a user field is not a license refusal", func(t *testing.T) {
+-		template := createLinkedSelect(t, model.PropertyFieldObjectTypeUser)
++	t.Run("patching a template serving a channel field", func(t *testing.T) {
++		template := createTemplateServingChannelField(t)
+ 
+ 		_, _, err := th.SystemAdminClient.PatchPropertyField(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID, optionsOnlyPatch)
+-		if err != nil {
+-			var appErr *model.AppError
+-			require.ErrorAs(t, err, &appErr)
+-			require.NotEqual(t, "api.property.channel_attributes.license.app_error", appErr.Id)
+-		}
++		require.NoError(t, err)
+ 	})
+ 
+-	t.Run("Enterprise Advanced admits patching a template serving a channel field", func(t *testing.T) {
+-		template := createLinkedSelect(t, model.PropertyFieldObjectTypeChannel)
+-
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterpriseAdvanced))
+-		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
++	t.Run("deleting a template serving a channel field", func(t *testing.T) {
++		template := createTemplateServingChannelField(t)
+ 
+-		_, _, err := th.SystemAdminClient.PatchPropertyField(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID, optionsOnlyPatch)
+-		require.NoError(t, err)
++		_, err := th.SystemAdminClient.DeletePropertyField(context.Background(), groupName, model.PropertyFieldObjectTypeTemplate, template.ID)
++		notRefused(t, err)
+ 	})
+diff --git a/server/channels/api4/property_options.go b/server/channels/api4/property_options.go
+index 181f80d8..b6e59ccf 100644
+--- a/server/channels/api4/property_options.go
++++ b/server/channels/api4/property_options.go
+@@ -41,6 +41,2 @@ func propertyFieldForOptions(c *Context, callerName string) (*model.PropertyFiel
+ 
+-	if !requireChannelAttributeLicense(c, group, callerName, c.Params.ObjectType) {
+-		return nil, nil
+-	}
+-
+ 	rctx := app.RequestContextWithCallerID(c.AppContext, sessionCallerID(c))
+@@ -66,6 +62,2 @@ func propertyFieldForOptions(c *Context, callerName string) (*model.PropertyFiel
+ 
+-	if !requireChannelAttributeLicenseForTemplate(c, rctx, group, field, callerName) {
+-		return nil, nil
+-	}
+-
+ 	return field, rctx
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index 4769c1cc..d78fb8e4 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -4151,7 +4151,2 @@
+   },
+-  {
+-    "id": "api.property.channel_attributes.license.app_error",
+-    "translation": "Channel attributes require an Enterprise Advanced license.",
+-    "description": "API error when managing channel attribute fields (custom fields defined for channels by admins) on a server without the required license. 'Enterprise Advanced' is a Mattermost license tier name; keep it in English."
+-  },
+   {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index fc6d5579..012360c1 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -75,3 +75,2 @@ import ElasticSearchSettings, {searchableStrings as elasticSearchSearchableStrin
+ import {
+-    ClassificationMarkingsFeatureDiscovery,
+     ComplianceExportFeatureDiscovery,
+@@ -3349,6 +3348,3 @@ const AdminDefinition: AdminDefinitionType = {
+                 searchableStrings: classificationMarkingsSearchableStrings,
+-                isHidden: it.any(
+-                    it.not(it.minLicenseTier(LicenseSkus.EnterpriseAdvanced)),
+-                    it.not(it.configIsTrue('FeatureFlags', 'ClassificationMarkings')),
+-                ),
++                isHidden: it.not(it.configIsTrue('FeatureFlags', 'ClassificationMarkings')),
+                 isDisabled: it.not(it.isSystemAdmin),
+@@ -3359,24 +3355,2 @@ const AdminDefinition: AdminDefinitionType = {
+             },
+-            classification_markings_feature_discovery: {
+-                url: 'site_config/classification_markings',
+-                isDiscovery: true,
+-                title: defineMessage({id: 'admin.sidebar.classificationMarkings', defaultMessage: 'Classification Markings'}),
+-                isHidden: it.any(
+-                    it.minLicenseTier(LicenseSkus.EnterpriseAdvanced),
+-                    it.not(it.configIsTrue('FeatureFlags', 'ClassificationMarkings')),
+-                ),
+-                schema: {
+-                    id: 'ClassificationMarkings',
+-                    name: defineMessage({id: 'admin.sidebar.classificationMarkings', defaultMessage: 'Classification Markings'}),
+-                    settings: [
+-                        {
+-                            type: 'custom',
+-                            component: ClassificationMarkingsFeatureDiscovery,
+-                            key: 'ClassificationMarkingsFeatureDiscovery',
+-                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE)),
+-                        },
+-                    ],
+-                },
+-                restrictedIndicator: getRestrictedIndicator(true, LicenseSkus.EnterpriseAdvanced),
+-            },
+             announcement_banner: {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_classification_markings.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_classification_markings.test.tsx
+index 9f68314b..834e36d0 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_classification_markings.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_classification_markings.test.tsx
+@@ -3,3 +3,2 @@
+ 
+-import type {CloudState} from '@mattermost/types/cloud';
+ import type {AdminConfig, ClientLicense} from '@mattermost/types/config';
+@@ -11,114 +10,37 @@ import {LicenseSkus} from 'utils/constants';
+ import AdminDefinition from './admin_definition';
+-import ClassificationMarkingsFeatureDiscovery from './feature_discovery/features/classification_markings';
+-import type {AdminDefinitionSetting, AdminDefinitionSubSection, Check, ConsoleAccess} from './types';
++import type {AdminDefinitionSubSection, Check, ConsoleAccess} from './types';
+ 
+-const classificationConfigEnabled = {
+-    FeatureFlags: {
+-        ClassificationMarkings: true,
+-    },
+-} as unknown as Partial<AdminConfig>;
++const flagOn = {FeatureFlags: {ClassificationMarkings: true}} as unknown as Partial<AdminConfig>;
++const flagOff = {FeatureFlags: {ClassificationMarkings: false}} as unknown as Partial<AdminConfig>;
+ 
+-const classificationConfigDisabled = {
+-    FeatureFlags: {
+-        ClassificationMarkings: false,
+-    },
+-} as unknown as Partial<AdminConfig>;
+-
+-const consoleAccess = {
+-    read: {},
+-    write: {
+-        [RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE]: true,
+-    },
+-} as ConsoleAccess;
+-
+-const consoleAccessWithoutLicenseWrite = {
+-    ...consoleAccess,
+-    write: {
+-        ...consoleAccess.write,
+-        [RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE]: false,
+-    },
++const access = {
++    read: {[RESOURCE_KEYS.SITE.ANNOUNCEMENT_BANNER]: true},
++    write: {[RESOURCE_KEYS.SITE.ANNOUNCEMENT_BANNER]: true},
+ } as ConsoleAccess;
+ 
+-const professionalLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Professional,
+-} as ClientLicense;
+-
+-const enterpriseLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Enterprise,
+-} as ClientLicense;
+-
+-const enterpriseAdvancedLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.EnterpriseAdvanced,
+-} as ClientLicense;
+-
+-const entryLicense = {
+-    IsLicensed: 'true',
+-    SkuShortName: LicenseSkus.Entry,
+-} as ClientLicense;
+-
+-const unlicensed = {
+-    IsLicensed: 'false',
+-} as ClientLicense;
++const licenses: Record<string, ClientLicense> = {
++    'no license': {IsLicensed: 'false'} as ClientLicense,
++    'an empty license record': {} as ClientLicense,
++    Professional: {IsLicensed: 'true', SkuShortName: LicenseSkus.Professional} as ClientLicense,
++    Enterprise: {IsLicensed: 'true', SkuShortName: LicenseSkus.Enterprise} as ClientLicense,
++};
+ 
+-type CustomAdminDefinitionSetting = Extract<AdminDefinitionSetting, {type: 'custom'}>;
++const subsections = AdminDefinition.site.subsections as Record<string, AdminDefinitionSubSection>;
+ 
+-function isHidden(subsection: AdminDefinitionSubSection, config: Partial<AdminConfig>, license: ClientLicense) {
+-    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, license, true, consoleAccess);
++function isHidden(config: Partial<AdminConfig>, license: ClientLicense) {
++    const check = subsections.classification_markings.isHidden as Extract<Check, (...args: any[]) => boolean>;
++    return check(config, {}, license, true, access);
+ }
+ 
+-function isDisabled(check: Check | undefined, access: ConsoleAccess) {
+-    const disabledCheck = check as Extract<Check, (...args: any[]) => boolean>;
+-    return disabledCheck(classificationConfigEnabled, {}, professionalLicense, true, access);
+-}
+-
+-describe('AdminDefinition - Classification Markings discovery', () => {
+-    const settingsSubsection = AdminDefinition.site.subsections.classification_markings;
+-    const discoverySubsection = AdminDefinition.site.subsections.classification_markings_feature_discovery;
+-
+-    test('includes a discovery route at the Classification Markings URL', () => {
+-        expect(discoverySubsection).toBeDefined();
+-        expect(discoverySubsection.url).toBe(settingsSubsection.url);
+-        expect(discoverySubsection.isDiscovery).toBe(true);
+-        expect(discoverySubsection.title).toEqual(settingsSubsection.title);
+-        expect(discoverySubsection.restrictedIndicator).toBeDefined();
+-
+-        const schema = discoverySubsection.schema;
+-        expect('name' in schema ? schema.name : undefined).toEqual(settingsSubsection.title);
+-    });
+-
+-    test('advertises Enterprise Advanced as the required tier in the restricted indicator', () => {
+-        const restrictedIndicator = discoverySubsection.restrictedIndicator;
+-        expect(restrictedIndicator).toBeDefined();
+-
+-        const indicator = restrictedIndicator!.value({} as CloudState);
+-        expect(indicator.props.minimumPlanRequiredForFeature).toBe(LicenseSkus.EnterpriseAdvanced);
++describe('AdminDefinition - Classification Markings', () => {
++    test('has no feature discovery (upsell) page', () => {
++        expect('classification_markings_feature_discovery' in subsections).toBe(false);
+     });
+ 
+-    test('shows discovery instead of settings for Professional licenses', () => {
+-        expect(isHidden(settingsSubsection, classificationConfigEnabled, professionalLicense)).toBe(true);
+-        expect(isHidden(discoverySubsection, classificationConfigEnabled, professionalLicense)).toBe(false);
++    test.each(Object.keys(licenses))('is visible with %s when the feature flag is on', (name) => {
++        expect(isHidden(flagOn, licenses[name])).toBe(false);
+     });
+ 
+-    test('shows discovery instead of settings when unlicensed', () => {
+-        expect(isHidden(settingsSubsection, classificationConfigEnabled, unlicensed)).toBe(true);
+-        expect(isHidden(discoverySubsection, classificationConfigEnabled, unlicensed)).toBe(false);
+-    });
+-
+-    test('shows discovery instead of settings for Enterprise licenses', () => {
+-        expect(isHidden(settingsSubsection, classificationConfigEnabled, enterpriseLicense)).toBe(true);
+-        expect(isHidden(discoverySubsection, classificationConfigEnabled, enterpriseLicense)).toBe(false);
+-    });
+-
+-    test('shows settings instead of discovery for Enterprise Advanced licenses', () => {
+-        expect(isHidden(settingsSubsection, classificationConfigEnabled, enterpriseAdvancedLicense)).toBe(false);
+-        expect(isHidden(discoverySubsection, classificationConfigEnabled, enterpriseAdvancedLicense)).toBe(true);
+-    });
+-
+-    test('shows settings instead of discovery for Entry licenses', () => {
+-        expect(isHidden(settingsSubsection, classificationConfigEnabled, entryLicense)).toBe(false);
+-        expect(isHidden(discoverySubsection, classificationConfigEnabled, entryLicense)).toBe(true);
++    test('stays hidden when the feature flag is off', () => {
++        expect(isHidden(flagOff, licenses['no license'])).toBe(true);
+     });
+@@ -126,34 +48,6 @@ describe('AdminDefinition - Classification Markings discovery', () => {
+     test('disables the settings page for non system admins', () => {
+-        const settingsDisabledCheck = settingsSubsection.isDisabled as Extract<Check, (...args: any[]) => boolean>;
+-
+-        const asSystemAdmin = settingsDisabledCheck(classificationConfigEnabled, {}, enterpriseAdvancedLicense, true, consoleAccess, undefined, true);
+-        const asNonSystemAdmin = settingsDisabledCheck(classificationConfigEnabled, {}, enterpriseAdvancedLicense, true, consoleAccess, undefined, false);
+-
+-        expect(asSystemAdmin).toBe(false);
+-        expect(asNonSystemAdmin).toBe(true);
+-    });
+-
+-    test('hides both settings and discovery when the Classification Markings feature flag is disabled', () => {
+-        expect(isHidden(settingsSubsection, classificationConfigDisabled, professionalLicense)).toBe(true);
+-        expect(isHidden(discoverySubsection, classificationConfigDisabled, professionalLicense)).toBe(true);
+-
+-        // The disabled flag must override an otherwise-unlocking license.
+-        expect(isHidden(settingsSubsection, classificationConfigDisabled, enterpriseAdvancedLicense)).toBe(true);
+-        expect(isHidden(discoverySubsection, classificationConfigDisabled, enterpriseAdvancedLicense)).toBe(true);
+-    });
+-
+-    test('renders the Classification Markings feature discovery component through a custom setting', () => {
+-        const schema = discoverySubsection.schema;
+-        expect('settings' in schema).toBe(true);
+-
+-        const settings = 'settings' in schema ? schema.settings ?? [] : [];
+-        const discoverySetting = settings.find((setting): setting is CustomAdminDefinitionSetting => (
+-            setting.type === 'custom' && setting.key === 'ClassificationMarkingsFeatureDiscovery'
+-        ));
++        const check = subsections.classification_markings.isDisabled as Extract<Check, (...args: any[]) => boolean>;
+ 
+-        expect(discoverySetting).toBeDefined();
+-        expect(discoverySetting?.type).toBe('custom');
+-        expect(discoverySetting?.component).toBe(ClassificationMarkingsFeatureDiscovery);
+-        expect(isDisabled(discoverySetting?.isDisabled, consoleAccess)).toBe(false);
+-        expect(isDisabled(discoverySetting?.isDisabled, consoleAccessWithoutLicenseWrite)).toBe(true);
++        expect(check(flagOn, {}, licenses['no license'], true, access, undefined, true)).toBe(false);
++        expect(check(flagOn, {}, licenses['no license'], true, access, undefined, false)).toBe(true);
+     });
+diff --git a/webapp/channels/src/components/admin_console/global_attributes/global_attributes_table.test.tsx b/webapp/channels/src/components/admin_console/global_attributes/global_attributes_table.test.tsx
+index 203b53ce..ccbd4425 100644
+--- a/webapp/channels/src/components/admin_console/global_attributes/global_attributes_table.test.tsx
++++ b/webapp/channels/src/components/admin_console/global_attributes/global_attributes_table.test.tsx
+@@ -1875,13 +1875,8 @@ describe('GlobalAttributesTable', () => {
+ 
+-        it('hides the Classification row when ClassificationMarkings is on but the license is below Enterprise Advanced', async () => {
++        it('shows the Classification row when ClassificationMarkings is on, whatever the license', async () => {
+             getPropertyFields.mockResolvedValueOnce([makeClassificationField()]).mockResolvedValue([]);
+ 
+-            // Enterprise (not Advanced) can open Attribute Management but not Classification
+-            // Markings — hide the row rather than offering an ordinary Edit/Delete menu.
+             renderWithContext(<GlobalAttributesTable/>, getReachableState({licenseSku: 'enterprise'}));
+ 
+-            await waitFor(() => expect(getPropertyFields).toHaveBeenCalled());
+-            expect(screen.queryByTestId('global-attribute-name')).not.toBeInTheDocument();
+-            expect(screen.queryByTestId('global-attribute-classification-link-field-1')).not.toBeInTheDocument();
+-            expect(screen.queryByTestId('global-attribute-actions-field-1')).not.toBeInTheDocument();
++            expect(await screen.findByTestId('global-attribute-classification-link-field-1')).toBeInTheDocument();
+         });
+diff --git a/webapp/channels/src/components/admin_console/global_attributes/global_attributes_table.tsx b/webapp/channels/src/components/admin_console/global_attributes/global_attributes_table.tsx
+index 8461de6a..26ca0f99 100644
+--- a/webapp/channels/src/components/admin_console/global_attributes/global_attributes_table.tsx
++++ b/webapp/channels/src/components/admin_console/global_attributes/global_attributes_table.tsx
+@@ -103,5 +103,3 @@ function useClassificationMarkingsReachable(): boolean {
+         const config = getAdminConfig(state);
+-        const license = getLicense(state);
+-        return it.minLicenseTier(LicenseSkus.EnterpriseAdvanced)(config, state, license) &&
+-            it.configIsTrue('FeatureFlags', 'ClassificationMarkings')(config);
++        return it.configIsTrue('FeatureFlags', 'ClassificationMarkings')(config);
+     });
+diff --git a/webapp/channels/src/components/common/hooks/useClassificationMarkings.test.ts b/webapp/channels/src/components/common/hooks/useClassificationMarkings.test.ts
+index 934b071f..1ee907cc 100644
+--- a/webapp/channels/src/components/common/hooks/useClassificationMarkings.test.ts
++++ b/webapp/channels/src/components/common/hooks/useClassificationMarkings.test.ts
+@@ -117,14 +117,20 @@ describe('useClassificationMarkings', () => {
+ 
+-    test('returns available=false when license is not Enterprise', () => {
++    test.each([
++        ['a Starter license', STARTER_LICENSE],
++        ['no license record', {}],
++    ])('does not depend on the license: returns available=true with %s', (_name, license) => {
++        const channel = makeChannelField({
++            attrs: {options: [{id: 'lvl1', name: 'UNCLASSIFIED', color: '#007A33', rank: 1}]},
++        });
++
+         const {result} = renderHookWithContext(
+             () => useClassificationMarkings(),
+-            stateWith({featureFlag: 'true', license: STARTER_LICENSE}),
++            stateWith({featureFlag: 'true', license, fields: {channel1: channel}}),
+         );
+ 
+-        expect(result.current.available).toBe(false);
+-        expect(result.current.loading).toBe(false);
+-        expect(dispatchMock).not.toHaveBeenCalled();
++        expect(result.current.available).toBe(true);
++        expect(result.current.levels).toHaveLength(1);
+     });
+ 
+-    test('returns available=false when license is missing entirely', () => {
++    test('fetches the channel field without a license when the flag is on', () => {
+         const {result} = renderHookWithContext(
+@@ -134,4 +140,4 @@ describe('useClassificationMarkings', () => {
+ 
+-        expect(result.current.available).toBe(false);
+-        expect(dispatchMock).not.toHaveBeenCalled();
++        expect(result.current.loading).toBe(true);
++        expect(dispatchMock).toHaveBeenCalledTimes(1);
+     });
+diff --git a/webapp/channels/src/components/common/hooks/useClassificationMarkings.ts b/webapp/channels/src/components/common/hooks/useClassificationMarkings.ts
+index 188af1c4..24c71761 100644
+--- a/webapp/channels/src/components/common/hooks/useClassificationMarkings.ts
++++ b/webapp/channels/src/components/common/hooks/useClassificationMarkings.ts
+@@ -11,3 +11,3 @@ import {fetchPropertyFields} from 'mattermost-redux/actions/properties';
+ import {ACCESS_CONTROL_PROPERTY_GROUP} from 'mattermost-redux/constants/properties';
+-import {getFeatureFlagValue, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getFeatureFlagValue} from 'mattermost-redux/selectors/entities/general';
+ import {getChannelAttributeFields} from 'mattermost-redux/selectors/entities/properties';
+@@ -23,4 +23,2 @@ import type {ClassificationLevel} from 'components/admin_console/classification_
+ 
+-import {isEnterpriseLicense} from 'utils/license_utils';
+-
+ // Scoped to the channel-object fields of this group rather than scanning every
+@@ -43,6 +41,5 @@ export type ClassificationMarkingsState = {
+  * Reusable hook that gates classification markings availability.
+- * Returns available=true only when all 3 conditions are met:
++ * Returns available=true only when both conditions are met:
+  * 1. ClassificationMarkings feature flag is enabled
+- * 2. Enterprise license is active
+- * 3. Template classification field exists with at least one level configured
++ * 2. Template classification field exists with at least one level configured
+  *
+@@ -56,4 +53,2 @@ export default function useClassificationMarkings(): ClassificationMarkingsState
+     );
+-    const license = useSelector(getLicense);
+-    const hasEnterpriseLicense = isEnterpriseLicense(license);
+     const channelField = useSelector(selectChannelClassificationField) ?? null;
+@@ -61,3 +56,3 @@ export default function useClassificationMarkings(): ClassificationMarkingsState
+     useEffect(() => {
+-        if (!featureEnabled || !hasEnterpriseLicense) {
++        if (!featureEnabled) {
+             return;
+@@ -72,3 +67,3 @@ export default function useClassificationMarkings(): ClassificationMarkingsState
+         }
+-    }, [featureEnabled, hasEnterpriseLicense, channelField, dispatch]);
++    }, [featureEnabled, channelField, dispatch]);
+ 
+@@ -82,5 +77,5 @@ export default function useClassificationMarkings(): ClassificationMarkingsState
+ 
+-    const loading = featureEnabled && hasEnterpriseLicense && !channelField;
++    const loading = featureEnabled && !channelField;
+ 
+-    const available = featureEnabled && hasEnterpriseLicense && levels.length > 0;
++    const available = featureEnabled && levels.length > 0;
+ 
