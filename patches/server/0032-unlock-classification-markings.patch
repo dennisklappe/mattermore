@@ -849,3 +849,79 @@ index 188af1c4..24c71761 100644
 -    const available = featureEnabled && hasEnterpriseLicense && levels.length > 0;
 +    const available = featureEnabled && levels.length > 0;
  
+diff --git a/webapp/channels/src/components/common/hooks/useChannelClassificationBanner.ts b/webapp/channels/src/components/common/hooks/useChannelClassificationBanner.ts
+--- a/webapp/channels/src/components/common/hooks/useChannelClassificationBanner.ts
++++ b/webapp/channels/src/components/common/hooks/useChannelClassificationBanner.ts
+@@ -56,6 +56,21 @@
+     position?: ChannelBannerPosition;
+ };
+ 
++// The classification field's own banner, used when no attribute designates one. A field
++// that carries no display locations at all predates any configuration and keeps today's
++// banner. Once locations exist the banner is honoured only if one of them is a banner:
++// with the attribute feature available the designated path draws it, and without
++// Enterprise Advanced that path is off, so this is the only place it can come from.
++function classificationFallbackField(field: PropertyField | null | undefined, attributesAvailable: boolean): PropertyField | undefined {
++    if (!field) {
++        return undefined;
++    }
++    if (!Array.isArray(field.attrs?.actions)) {
++        return field;
++    }
++    return !attributesAvailable && bannerAction(field) ? field : undefined;
++}
++
+ function bannerAction(field: PropertyField): ChannelBannerPosition | undefined {
+     const actions = field.attrs?.actions;
+     if (!Array.isArray(actions)) {
+@@ -125,10 +140,10 @@
+     // Only while the channel field carries no display locations at all, which is how
+     // a field predating any configuration keeps today's banner. Once an admin has
+     // chosen locations, an unticked Banner has to mean no banner.
+-    const classificationFallback = Array.isArray(classification.channelField?.attrs?.actions) ? undefined : classification.channelField;
++    const classificationFallback = classificationFallbackField(classification.channelField, attributesEnabled && hasAdvancedLicense);
+ 
+     const bannerField = designated ?? classificationFallback ?? undefined;
+-    const position = (designated && bannerAction(designated)) || DISPLAY_BANNER_TOP;
++    const position = (bannerField && bannerAction(bannerField)) || DISPLAY_BANNER_TOP;
+ 
+     const fieldId = bannerField?.id ?? '';
+ 
+diff --git a/webapp/channels/src/components/common/hooks/useChannelClassificationBanner.test.ts b/webapp/channels/src/components/common/hooks/useChannelClassificationBanner.test.ts
+--- a/webapp/channels/src/components/common/hooks/useChannelClassificationBanner.test.ts
++++ b/webapp/channels/src/components/common/hooks/useChannelClassificationBanner.test.ts
+@@ -184,6 +184,34 @@
+         expect(result.current.hasClassification).toBe(true);
+     });
+ 
++    test('banners a classification field whose display locations include the banner when channel attributes are unavailable', () => {
++        // No Enterprise Advanced licence: the attribute path that draws a designated
++        // banner is off, but the admin console has already written the banner location
++        // onto the classification field. The channel must still show its banner.
++        mockClassification({channelField: makeChannelField({attrs: {actions: ['display_banner_top']}})});
++
++        const {result} = renderHookWithContext(
++            () => useChannelClassificationBanner(CHANNEL_ID),
++            stateWithValue(makePropertyValue('lvl2')),
++        );
++
++        expect(result.current.hasClassification).toBe(true);
++        expect(result.current.classificationId).toBe('lvl2');
++        expect(result.current.position).toBe('display_banner_top');
++    });
++
++    test('puts the unlicensed classification banner where the admin chose, at the bottom', () => {
++        mockClassification({channelField: makeChannelField({attrs: {actions: ['display_banner_bottom']}})});
++
++        const {result} = renderHookWithContext(
++            () => useChannelClassificationBanner(CHANNEL_ID),
++            stateWithValue(makePropertyValue('lvl2')),
++        );
++
++        expect(result.current.hasClassification).toBe(true);
++        expect(result.current.position).toBe('display_banner_bottom');
++    });
++
+     test('stops bannering once display locations are configured without the banner', () => {
+         // An admin who unticked Banner on the attribute page has to get no banner. The
+         // fallback would otherwise render one regardless of what they chose.
