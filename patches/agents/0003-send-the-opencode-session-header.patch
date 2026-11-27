@@ -1,0 +1,89 @@
+diff --git a/bifrost/account.go b/bifrost/account.go
+index 8d8e8fd..62e67a3 100644
+--- a/bifrost/account.go
++++ b/bifrost/account.go
+@@ -8,3 +8,5 @@ import (
+ 	"fmt"
++	"net/url"
+ 	"slices"
++	"strings"
+ 	"time"
+@@ -14,2 +16,14 @@ import (
+ 
++const openCodeSessionHeader = "x-opencode-session"
++
++// isOpenCodeURL reports whether apiURL points at opencode.ai or one of its subdomains.
++func isOpenCodeURL(apiURL string) bool {
++	u, err := url.Parse(apiURL)
++	if err != nil {
++		return false
++	}
++	host := strings.ToLower(u.Hostname())
++	return host == "opencode.ai" || strings.HasSuffix(host, ".opencode.ai")
++}
++
+ // providerAccount implements the Bifrost Account interface for a single provider.
+@@ -118,2 +132,12 @@ func (a *providerAccount) GetConfigForProvider(provider schemas.ModelProvider) (
+ 
++	// OpenCode's gateway refuses requests that carry no session id, so send a fixed one.
++	if a.Provider == schemas.OpenAI && isOpenCodeURL(a.APIURL) {
++		headers := make(map[string]string, len(networkConfig.ExtraHeaders)+1)
++		for k, v := range networkConfig.ExtraHeaders {
++			headers[k] = v
++		}
++		headers[openCodeSessionHeader] = "mattermost-agents"
++		networkConfig.ExtraHeaders = headers
++	}
++
+ 	// Configure retry logic with sensible defaults
+diff --git a/bifrost/session_header_test.go b/bifrost/session_header_test.go
+new file mode 100644
+index 0000000..18ce3d8
+--- /dev/null
++++ b/bifrost/session_header_test.go
+@@ -0,0 +1,45 @@
++// Copyright (c) 2023-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package bifrost
++
++import (
++	"testing"
++
++	"github.com/maximhq/bifrost/core/schemas"
++	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
++)
++
++func TestOpenAICompatibleSessionHeader(t *testing.T) {
++	tests := []struct {
++		name       string
++		apiURL     string
++		orgID      string
++		wantHeader bool
++	}{
++		{name: "opencode gateway gets a session header", apiURL: "https://opencode.ai/inference/go/openai/v1", wantHeader: true},
++		{name: "opencode subdomain gets a session header", apiURL: "https://gateway.opencode.ai/v1", wantHeader: true},
++		{name: "other endpoint is untouched", apiURL: "https://api.openai.com/v1"},
++		{name: "lookalike host is untouched", apiURL: "https://notopencode.ai.example.com/v1"},
++		{name: "empty url is untouched"},
++		{name: "org id header is kept next to the session header", apiURL: "https://opencode.ai/inference/go/openai/v1", orgID: "org-1", wantHeader: true},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			acc := &providerAccount{ProviderSettings: ProviderSettings{Provider: schemas.OpenAI, APIURL: tt.apiURL, OrgID: tt.orgID}}
++			cfg, err := acc.GetConfigForProvider(acc.registeredName())
++			require.NoError(t, err)
++
++			got, ok := cfg.NetworkConfig.ExtraHeaders["x-opencode-session"]
++			assert.Equal(t, tt.wantHeader, ok)
++			if tt.wantHeader {
++				assert.NotEmpty(t, got)
++			}
++			if tt.orgID != "" {
++				assert.Equal(t, tt.orgID, cfg.NetworkConfig.ExtraHeaders["OpenAI-Organization"])
++			}
++		})
++	}
++}
