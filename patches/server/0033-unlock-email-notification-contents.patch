@@ -1,0 +1,331 @@
+diff --git a/server/channels/app/email/email_batching.go b/server/channels/app/email/email_batching.go
+index 8e31f916..22bd313a 100644
+--- a/server/channels/app/email/email_batching.go
++++ b/server/channels/app/email/email_batching.go
+@@ -266,6 +266,3 @@ func (es *Service) sendBatchedEmailNotification(userID string, notifications []*
+ 
+-	emailNotificationContentsType := model.EmailNotificationContentsFull
+-	if license := es.license(); license != nil && *license.Features.EmailNotificationContents {
+-		emailNotificationContentsType = *es.config().EmailSettings.EmailNotificationContentsType
+-	}
++	emailNotificationContentsType := *es.config().EmailSettings.EmailNotificationContentsType
+ 
+diff --git a/server/channels/app/email/email_batching_test.go b/server/channels/app/email/email_batching_test.go
+index ab942a96..5cf104ab 100644
+--- a/server/channels/app/email/email_batching_test.go
++++ b/server/channels/app/email/email_batching_test.go
+@@ -6,2 +6,12 @@ package email
+ import (
++	"bufio"
++	"encoding/base64"
++	"io"
++	"mime"
++	"mime/multipart"
++	"mime/quotedprintable"
++	"net"
++	netmail "net/mail"
++	"strings"
++	"sync"
+ 	"sync/atomic"
+@@ -238,2 +248,173 @@ func TestCheckPendingNotificationsDefaultInterval(t *testing.T) {
+  */
++// startFakeSMTPServer accepts every message and keeps its raw text, so a test can see what would have
++// been mailed. It returns the port and a function that lists the messages received so far.
++func startFakeSMTPServer(t *testing.T) (string, func() []string) {
++	t.Helper()
++
++	ln, err := net.Listen("tcp", "127.0.0.1:0")
++	require.NoError(t, err)
++	t.Cleanup(func() { ln.Close() })
++
++	var mu sync.Mutex
++	var messages []string
++
++	serve := func(conn net.Conn) {
++		defer conn.Close()
++
++		r := bufio.NewReader(conn)
++		reply := func(line string) { _, _ = conn.Write([]byte(line + "\r\n")) }
++		reply("220 localhost ready")
++
++		for {
++			line, err := r.ReadString('\n')
++			if err != nil {
++				return
++			}
++
++			command := strings.ToUpper(strings.TrimSpace(line))
++			switch {
++			case strings.HasPrefix(command, "DATA"):
++				reply("354 go ahead")
++
++				var body strings.Builder
++				for {
++					l, err := r.ReadString('\n')
++					if err != nil {
++						return
++					}
++					if l == ".\r\n" {
++						break
++					}
++					body.WriteString(l)
++				}
++
++				mu.Lock()
++				messages = append(messages, body.String())
++				mu.Unlock()
++				reply("250 queued")
++			case strings.HasPrefix(command, "QUIT"):
++				reply("221 bye")
++				return
++			default:
++				reply("250 ok")
++			}
++		}
++	}
++
++	go func() {
++		for {
++			conn, err := ln.Accept()
++			if err != nil {
++				return
++			}
++			go serve(conn)
++		}
++	}()
++
++	_, port, err := net.SplitHostPort(ln.Addr().String())
++	require.NoError(t, err)
++
++	return port, func() []string {
++		mu.Lock()
++		defer mu.Unlock()
++		return append([]string(nil), messages...)
++	}
++}
++
++// readableMail returns the text of every part of a raw message, with transfer encodings undone.
++func readableMail(t *testing.T, raw string) string {
++	t.Helper()
++
++	msg, err := netmail.ReadMessage(strings.NewReader(raw))
++	require.NoError(t, err)
++
++	var out strings.Builder
++	var walk func(body io.Reader, encoding, contentType string)
++	walk = func(body io.Reader, encoding, contentType string) {
++		mediaType, params, err := mime.ParseMediaType(contentType)
++		if err == nil && strings.HasPrefix(mediaType, "multipart/") {
++			parts := multipart.NewReader(body, params["boundary"])
++			for {
++				part, err := parts.NextPart()
++				if err != nil {
++					return
++				}
++				walk(part, part.Header.Get("Content-Transfer-Encoding"), part.Header.Get("Content-Type"))
++			}
++		}
++
++		if err == nil && !strings.HasPrefix(mediaType, "text/") {
++			return // attachments such as the sender's avatar are not part of what the recipient reads
++		}
++
++		reader := body
++		switch strings.ToLower(encoding) {
++		case "quoted-printable":
++			reader = quotedprintable.NewReader(body)
++		case "base64":
++			reader = base64.NewDecoder(base64.StdEncoding, body)
++		}
++
++		b, _ := io.ReadAll(reader)
++		out.Write(b)
++	}
++	walk(msg.Body, msg.Header.Get("Content-Transfer-Encoding"), msg.Header.Get("Content-Type"))
++
++	return out.String()
++}
++
++func TestSendBatchedEmailNotificationContentsWithoutLicense(t *testing.T) {
++	th := Setup(t).InitBasic(t)
++
++	// The test helper installs a license that has every feature; the point here is that none is needed.
++	th.service.license = func() *model.License { return nil }
++
++	port, sentMessages := startFakeSMTPServer(t)
++	th.UpdateConfig(t, func(cfg *model.Config) {
++		*cfg.EmailSettings.SMTPServer = "127.0.0.1"
++		*cfg.EmailSettings.SMTPPort = port
++		*cfg.EmailSettings.ConnectionSecurity = ""
++		*cfg.EmailSettings.EnableSMTPAuth = false
++		*cfg.EmailSettings.SkipServerCertificateVerification = true
++		*cfg.ServiceSettings.SiteURL = "http://testserver"
++	})
++
++	const secret = "zqxsecretmessage"
++
++	// send mails one batched notification under the given contents setting and reports what came out.
++	send := func(t *testing.T, contents string) (recorded int32, text string) {
++		t.Helper()
++
++		th.UpdateConfig(t, func(cfg *model.Config) {
++			*cfg.EmailSettings.EmailNotificationContentsType = contents
++		})
++
++		var deliveries int32
++		th.service.postDeliveryRecorder = func(string, *model.Post) { atomic.AddInt32(&deliveries, 1) }
++
++		before := len(sentMessages())
++		post := &model.Post{Id: model.NewId(), UserId: th.BasicUser.Id, ChannelId: th.BasicChannel.Id, Message: secret}
++		th.service.sendBatchedEmailNotification(th.BasicUser2.Id, []*batchedNotification{{userID: th.BasicUser2.Id, post: post, teamName: th.BasicTeam.Name}})
++
++		sent := sentMessages()
++		require.Len(t, sent, before+1, "the digest should have been mailed")
++
++		return atomic.LoadInt32(&deliveries), readableMail(t, sent[len(sent)-1])
++	}
++
++	t.Run("full contents carry the message and record the delivery", func(t *testing.T) {
++		recorded, text := send(t, model.EmailNotificationContentsFull)
++
++		require.Contains(t, text, secret)
++		require.EqualValues(t, 1, recorded)
++	})
++
++	t.Run("generic contents leave the message out and record nothing", func(t *testing.T) {
++		recorded, text := send(t, model.EmailNotificationContentsGeneric)
++
++		require.NotContains(t, text, secret)
++		require.EqualValues(t, 0, recorded)
++	})
++}
++
+ func TestCheckPendingNotificationsCantParseInterval(t *testing.T) {
+diff --git a/server/channels/app/notification_email.go b/server/channels/app/notification_email.go
+index bcb6e22f..14c5a975 100644
+--- a/server/channels/app/notification_email.go
++++ b/server/channels/app/notification_email.go
+@@ -24,6 +24,3 @@ import (
+ func (a *App) emailNotificationContentsType() string {
+-	if license := a.Srv().License(); license != nil && *license.Features.EmailNotificationContents {
+-		return *a.Config().EmailSettings.EmailNotificationContentsType
+-	}
+-	return model.EmailNotificationContentsFull
++	return *a.Config().EmailSettings.EmailNotificationContentsType
+ }
+diff --git a/server/channels/app/notification_email_test.go b/server/channels/app/notification_email_test.go
+index 11c69208..7677bbb3 100644
+--- a/server/channels/app/notification_email_test.go
++++ b/server/channels/app/notification_email_test.go
+@@ -71,2 +71,24 @@ func setupPreferenceMocks(th *TestHelper, userId string, useMilitaryTime bool) {
+ 
++func TestEmailNotificationContentsTypeWithoutLicense(t *testing.T) {
++	th := Setup(t)
++
++	th.App.Srv().SetLicense(nil)
++
++	t.Run("the admin's choice of generic contents is honored", func(t *testing.T) {
++		th.App.UpdateConfig(func(cfg *model.Config) {
++			*cfg.EmailSettings.EmailNotificationContentsType = model.EmailNotificationContentsGeneric
++		})
++
++		require.Equal(t, model.EmailNotificationContentsGeneric, th.App.emailNotificationContentsType())
++	})
++
++	t.Run("full contents are used when the admin picks them", func(t *testing.T) {
++		th.App.UpdateConfig(func(cfg *model.Config) {
++			*cfg.EmailSettings.EmailNotificationContentsType = model.EmailNotificationContentsFull
++		})
++
++		require.Equal(t, model.EmailNotificationContentsFull, th.App.emailNotificationContentsType())
++	})
++}
++
+ func TestGetDirectMessageNotificationEmailSubject(t *testing.T) {
+@@ -1338,3 +1360,2 @@ func TestSendNotificationEmailDeliveryRecordFollowsSentContent(t *testing.T) {
+ 		th := setupDeliveryTracking(t)
+-		th.App.Srv().SetLicense(model.NewTestLicense())
+ 		th.App.UpdateConfig(func(cfg *model.Config) {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 012360c1..6347652b 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3216,3 +3216,2 @@ const AdminDefinition: AdminDefinitionType = {
+                             ],
+-                            isHidden: it.not(it.licensedForFeature('EmailNotificationContents')),
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.NOTIFICATIONS)),
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_email_notification_contents.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_email_notification_contents.test.tsx
+new file mode 100644
+index 00000000..23c43c2e
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_email_notification_contents.test.tsx
+@@ -0,0 +1,69 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {AdminConfig, ClientLicense} from '@mattermost/types/config';
++
++import {RESOURCE_KEYS} from 'mattermost-redux/constants/permissions_sysconsole';
++
++import {LicenseSkus} from 'utils/constants';
++
++import AdminDefinition from './admin_definition';
++import type {ConsoleAccess} from './types';
++
++const config = {} as Partial<AdminConfig>;
++
++const canWrite = {
++    read: {[RESOURCE_KEYS.SITE.NOTIFICATIONS]: true},
++    write: {[RESOURCE_KEYS.SITE.NOTIFICATIONS]: true},
++} as ConsoleAccess;
++
++const readOnly = {
++    read: {[RESOURCE_KEYS.SITE.NOTIFICATIONS]: true},
++    write: {[RESOURCE_KEYS.SITE.NOTIFICATIONS]: false},
++} as ConsoleAccess;
++
++const licenses: Record<string, ClientLicense> = {
++    'no license': {IsLicensed: 'false'} as ClientLicense,
++    'an empty license record': {} as ClientLicense,
++    Professional: {IsLicensed: 'true', SkuShortName: LicenseSkus.Professional, EmailNotificationContents: 'false'} as ClientLicense,
++};
++
++const KEY = 'EmailSettings.EmailNotificationContentsType';
++
++function findSetting() {
++    const sections = Object.values(AdminDefinition) as any[];
++    for (const section of sections) {
++        for (const subsection of Object.values(section.subsections ?? {}) as any[]) {
++            const found = (subsection.schema?.settings ?? []).find((setting: any) => setting.key === KEY);
++            if (found) {
++                return found;
++            }
++        }
++    }
++    return undefined;
++}
++
++function evaluate(check: unknown, license: ClientLicense, access: ConsoleAccess) {
++    if (typeof check === 'function') {
++        return check(config, {}, license, true, access);
++    }
++    return Boolean(check);
++}
++
++describe('AdminDefinition - Email Notification Contents setting', () => {
++    test('exists in the notifications settings', () => {
++        expect(findSetting()).toBeDefined();
++    });
++
++    test.each(Object.keys(licenses))('is shown with %s', (name) => {
++        expect(evaluate(findSetting().isHidden, licenses[name], canWrite)).toBe(false);
++    });
++
++    test('can be edited by an admin with write access', () => {
++        expect(evaluate(findSetting().isDisabled, licenses['no license'], canWrite)).toBe(false);
++    });
++
++    test('is read-only without write access', () => {
++        expect(evaluate(findSetting().isDisabled, licenses['no license'], readOnly)).toBe(true);
++    });
++});
