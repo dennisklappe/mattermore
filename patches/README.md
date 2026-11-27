@@ -5,6 +5,7 @@ named in `upstream.env`:
 
 | Directory | Upstream | Produces |
 | --- | --- | --- |
+| `agents/` | `mattermost/mattermost-plugin-agents` | the Mattermore Agents plugin bundle |
 | `calls/` | `mattermost/mattermost-plugin-calls` | the Mattermore calls plugin bundle |
 | `server/` | `mattermost/mattermost` | the Mattermore server binary and image |
 | `transcriber/` | `mattermost/calls-transcriber` | the transcriber image |
@@ -42,6 +43,15 @@ go list -deps ./server/ | grep -c server/enterprise   # 0
 
 That is what makes the bundle distributable, and it is the reason that patch
 exists at all rather than simply flipping the checks.
+
+The agents plugin has the same problem and gets the same answer.
+`agents/0001` adds a `license` package of its own, switches every import to it
+under the existing `enterprise` name so each file changes by one line, and
+leaves upstream's `enterprise/` directory in the tree but out of the build.
+`scripts/build-agents.sh` fails if that package is ever compiled back in. The
+tier chart in the new package is the one published in the plugin's own
+`docs/admin_guide.md`. A server with no licence installed is treated as having
+every tier, while an installed licence still maps to its own.
 
 ## Features whose code does not ship
 
