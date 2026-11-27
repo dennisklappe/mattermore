@@ -18,9 +18,9 @@ jobs:
       - id: pin
         run: grep -E '^[A-Z_]+=' upstream.env >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with: { node-version: '24' }
       - uses: actions/setup-go@v5
-        with: { go-version: '1.26' }
+        with: { go-version: '1.27' }
       - run: ./scripts/build-calls.sh dist
       - uses: actions/upload-artifact@v4
         with:
@@ -50,9 +50,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '24.11.1' }
+        with: { node-version: '24' }
       - uses: actions/setup-go@v5
-        with: { go-version: '1.26' }
+        with: { go-version: '1.27' }
 
       - uses: docker/login-action@v3
         with:
