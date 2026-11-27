@@ -76,9 +76,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with: { node-version: '24' }
       - uses: actions/setup-go@v5
-        with: { go-version: '1.26' }
+        with: { go-version: '1.27' }
       - run: ./scripts/build-calls.sh dist
 
   server:
@@ -87,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: '1.26' }
+        with: { go-version: '1.27' }
       - name: Build the server binary
         # The web app is four minutes and is not what breaks: a release builds
         # it, this proves the Go side and the patch series compile.
@@ -101,9 +101,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '24.11.1' }
+        with: { node-version: '24' }
       - uses: actions/setup-go@v5
-        with: { go-version: '1.26' }
+        with: { go-version: '1.27' }
       - name: Build the image
         env:
           CONTAINER_ENGINE: docker

@@ -49,8 +49,10 @@ configuration question, not an upgrade question, and it is covered in
 
 ## Version numbers
 
-Mattermore versions are `1000.<upstream>`. Upstream `v1.12.5` is released as
-Mattermore `1000.12.5`.
+Mattermore versions are `1000.<upstream>` while upstream is on 1.x. Upstream
+`v1.12.5` was released as Mattermore `1000.12.5`. Since Calls 2.0 the major
+number is added to 1000, so upstream `v2.0.16` is Mattermore `1002.0.16`. That
+keeps every release strictly higher than the one before it.
 
 The `1000.` prefix is deliberate. Mattermost ships Calls as a prepackaged
 plugin, and on startup the server reinstalls its prepackaged copy over an

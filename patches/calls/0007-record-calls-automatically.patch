@@ -1,8 +1,8 @@
 diff --git a/plugin.json b/plugin.json
-index fbfe90b..559d57b 100644
+index a3a0a13..3306b65 100644
 --- a/plugin.json
 +++ b/plugin.json
-@@ -229,6 +229,13 @@
+@@ -258,6 +258,13 @@
              "default": false,
              "help_text": "(Optional) When set to true, call recordings are enabled."
            },
@@ -16,12 +16,30 @@ index fbfe90b..559d57b 100644
            {
              "key": "JobServiceURL",
              "display_name": "Job service URL",
+diff --git a/server/api.go b/server/api.go
+index d423792..ebc9af5 100644
+--- a/server/api.go
++++ b/server/api.go
+@@ -1999,6 +1999,13 @@ func (p *Plugin) handleCreateLiveKitSession(w http.ResponseWriter, r *http.Reque
+ 	// whose sessions were all reaped would otherwise never announce.
+ 	if len(state.sessions) == 1 {
+ 		p.announceCallStarted(state, userID, req.ChannelID, req.Title, req.ThreadID, channel.Type)
++
++		// Recording every call is an administrator's decision, and it is
++		// off unless they make it. The banner the client shows when a
++		// recording starts is what tells participants it is happening.
++		if p.getConfiguration().recordCallsByDefault() {
++			go p.autoStartRecording(req.ChannelID, userID)
++		}
+ 	}
+ 
+ 	p.cancelDMNoAnswerTimerIfAnswered(state, userID, req.ChannelID, channel.Type)
 diff --git a/server/configuration.go b/server/configuration.go
-index ee98b97..7d76f45 100644
+index 1e0694d..a26cf6c 100644
 --- a/server/configuration.go
 +++ b/server/configuration.go
-@@ -118,6 +118,11 @@ type ClientConfig struct {
- 	AllowScreenSharing *bool
+@@ -127,6 +127,11 @@ type ClientConfig struct {
+ 	EnableDMVideo *bool
  	// When set to true it enables the call recordings functionality
  	EnableRecordings *bool
 +
@@ -32,7 +50,7 @@ index ee98b97..7d76f45 100644
  	// When set to true it enables the call transcriptions functionality
  	EnableTranscriptions *bool
  	// When set to true it enables the live captions functionality
-@@ -220,6 +225,9 @@ func (c *configuration) SetDefaults() {
+@@ -178,6 +183,9 @@ func (c *configuration) SetDefaults() {
  	if c.EnableRecordings == nil {
  		c.EnableRecordings = model.NewPointer(false)
  	}
@@ -42,7 +60,7 @@ index ee98b97..7d76f45 100644
  	if c.EnableTranscriptions == nil {
  		c.EnableTranscriptions = model.NewPointer(false)
  	}
-@@ -415,6 +423,10 @@ func (c *configuration) Clone() *configuration {
+@@ -352,6 +360,10 @@ func (c *configuration) Clone() *configuration {
  		cfg.EnableRecordings = model.NewPointer(*c.EnableRecordings)
  	}
  
@@ -53,7 +71,7 @@ index ee98b97..7d76f45 100644
  	if c.EnableTranscriptions != nil {
  		cfg.EnableTranscriptions = model.NewPointer(*c.EnableTranscriptions)
  	}
-@@ -496,6 +508,11 @@ func (c *configuration) recordingsEnabled() bool {
+@@ -439,6 +451,11 @@ func (c *configuration) recordingsEnabled() bool {
  	return false
  }
  
@@ -66,7 +84,7 @@ index ee98b97..7d76f45 100644
  	if c.recordingsEnabled() && c.EnableTranscriptions != nil && *c.EnableTranscriptions {
  		return true
 diff --git a/server/recording_api.go b/server/recording_api.go
-index 377a89e..60a1707 100644
+index e318fe8..6384238 100644
 --- a/server/recording_api.go
 +++ b/server/recording_api.go
 @@ -73,6 +73,27 @@ func (p *Plugin) recJobTimeoutChecker(callID, jobID string) {
@@ -98,13 +116,13 @@ index 377a89e..60a1707 100644
  	if state.Recording != nil && state.Recording.EndAt == 0 {
  		return nil, http.StatusForbidden, fmt.Errorf("recording already in progress")
 diff --git a/server/websocket.go b/server/websocket.go
-index 3c87273..0b797ff 100644
+index a2239c1..7fd50d6 100644
 --- a/server/websocket.go
 +++ b/server/websocket.go
-@@ -837,6 +837,13 @@ func (p *Plugin) handleJoin(userID, connID, authSessionID string, joinData calls
- 				"owner_id":  state.Call.OwnerID,
- 				"host_id":   state.Call.GetHostID(),
- 			}, &WebSocketBroadcast{ChannelID: channelID, ReliableClusterSend: true})
+@@ -316,6 +316,13 @@ func (p *Plugin) handleJoin(userID, connID, authSessionID string, joinData calls
+ 		} else if len(state.sessions) == 1 {
+ 			// new call has started
+ 			p.announceCallStarted(state, userID, channelID, joinData.Title, joinData.ThreadID, channel.Type)
 +
 +			// Recording every call is an administrator's decision, and it is
 +			// off unless they make it. The banner the client shows when a
@@ -114,4 +132,4 @@ index 3c87273..0b797ff 100644
 +			}
  		}
  
- 		if !p.isBot(userID) && channel.Type == model.ChannelTypeDirect {
+ 		p.cancelDMNoAnswerTimerIfAnswered(state, userID, channelID, channel.Type)
