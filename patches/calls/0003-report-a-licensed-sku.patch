@@ -1,10 +1,10 @@
 diff --git a/webapp/src/selectors.ts b/webapp/src/selectors.ts
-index 218c4bb..9739171 100644
+index e0e7d16..415066b 100644
 --- a/webapp/src/selectors.ts
 +++ b/webapp/src/selectors.ts
-@@ -578,11 +578,12 @@ export const callsUserPreferences = (state: GlobalState): CallsUserPreferences =
- export const shouldPlayJoinUserSound = (state: GlobalState): boolean =>
-     profilesInCurrentCall(state).length < callsUserPreferences(state).joinSoundParticipantsThreshold;
+@@ -525,11 +525,12 @@ export const isOnPremSIPOutboundRestricted = (state: GlobalState): boolean => {
+     return !isCloud(state) && !sipOutboundAllowed(state);
+ };
  
 -export const isOnPremNotEnterprise = (state: GlobalState): boolean => {
 -    const license = getLicense(state);

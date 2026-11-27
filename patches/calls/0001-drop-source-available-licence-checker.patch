@@ -1,5 +1,5 @@
 diff --git a/server/activate.go b/server/activate.go
-index bbc7857..3208a81 100644
+index 12ab367..0a06904 100644
 --- a/server/activate.go
 +++ b/server/activate.go
 @@ -12,7 +12,6 @@ import (
@@ -9,8 +9,8 @@ index bbc7857..3208a81 100644
 -	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
  	"github.com/mattermost/mattermost-plugin-calls/server/license"
  
- 	"github.com/mattermost/rtcd/service/rtc"
-@@ -97,7 +96,7 @@ func (p *Plugin) OnActivate() (retErr error) {
+ 	"github.com/mattermost/mattermost/server/public/model"
+@@ -102,7 +101,7 @@ func (p *Plugin) OnActivate() (retErr error) {
  		}
  	}()
  
@@ -19,8 +19,101 @@ index bbc7857..3208a81 100644
  
  	if p.isSingleHandler() {
  		if err := p.cleanUpState(); err != nil {
+diff --git a/server/api_livekit_session_test.go b/server/api_livekit_session_test.go
+index 927efa5..a797de2 100644
+--- a/server/api_livekit_session_test.go
++++ b/server/api_livekit_session_test.go
+@@ -15,7 +15,7 @@ import (
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/db"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/public"
+ 
+ 	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+@@ -49,7 +49,7 @@ func TestHandleCreateLiveKitSession(t *testing.T) {
+ 			store:             store,
+ 			nodeID:            "test-node",
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		cfg := &configuration{}
+ 		cfg.SetDefaults()
+diff --git a/server/api_livekit_test.go b/server/api_livekit_test.go
+index a0ccf80..7272352 100644
+--- a/server/api_livekit_test.go
++++ b/server/api_livekit_test.go
+@@ -15,7 +15,7 @@ import (
+ 	"golang.org/x/time/rate"
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/public"
+ 
+ 	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+@@ -48,7 +48,7 @@ func TestHandleGetLiveKitToken(t *testing.T) {
+ 			sessions:          map[string]*session{},
+ 			store:             store,
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		mockMetrics.On("Handler").Return(nil).Once()
+ 		mockMetrics.On("ObserveAppHandlersTime", mock.AnythingOfType("string"), mock.AnythingOfType("float64")).Maybe()
+@@ -663,7 +663,7 @@ func TestHandlePhoneCall(t *testing.T) {
+ 			callsClusterLocks: map[string]*cluster.Mutex{},
+ 			sessions:          map[string]*session{},
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		mockMetrics.On("Handler").Return(nil)
+ 		mockMetrics.On("ObserveAppHandlersTime", mock.AnythingOfType("string"), mock.AnythingOfType("float64")).Maybe()
+@@ -897,7 +897,7 @@ func TestHandleAddPhoneCall(t *testing.T) {
+ 			callsClusterLocks: map[string]*cluster.Mutex{},
+ 			sessions:          map[string]*session{},
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		mockMetrics.On("Handler").Return(nil)
+ 		mockMetrics.On("ObserveAppHandlersTime", mock.AnythingOfType("string"), mock.AnythingOfType("float64")).Maybe()
+diff --git a/server/api_livekit_webhook_test.go b/server/api_livekit_webhook_test.go
+index 483e289..000a6d3 100644
+--- a/server/api_livekit_webhook_test.go
++++ b/server/api_livekit_webhook_test.go
+@@ -16,7 +16,7 @@ import (
+ 	"google.golang.org/protobuf/encoding/protojson"
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/db"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/public"
+ 
+ 	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+@@ -70,7 +70,7 @@ func TestHandleLiveKitWebhook(t *testing.T) {
+ 			apiLimiters:       map[string]*rate.Limiter{},
+ 			callsClusterLocks: map[string]*cluster.Mutex{},
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 		mockMetrics.On("Handler").Return(nil).Once()
+ 		mockMetrics.On("ObserveAppHandlersTime", mock.AnythingOfType("string"), mock.AnythingOfType("float64"))
+ 		mockAPI.On("GetConfig").Return(&model.Config{}, nil)
+@@ -202,7 +202,7 @@ func TestHandleLiveKitSIPParticipant(t *testing.T) {
+ 			callsClusterLocks: map[string]*cluster.Mutex{},
+ 			store:             store,
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		cfg := &configuration{}
+ 		cfg.SetDefaults()
 diff --git a/server/bot_api_test.go b/server/bot_api_test.go
-index 5e9f6c3..a32fbb4 100644
+index a0b6cfb..64256cb 100644
 --- a/server/bot_api_test.go
 +++ b/server/bot_api_test.go
 @@ -11,7 +11,7 @@ import (
@@ -32,7 +125,7 @@ index 5e9f6c3..a32fbb4 100644
  	"github.com/mattermost/mattermost-plugin-calls/server/public"
  	"github.com/mattermost/mattermost/server/public/model"
  	"github.com/mattermost/mattermost/server/public/plugin"
-@@ -40,7 +40,7 @@ func TestHandleBotGetProfileForSession(t *testing.T) {
+@@ -41,7 +41,7 @@ func TestHandleBotGetProfileForSession(t *testing.T) {
  		callsClusterLocks: map[string]*cluster.Mutex{},
  	}
  
@@ -41,7 +134,7 @@ index 5e9f6c3..a32fbb4 100644
  
  	store, tearDown := NewTestStore(t)
  	t.Cleanup(tearDown)
-@@ -234,7 +234,7 @@ func TestHandleBotUploadData(t *testing.T) {
+@@ -236,7 +236,7 @@ func TestHandleBotUploadData(t *testing.T) {
  		callsClusterLocks: map[string]*cluster.Mutex{},
  	}
  
@@ -51,19 +144,19 @@ index 5e9f6c3..a32fbb4 100644
  	mockMetrics.On("Handler").Return(nil).Once()
  
 diff --git a/server/configuration_test.go b/server/configuration_test.go
-index 9683a0e..b807ce3 100644
+index 5de35e3..9372cdf 100644
 --- a/server/configuration_test.go
 +++ b/server/configuration_test.go
-@@ -8,7 +8,7 @@ import (
- 	"testing"
+@@ -11,7 +11,7 @@ import (
  
+ 	"github.com/livekit/protocol/auth"
  	transcriber "github.com/mattermost/calls-transcriber/cmd/transcriber/config"
 -	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
 +	"github.com/mattermost/mattermost-plugin-calls/server/license"
  	pluginMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost/server/public/plugin"
  	"github.com/mattermost/mattermost/server/public/plugin"
  
-@@ -223,7 +223,7 @@ func TestGetClientConfig(t *testing.T) {
+@@ -183,7 +183,7 @@ func TestGetClientConfig(t *testing.T) {
  		MattermostPlugin: plugin.MattermostPlugin{
  			API: mockAPI,
  		},
@@ -72,12 +165,65 @@ index 9683a0e..b807ce3 100644
  	}
  
  	mockAPI.On("GetLicense").Return(&model.License{
+@@ -255,7 +255,7 @@ func TestGetAdminClientConfigMasksManifestSecrets(t *testing.T) {
+ 		MattermostPlugin: plugin.MattermostPlugin{
+ 			API: mockAPI,
+ 		},
+-		licenseChecker: enterprise.NewLicenseChecker(mockAPI),
++		licenseChecker: license.NewChecker(mockAPI),
+ 	}
+ 
+ 	settings := manifest.SettingsSchema.Settings
+diff --git a/server/diag_test.go b/server/diag_test.go
+index 6a01b51..c8750eb 100644
+--- a/server/diag_test.go
++++ b/server/diag_test.go
+@@ -19,7 +19,7 @@ import (
+ 	"golang.org/x/time/rate"
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
+ 
+ 	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+ 	pluginMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost/server/public/plugin"
+@@ -85,7 +85,7 @@ func newDiagTestPlugin(t *testing.T) (*Plugin, *pluginMocks.MockAPI) {
+ 		apiLimiters:       map[string]*rate.Limiter{},
+ 		callsClusterLocks: map[string]*cluster.Mutex{},
+ 	}
+-	p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++	p.licenseChecker = license.NewChecker(p.API)
+ 
+ 	cfg := &configuration{}
+ 	cfg.SetDefaults()
+diff --git a/server/host_controls_test.go b/server/host_controls_test.go
+index 559086d..14e5d27 100644
+--- a/server/host_controls_test.go
++++ b/server/host_controls_test.go
+@@ -9,7 +9,7 @@ import (
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/db"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
+ 
+ 	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+ 	pluginMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost/server/public/plugin"
+@@ -47,7 +47,7 @@ func TestHostEndPendingPhoneCall(t *testing.T) {
+ 		dmNoAnswerTimers:  map[string]*time.Timer{},
+ 		sipNoAnswerTimers: map[string]*sipNoAnswerTimer{},
+ 	}
+-	p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++	p.licenseChecker = license.NewChecker(p.API)
+ 
+ 	mockMetrics.On("ObserveAppHandlersTime", mock.Anything, mock.AnythingOfType("float64")).Maybe()
+ 	mockMetrics.On("ObserveClusterMutexGrabTime", mock.Anything, mock.AnythingOfType("float64")).Maybe()
 diff --git a/server/license/checker.go b/server/license/checker.go
 new file mode 100644
-index 0000000..22b0810
+index 0000000..ecc7081
 --- /dev/null
 +++ b/server/license/checker.go
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,43 @@
 +// Copyright (c) 2026-present Mattermore contributors. All Rights Reserved.
 +// See LICENSE.txt for license information.
 +
@@ -118,20 +264,86 @@ index 0000000..22b0810
 +
 +// GroupCallsAllowed reports whether a call may have more than two people.
 +func (c *Checker) GroupCallsAllowed() bool { return true }
-diff --git a/server/plugin.go b/server/plugin.go
-index dcdd343..a7b2180 100644
---- a/server/plugin.go
-+++ b/server/plugin.go
-@@ -15,7 +15,7 @@ import (
- 	"github.com/mattermost/mattermost-plugin-calls/server/batching"
++
++// SIPOutboundAllowed reports whether outbound SIP calls may be placed.
++func (c *Checker) SIPOutboundAllowed() bool { return true }
+diff --git a/server/livekit_webhook_test.go b/server/livekit_webhook_test.go
+index 4ba78de..dba5eb3 100644
+--- a/server/livekit_webhook_test.go
++++ b/server/livekit_webhook_test.go
+@@ -14,7 +14,7 @@ import (
+ 
  	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
  	"github.com/mattermost/mattermost-plugin-calls/server/db"
 -	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
 +	"github.com/mattermost/mattermost-plugin-calls/server/license"
- 	"github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/public"
  
- 	rtcd "github.com/mattermost/rtcd/service"
-@@ -36,7 +36,7 @@ const (
+ 	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+@@ -53,7 +53,7 @@ func TestLiveKitParticipantWebhooks(t *testing.T) {
+ 			dirtyCalls:        map[string]struct{}{},
+ 			dirtyCallsCh:      make(chan struct{}, 1),
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		cfg := &configuration{}
+ 		cfg.SetDefaults()
+@@ -532,7 +532,7 @@ func TestLiveKitTrackWebhooks(t *testing.T) {
+ 			store:             store,
+ 			nodeID:            "test-node",
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		cfg := &configuration{}
+ 		cfg.SetDefaults()
+diff --git a/server/phone_call_test.go b/server/phone_call_test.go
+index c5630cb..2bc64cb 100644
+--- a/server/phone_call_test.go
++++ b/server/phone_call_test.go
+@@ -22,7 +22,7 @@ import (
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/db"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/public"
+ 
+ 	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+@@ -535,7 +535,7 @@ func TestHandlePhoneCallTarget(t *testing.T) {
+ 			sessions:          map[string]*session{},
+ 			configuration:     cfg,
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		mockMetrics.On("Handler").Return(nil)
+ 		mockMetrics.On("ObserveAppHandlersTime", mock.AnythingOfType("string"), mock.AnythingOfType("float64")).Maybe()
+@@ -697,7 +697,7 @@ func newPhoneCallTest(t *testing.T, participants ...*livekit.ParticipantInfo) *p
+ 		dmNoAnswerTimers:  map[string]*time.Timer{},
+ 		sipNoAnswerTimers: map[string]*sipNoAnswerTimer{},
+ 	}
+-	tc.p.licenseChecker = enterprise.NewLicenseChecker(tc.p.API)
++	tc.p.licenseChecker = license.NewChecker(tc.p.API)
+ 
+ 	mockMetrics.On("Handler").Return(nil).Maybe()
+ 	mockMetrics.On("ObserveAppHandlersTime", mock.Anything, mock.AnythingOfType("float64")).Maybe()
+diff --git a/server/plugin.go b/server/plugin.go
+index 5c010bb..c603645 100644
+--- a/server/plugin.go
++++ b/server/plugin.go
+@@ -16,8 +16,8 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-calls/server/batching"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/db"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/interfaces"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/public"
+ 
+ 	"github.com/mattermost/mattermost/server/public/model"
+@@ -35,7 +35,7 @@ const (
  // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
  type Plugin struct {
  	plugin.MattermostPlugin
@@ -140,20 +352,42 @@ index dcdd343..a7b2180 100644
  
  	// configurationLock synchronizes access to the configuration.
  	configurationLock sync.RWMutex
-diff --git a/server/session_test.go b/server/session_test.go
-index 5f91672..e7310a4 100644
---- a/server/session_test.go
-+++ b/server/session_test.go
-@@ -8,7 +8,7 @@ import (
- 	"time"
+diff --git a/server/reconciliation_test.go b/server/reconciliation_test.go
+index 8fda371..064e7d8 100644
+--- a/server/reconciliation_test.go
++++ b/server/reconciliation_test.go
+@@ -12,7 +12,7 @@ import (
  
  	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/db"
 -	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
 +	"github.com/mattermost/mattermost-plugin-calls/server/license"
  	"github.com/mattermost/mattermost-plugin-calls/server/public"
  
  	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
-@@ -439,7 +439,7 @@ func TestAddUserSession(t *testing.T) {
+@@ -52,7 +52,7 @@ func TestReconcileCallSessions(t *testing.T) {
+ 			dirtyCalls:           map[string]struct{}{},
+ 			dirtyCallsCh:         make(chan struct{}, 1),
+ 		}
+-		p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++		p.licenseChecker = license.NewChecker(p.API)
+ 
+ 		cfg := &configuration{}
+ 		cfg.SetDefaults()
+diff --git a/server/session_test.go b/server/session_test.go
+index 8fe7a2e..0035fc6 100644
+--- a/server/session_test.go
++++ b/server/session_test.go
+@@ -9,7 +9,7 @@ import (
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/db"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/public"
+ 
+ 	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
+@@ -40,7 +40,7 @@ func TestAddUserSession(t *testing.T) {
  		sessions: map[string]*session{},
  	}
  
@@ -162,25 +396,72 @@ index 5f91672..e7310a4 100644
  
  	store, tearDown := NewTestStore(t)
  	t.Cleanup(tearDown)
-diff --git a/server/websocket_test.go b/server/websocket_test.go
-index 9ae3727..8d434e2 100644
---- a/server/websocket_test.go
-+++ b/server/websocket_test.go
-@@ -16,7 +16,7 @@ import (
- 	"github.com/mattermost/mattermost-plugin-calls/server/batching"
- 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
- 	"github.com/mattermost/mattermost-plugin-calls/server/db"
+@@ -188,7 +188,7 @@ func TestRemoveUserSessionDMAutoEnd(t *testing.T) {
+ 		botID:             botID, // getBotID reads p.botID, not botSession
+ 		sessions:          map[string]*session{},
+ 	}
+-	p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++	p.licenseChecker = license.NewChecker(p.API)
+ 
+ 	store, tearDown := NewTestStore(t)
+ 	t.Cleanup(tearDown)
+@@ -307,7 +307,7 @@ func TestRemoveUserSessionPhoneCall(t *testing.T) {
+ 		botID:             botID, // getBotID reads p.botID, not botSession
+ 		sessions:          map[string]*session{},
+ 	}
+-	p.licenseChecker = enterprise.NewLicenseChecker(p.API)
++	p.licenseChecker = license.NewChecker(p.API)
+ 
+ 	store, tearDown := NewTestStore(t)
+ 	t.Cleanup(tearDown)
+diff --git a/server/sip_trunk_test.go b/server/sip_trunk_test.go
+index e063982..e08211c 100644
+--- a/server/sip_trunk_test.go
++++ b/server/sip_trunk_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
 -	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
 +	"github.com/mattermost/mattermost-plugin-calls/server/license"
- 	"github.com/mattermost/mattermost-plugin-calls/server/public"
+ 
+ 	"github.com/livekit/protocol/livekit"
+ 	"github.com/mattermost/mattermost/server/public/model"
+@@ -18,12 +18,12 @@ import (
+ )
+ 
+ // licensedChecker returns a LicenseChecker backed by a mocked server license.
+-func licensedChecker(t *testing.T, license *model.License) *enterprise.LicenseChecker {
++func licensedChecker(t *testing.T, lic *model.License) *license.Checker {
+ 	t.Helper()
+ 	api := &plugintest.API{}
+ 	api.On("GetConfig").Return(&model.Config{})
+-	api.On("GetLicense").Return(license)
+-	return enterprise.NewLicenseChecker(api)
++	api.On("GetLicense").Return(lic)
++	return license.NewChecker(api)
+ }
+ 
+ // fakeSIPService is an in-memory LiveKit SIP trunk API. Unimplemented methods
+diff --git a/server/websocket_test.go b/server/websocket_test.go
+index 9fefe57..7e16136 100644
+--- a/server/websocket_test.go
++++ b/server/websocket_test.go
+@@ -12,7 +12,7 @@ import (
+ 
+ 	"github.com/mattermost/mattermost-plugin-calls/server/batching"
+ 	"github.com/mattermost/mattermost-plugin-calls/server/cluster"
+-	"github.com/mattermost/mattermost-plugin-calls/server/enterprise"
++	"github.com/mattermost/mattermost-plugin-calls/server/license"
  
  	serverMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost-plugin-calls/server/interfaces"
-@@ -966,7 +966,7 @@ func TestHandleJoin(t *testing.T) {
+ 	pluginMocks "github.com/mattermost/mattermost-plugin-calls/server/mocks/github.com/mattermost/mattermost/server/public/plugin"
+@@ -495,7 +495,7 @@ func TestHandleJoin(t *testing.T) {
  		dmNoAnswerTimers:       map[string]*time.Timer{},
  	}
  
 -	p.licenseChecker = enterprise.NewLicenseChecker(p.API)
 +	p.licenseChecker = license.NewChecker(p.API)
  
- 	mockMetrics.On("RTCMetrics").Return(mockRTCMetrics).Once()
  	mockAPI.On("LogDebug", mock.Anything, mock.Anything, mock.Anything,
+ 		mock.Anything, mock.Anything, mock.Anything, mock.Anything,

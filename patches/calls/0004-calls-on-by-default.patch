@@ -1,22 +1,22 @@
 diff --git a/plugin.json b/plugin.json
-index 8617389d..fcbf916f 100644
+index 0fa95e2..a3a0a13 100644
 --- a/plugin.json
 +++ b/plugin.json
-@@ -82,7 +82,7 @@
-             "key": "EnableVideo",
-             "display_name": "Enable video calls in DMs (Experimental)",
+@@ -54,7 +54,7 @@
+             "key": "EnableDMVideo",
+             "display_name": "Enable video calls in direct messages",
              "type": "bool",
 -            "default": false,
 +            "default": true,
-             "help_text": "When set to true, video calls are enabled in direct message channels."
+             "help_text": "When set to true, participants in direct messages can turn on their camera during a call."
            },
            {
 diff --git a/server/configuration.go b/server/configuration.go
-index 4b6e5a10..5d3d4bf6 100644
+index ed3beff..d5b2f83 100644
 --- a/server/configuration.go
 +++ b/server/configuration.go
-@@ -206,8 +206,10 @@ func (c *configuration) SetDefaults() {
- 
+@@ -161,8 +161,10 @@ const (
+ func (c *configuration) SetDefaults() {
  	c.AllowEnableCalls = model.NewPointer(true)
  
 +	// Mattermore ships calls usable out of the box, so they are on in every

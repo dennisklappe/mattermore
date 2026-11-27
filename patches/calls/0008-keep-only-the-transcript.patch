@@ -1,8 +1,8 @@
 diff --git a/plugin.json b/plugin.json
-index 559d57b..8cce0ee 100644
+index 3306b65..6082a9b 100644
 --- a/plugin.json
 +++ b/plugin.json
-@@ -236,6 +236,13 @@
+@@ -265,6 +265,13 @@
              "default": false,
              "help_text": "(Optional) When set to true, every call starts recording as soon as it begins, without anyone pressing the button. Participants still see the recording banner. Recording people without telling them is a legal question in many places, so leave this off unless you know where you stand. Requires call recordings to be enabled."
            },
@@ -17,10 +17,10 @@ index 559d57b..8cce0ee 100644
              "key": "JobServiceURL",
              "display_name": "Job service URL",
 diff --git a/server/bot_api.go b/server/bot_api.go
-index 3057e17..15ad6ea 100644
+index cd373e6..67dae6c 100644
 --- a/server/bot_api.go
 +++ b/server/bot_api.go
-@@ -276,10 +276,42 @@ func (p *Plugin) handleBotPostRecordings(w http.ResponseWriter, r *http.Request)
+@@ -273,10 +273,42 @@ func (p *Plugin) handleBotPostRecordings(w http.ResponseWriter, r *http.Request)
  		return
  	}
  
@@ -63,7 +63,7 @@ index 3057e17..15ad6ea 100644
  func (p *Plugin) handleBotPostTranscriptions(w http.ResponseWriter, r *http.Request) {
  	var res httpResponse
  	defer p.httpAudit("handleBotPostTranscription", &res, w, r)
-@@ -389,7 +421,10 @@ func (p *Plugin) handleBotPostTranscriptions(w http.ResponseWriter, r *http.Requ
+@@ -386,7 +418,10 @@ func (p *Plugin) handleBotPostTranscriptions(w http.ResponseWriter, r *http.Requ
  	}
  	var rm jobMetadata
  	rm.fromMap(recordings[tm.RecID])
@@ -76,10 +76,10 @@ index 3057e17..15ad6ea 100644
  		if err != nil {
  			res.Err = "failed to get recording post: " + err.Error()
 diff --git a/server/configuration.go b/server/configuration.go
-index 7d76f45..d46bc7b 100644
+index a26cf6c..6940bd0 100644
 --- a/server/configuration.go
 +++ b/server/configuration.go
-@@ -123,6 +123,11 @@ type ClientConfig struct {
+@@ -132,6 +132,11 @@ type ClientConfig struct {
  	// nobody pressing the button. Off unless an admin turns it on, because
  	// recording everyone by default is a consent question, not a preference.
  	RecordCallsByDefault *bool
@@ -91,7 +91,7 @@ index 7d76f45..d46bc7b 100644
  	// When set to true it enables the call transcriptions functionality
  	EnableTranscriptions *bool
  	// When set to true it enables the live captions functionality
-@@ -228,6 +233,9 @@ func (c *configuration) SetDefaults() {
+@@ -186,6 +191,9 @@ func (c *configuration) SetDefaults() {
  	if c.RecordCallsByDefault == nil {
  		c.RecordCallsByDefault = model.NewPointer(false)
  	}
@@ -101,7 +101,7 @@ index 7d76f45..d46bc7b 100644
  	if c.EnableTranscriptions == nil {
  		c.EnableTranscriptions = model.NewPointer(false)
  	}
-@@ -427,6 +435,10 @@ func (c *configuration) Clone() *configuration {
+@@ -364,6 +372,10 @@ func (c *configuration) Clone() *configuration {
  		cfg.RecordCallsByDefault = model.NewPointer(*c.RecordCallsByDefault)
  	}
  
@@ -112,7 +112,7 @@ index 7d76f45..d46bc7b 100644
  	if c.EnableTranscriptions != nil {
  		cfg.EnableTranscriptions = model.NewPointer(*c.EnableTranscriptions)
  	}
-@@ -513,6 +525,13 @@ func (c *configuration) recordCallsByDefault() bool {
+@@ -456,6 +468,13 @@ func (c *configuration) recordCallsByDefault() bool {
  	return c.recordingsEnabled() && c.RecordCallsByDefault != nil && *c.RecordCallsByDefault
  }
  
