@@ -1,17 +1,17 @@
 diff --git a/api/api.go b/api/api.go
-index 331badc..b1bcd10 100644
+index b641cce..9ce9284 100644
 --- a/api/api.go
 +++ b/api/api.go
-@@ -26,3 +26,2 @@ import (
+@@ -31,3 +31,2 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/embeddings"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
  	"github.com/mattermost/mattermost-plugin-agents/v2/files"
-@@ -30,2 +29,3 @@ import (
+@@ -35,2 +34,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/indexer"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_access_control.go b/api/api_access_control.go
-index 8add951..508a405 100644
+index 8e57dbb..876573d 100644
 --- a/api/api_access_control.go
 +++ b/api/api_access_control.go
 @@ -15,3 +15,3 @@ import (
@@ -36,7 +36,7 @@ index b6738e3..26c94ed 100644
 +				e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  				e.OverrideLicense(enterprisetest.LicenseFor(level))
 diff --git a/api/api_access_control_test.go b/api/api_access_control_test.go
-index 75ec84b..00ee27e 100644
+index f429f01..268ec4f 100644
 --- a/api/api_access_control_test.go
 +++ b/api/api_access_control_test.go
 @@ -17,4 +17,4 @@ import (
@@ -52,20 +52,31 @@ index 75ec84b..00ee27e 100644
 +	e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  	e.OverrideLicense(enterprisetest.LicenseFor(enterprise.LevelEnterpriseAdvanced))
 diff --git a/api/api_admin.go b/api/api_admin.go
-index 8803d53..6b45b9c 100644
+index 99e0fae..b86ee88 100644
 --- a/api/api_admin.go
 +++ b/api/api_admin.go
-@@ -16,4 +16,4 @@ import (
+@@ -17,4 +17,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/config"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
  	"github.com/mattermost/mattermost-plugin-agents/v2/indexer"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/mcp"
+diff --git a/api/api_admin_mcp_discovery_test.go b/api/api_admin_mcp_discovery_test.go
+index 40d6939..8b3b397 100644
+--- a/api/api_admin_mcp_discovery_test.go
++++ b/api/api_admin_mcp_discovery_test.go
+@@ -19,4 +19,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/config"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/mcp"
 diff --git a/api/api_admin_test.go b/api/api_admin_test.go
-index c5a6895..f7eebae 100644
+index 6fa7fe5..9e6a294 100644
 --- a/api/api_admin_test.go
 +++ b/api/api_admin_test.go
-@@ -16,4 +16,4 @@ import (
+@@ -17,4 +17,4 @@ import (
  
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
@@ -73,27 +84,27 @@ index c5a6895..f7eebae 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  
 diff --git a/api/api_agents.go b/api/api_agents.go
-index cd033aa..1cbc07d 100644
+index ee5061d..d6fd092 100644
 --- a/api/api_agents.go
 +++ b/api/api_agents.go
-@@ -23,3 +23,3 @@ import (
+@@ -24,3 +24,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/config"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_agents_abac_test.go b/api/api_agents_abac_test.go
-index c51f47e..3b846f5 100644
+index 9b62d0c..7fa0fef 100644
 --- a/api/api_agents_abac_test.go
 +++ b/api/api_agents_abac_test.go
-@@ -13,4 +13,4 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/audit"
+@@ -14,4 +14,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/bots"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_agents_license_test.go b/api/api_agents_license_test.go
-index dda70eb..ee7990b 100644
+index e3dc3fb..e822daa 100644
 --- a/api/api_agents_license_test.go
 +++ b/api/api_agents_license_test.go
 @@ -11,4 +11,4 @@ import (
@@ -119,26 +130,31 @@ index dda70eb..ee7990b 100644
 +			e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  			e.OverrideLicense(enterprisetest.LicenseFor(tc.level))
 diff --git a/api/api_agents_test.go b/api/api_agents_test.go
-index 4ad0bc7..7b4801a 100644
+index f34ca0b..e41a7c5 100644
 --- a/api/api_agents_test.go
 +++ b/api/api_agents_test.go
-@@ -20,3 +20,3 @@ import (
+@@ -22,3 +22,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/config"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -37,3 +37,3 @@ func setupAgentTestEnvironment(t *testing.T) *TestEnvironment {
+@@ -39,3 +39,3 @@ func setupAgentTestEnvironment(t *testing.T) *TestEnvironment {
  	// Wire up a real license checker so license checks can be mocked
 -	e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
 +	e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  
-@@ -113,3 +113,3 @@ func mockLicensed(mockAPI *plugintest.API) {
+@@ -119,3 +119,3 @@ func mockLicensed(mockAPI *plugintest.API) {
  func mockUnlicensed(mockAPI *plugintest.API) {
 -	overrideLicenseMocks(mockAPI, nil)
 +	overrideLicenseMocks(mockAPI, &model.License{})
  }
+@@ -1899,3 +1899,3 @@ func TestUpdateAgentRefreshesChangedAgent(t *testing.T) {
+ 			botsCfg.Update(e.api.configStore.(*mockConfigStore).cfg)
+-			e.bots = bots.New(e.mockAPI, e.client, enterprise.NewLicenseChecker(e.client), botsCfg, e.agentStore, newPassthroughAccessChecker(), &http.Client{}, nil)
++			e.bots = bots.New(e.mockAPI, e.client, enterprisetest.NewLicenseChecker(e.client), botsCfg, e.agentStore, newPassthroughAccessChecker(), &http.Client{}, nil)
+ 			e.api.bots = e.bots
 diff --git a/api/api_bridge_mcp.go b/api/api_bridge_mcp.go
-index 557d555..8e042a6 100644
+index 5aca09c..19c5317 100644
 --- a/api/api_bridge_mcp.go
 +++ b/api/api_bridge_mcp.go
 @@ -13,3 +13,3 @@ import (
@@ -168,7 +184,7 @@ index 636db2d..54e59a6 100644
 +			e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  			e.OverrideLicense(enterprisetest.LicenseFor(level))
 diff --git a/api/api_capability_license_test.go b/api/api_capability_license_test.go
-index aee2e8c..947be2b 100644
+index 2b645d1..946355e 100644
 --- a/api/api_capability_license_test.go
 +++ b/api/api_capability_license_test.go
 @@ -14,4 +14,4 @@ import (
@@ -178,18 +194,32 @@ index aee2e8c..947be2b 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -209,3 +209,3 @@ func TestCapabilityRoutesByLevel(t *testing.T) {
+@@ -200,3 +200,3 @@ func TestCapabilityRoutesByLevel(t *testing.T) {
  
 -					e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
 +					e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  					e.OverrideLicense(enterprisetest.LicenseFor(level))
-@@ -286,3 +286,3 @@ func TestAdminReindexReadAndCancelUngated(t *testing.T) {
+@@ -277,3 +277,3 @@ func TestAdminReindexReadAndCancelUngated(t *testing.T) {
  
 -				e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
 +				e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  				e.OverrideLicense(enterprisetest.LicenseFor(level))
+diff --git a/api/api_channel_analysis_team_test.go b/api/api_channel_analysis_team_test.go
+index b620b63..52f9ab9 100644
+--- a/api/api_channel_analysis_team_test.go
++++ b/api/api_channel_analysis_team_test.go
+@@ -15,3 +15,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -46,3 +46,3 @@ func setupChannelAnalysisAPIForChannel(t *testing.T, channel *model.Channel) (*T
+ 
+-	e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
++	e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
+ 	e.OverrideLicense(&model.License{SkuShortName: "advanced"})
 diff --git a/api/api_channel_analysis_test.go b/api/api_channel_analysis_test.go
-index d70047f..bda399a 100644
+index 044000d..4e656d8 100644
 --- a/api/api_channel_analysis_test.go
 +++ b/api/api_channel_analysis_test.go
 @@ -17,3 +17,3 @@ import (
@@ -203,7 +233,7 @@ index d70047f..bda399a 100644
 +	e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  	e.OverrideLicense(&model.License{SkuShortName: "advanced"})
 diff --git a/api/api_channel_autoreply.go b/api/api_channel_autoreply.go
-index d82375a..63e12c1 100644
+index 33d2a0f..ca70dcd 100644
 --- a/api/api_channel_autoreply.go
 +++ b/api/api_channel_autoreply.go
 @@ -13,3 +13,3 @@ import (
@@ -212,7 +242,7 @@ index d82375a..63e12c1 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost/server/public/model"
 diff --git a/api/api_channel_autoreply_test.go b/api/api_channel_autoreply_test.go
-index da79b38..47f86d9 100644
+index bb821d3..8aa480b 100644
 --- a/api/api_channel_autoreply_test.go
 +++ b/api/api_channel_autoreply_test.go
 @@ -19,4 +19,4 @@ import (
@@ -222,7 +252,7 @@ index da79b38..47f86d9 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -40,3 +40,3 @@ func setupChannelAutoReplyTest(t *testing.T, channelType model.ChannelType) *Tes
+@@ -41,3 +41,3 @@ func setupChannelAutoReplyTest(t *testing.T, channelType model.ChannelType) *Tes
  	e.setupTestBot(llm.BotConfig{Name: "permtest"})
 -	e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
 +	e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
@@ -242,13 +272,24 @@ index 791d8a5..5d21eff 100644
 +			e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  			if test.licensed {
 diff --git a/api/api_config.go b/api/api_config.go
-index cbb8dd6..458eaf6 100644
+index 1be47a9..98e790d 100644
 --- a/api/api_config.go
 +++ b/api/api_config.go
-@@ -13,3 +13,3 @@ import (
+@@ -18,3 +18,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/config"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/api/api_config_agent_references_test.go b/api/api_config_agent_references_test.go
+index 81b3b27..08fcc4a 100644
+--- a/api/api_config_agent_references_test.go
++++ b/api/api_config_agent_references_test.go
+@@ -14,4 +14,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/config"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_config_license_test.go b/api/api_config_license_test.go
 index f3eb2c5..961f0fd 100644
@@ -261,8 +302,19 @@ index f3eb2c5..961f0fd 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/api/api_config_mcp_oauth_test.go b/api/api_config_mcp_oauth_test.go
+index b04ea48..d41b59d 100644
+--- a/api/api_config_mcp_oauth_test.go
++++ b/api/api_config_mcp_oauth_test.go
+@@ -17,4 +17,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/config"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost/server/public/model"
 diff --git a/api/api_config_test.go b/api/api_config_test.go
-index 86e2928..96645eb 100644
+index 823a5d7..b448584 100644
 --- a/api/api_config_test.go
 +++ b/api/api_config_test.go
 @@ -15,4 +15,4 @@ import (
@@ -273,10 +325,10 @@ index 86e2928..96645eb 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_custom_prompts.go b/api/api_custom_prompts.go
-index c59a0e1..6c8f7a4 100644
+index f7d2aea..a678851 100644
 --- a/api/api_custom_prompts.go
 +++ b/api/api_custom_prompts.go
-@@ -13,3 +13,3 @@ import (
+@@ -14,3 +14,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/customprompts"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
@@ -318,7 +370,7 @@ index 4bc50d1..9a8644d 100644
 +	e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  	e.mockAPI.On("LogError", mock.Anything).Maybe()
 diff --git a/api/api_llm_bridge.go b/api/api_llm_bridge.go
-index 165e002..44bb001 100644
+index 5fdeab0..de4a360 100644
 --- a/api/api_llm_bridge.go
 +++ b/api/api_llm_bridge.go
 @@ -21,3 +21,3 @@ import (
@@ -327,7 +379,7 @@ index 165e002..44bb001 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_llm_bridge_license_test.go b/api/api_llm_bridge_license_test.go
-index f8505b2..ebbc943 100644
+index ccf1d80..075894e 100644
 --- a/api/api_llm_bridge_license_test.go
 +++ b/api/api_llm_bridge_license_test.go
 @@ -11,4 +11,4 @@ import (
@@ -354,7 +406,7 @@ index 5a52e4e..f3cb6c2 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_llm_bridge_service_test.go b/api/api_llm_bridge_service_test.go
-index 9cd2ad0..b983cfa 100644
+index 63a47cf..46b43a3 100644
 --- a/api/api_llm_bridge_service_test.go
 +++ b/api/api_llm_bridge_service_test.go
 @@ -16,4 +16,4 @@ import (
@@ -365,7 +417,7 @@ index 9cd2ad0..b983cfa 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_mcp.go b/api/api_mcp.go
-index 63b1262..9c187b9 100644
+index c427e37..b00ac19 100644
 --- a/api/api_mcp.go
 +++ b/api/api_mcp.go
 @@ -15,3 +15,3 @@ import (
@@ -420,15 +472,15 @@ index c13d875..2efae8c 100644
 +			e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  			e.OverrideLicense(enterprisetest.LicenseFor(level))
 diff --git a/api/api_no_tools_test.go b/api/api_no_tools_test.go
-index 50e2f1a..f6020e6 100644
+index b201941..07725c0 100644
 --- a/api/api_no_tools_test.go
 +++ b/api/api_no_tools_test.go
-@@ -17,3 +17,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+@@ -20,3 +20,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -171,3 +171,3 @@ func setupNoToolsAPI(t *testing.T, mcpProvider *noToolsTestMCPProvider, mmClient
+@@ -262,3 +262,3 @@ func setupNoToolsAPI(t *testing.T, mcpProvider *noToolsTestMCPProvider, mmClient
  
 -	e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
 +	e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
@@ -443,105 +495,109 @@ index 62d2ee2..64ee4e8 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/mcp"
 diff --git a/api/api_post.go b/api/api_post.go
-index 3d02fa7..2b269e1 100644
+index 3d0bb13..346ea81 100644
 --- a/api/api_post.go
 +++ b/api/api_post.go
-@@ -15,3 +15,3 @@ import (
+@@ -16,3 +16,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/mcpserver/auth"
 diff --git a/api/api_post_test.go b/api/api_post_test.go
-index 4dca4a4..c2b5077 100644
+index bea6c38..47c09c2 100644
 --- a/api/api_post_test.go
 +++ b/api/api_post_test.go
-@@ -16,3 +16,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/audit"
+@@ -21,3 +21,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -348,3 +348,3 @@ func TestToolApprovalAuditRecords(t *testing.T) {
+@@ -413,3 +413,3 @@ func TestToolApprovalAuditRecords(t *testing.T) {
  			e.setupTestBot(llm.BotConfig{Name: "permtest", DisplayName: "Permission Bot"})
 -			e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
 +			e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  			e.OverrideLicense(&model.License{SkuShortName: "advanced"})
-@@ -498,3 +498,3 @@ func TestHandleTranscribeFileDeniedByFilePolicy(t *testing.T) {
+@@ -560,3 +560,3 @@ func TestHandleTranscribeFileDeniedByFilePolicy(t *testing.T) {
  				nil,
 -				enterprise.NewLicenseChecker(e.client),
 +				enterprisetest.NewLicenseChecker(e.client),
  			)
+@@ -651,3 +651,3 @@ func (e *TestEnvironment) useConversations() *mockConvServiceStore {
+ 	convService := conversation.NewService(convStore, e.api.prompts, client, e.bots)
+-	svc := conversations.New(e.api.prompts, client, e.api.streamingService, e.api.contextBuilder, e.bots, nil, enterprise.NewLicenseChecker(e.client), nil, e.config, askForEveryTool)
++	svc := conversations.New(e.api.prompts, client, e.api.streamingService, e.api.contextBuilder, e.bots, nil, enterprisetest.NewLicenseChecker(e.client), nil, e.config, askForEveryTool)
+ 	svc.SetConversationService(convService)
 diff --git a/api/api_search.go b/api/api_search.go
-index 72d1121..545788c 100644
+index 6581a6e..ae1a64e 100644
 --- a/api/api_search.go
 +++ b/api/api_search.go
 @@ -15,3 +15,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/bots"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/search"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/mcpserver/auth"
 diff --git a/api/api_search_test.go b/api/api_search_test.go
-index d3d65f4..d47c5cc 100644
+index 5b04163..f64e907 100644
 --- a/api/api_search_test.go
 +++ b/api/api_search_test.go
-@@ -18,5 +18,5 @@ import (
+@@ -20,4 +20,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/embeddings/mocks"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/indexer"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/api/api_test.go b/api/api_test.go
-index 0b8f0f2..697959f 100644
+index f1733e5..736d037 100644
 --- a/api/api_test.go
 +++ b/api/api_test.go
-@@ -25,4 +25,4 @@ import (
+@@ -28,4 +28,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/embeddings/mocks"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -720,3 +720,3 @@ func newPassthroughAccessChecker() *accesscontrol.Checker {
+@@ -982,3 +982,3 @@ func newPassthroughAccessChecker() *accesscontrol.Checker {
  func createTestBots(mockAPI *plugintest.API, client *pluginapi.Client) *bots.MMBots {
 -	licenseChecker := enterprise.NewLicenseChecker(client)
 +	licenseChecker := enterprisetest.NewLicenseChecker(client)
  	testBots := bots.New(mockAPI, client, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -755,2 +755,3 @@ func SetupTestEnvironment(t *testing.T) *TestEnvironment {
+@@ -1031,2 +1031,3 @@ func SetupTestEnvironment(t *testing.T) *TestEnvironment {
  	)
 +	contextBuilder.SetLicenseChecker(enterprisetest.NewLicenseChecker(client))
  
-@@ -805,3 +806,3 @@ func SetupTestEnvironment(t *testing.T) *TestEnvironment {
+@@ -1081,3 +1082,3 @@ func SetupTestEnvironment(t *testing.T) *TestEnvironment {
  		nil,
 -		enterprise.NewLicenseChecker(client),
 +		enterprisetest.NewLicenseChecker(client),
  		nil,
-@@ -1229,3 +1230,3 @@ func TestHandleGetAIBots(t *testing.T) {
+@@ -1797,3 +1798,3 @@ func TestHandleGetAIBots(t *testing.T) {
  			envSetup: func(e *TestEnvironment) {
 -				e.OverrideLicense(nil)
 +				e.OverrideLicense(&model.License{})
  				e.mockAPI.On("GetChannelByName", "", mock.AnythingOfType("string"), false).Return(nil, &model.AppError{})
-@@ -1416,3 +1417,3 @@ func TestToolCallDMAllowedWhenChannelToolCallingDisabled(t *testing.T) {
+@@ -2081,3 +2082,3 @@ func TestToolCallDMAllowedWhenChannelToolCallingDisabled(t *testing.T) {
  
 -			e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
 +			e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  			e.OverrideLicense(&model.License{SkuShortName: "advanced"})
 diff --git a/api/api_tool_license_test.go b/api/api_tool_license_test.go
-index 7cb569c..22964ca 100644
+index 937f3b9..da3dcad 100644
 --- a/api/api_tool_license_test.go
 +++ b/api/api_tool_license_test.go
-@@ -15,3 +15,3 @@ import (
+@@ -16,3 +16,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -57,3 +57,3 @@ func TestToolDecisionEndpointsNotBlanketLicenseGated(t *testing.T) {
+@@ -58,3 +58,3 @@ func TestToolDecisionEndpointsNotBlanketLicenseGated(t *testing.T) {
  			// every decision submission with 403 before looking at the tools.
 -			e.api.licenseChecker = enterprise.NewLicenseChecker(e.client)
 +			e.api.licenseChecker = enterprisetest.NewLicenseChecker(e.client)
  			e.OverrideLicense(&model.License{})
 diff --git a/api/license.go b/api/license.go
-index a58320a..7f5a871 100644
+index dd485da..98d59ca 100644
 --- a/api/license.go
 +++ b/api/license.go
 @@ -10,3 +10,3 @@ import (
@@ -550,76 +606,94 @@ index a58320a..7f5a871 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  )
 diff --git a/autoreply/service_test.go b/autoreply/service_test.go
-index be70691..49d5051 100644
+index 9749c9f..b859d8d 100644
 --- a/autoreply/service_test.go
 +++ b/autoreply/service_test.go
-@@ -16,3 +16,3 @@ import (
+@@ -17,3 +17,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/bots"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -56,3 +56,3 @@ func newTestService(t *testing.T, dbClient *mmapi.DBClient, notifier ClusterNoti
+@@ -57,3 +57,3 @@ func newTestService(t *testing.T, dbClient *mmapi.DBClient, notifier ClusterNoti
  	client := pluginapi.NewClient(mockAPI, nil)
 -	botsService := bots.New(mockAPI, client, enterprise.NewLicenseChecker(client), nil, nil, accesscontrol.New(accesscontrol.PassthroughClient{}, nil, accesscontrol.NoMCPServerIDs, nil), &http.Client{}, nil)
 +	botsService := bots.New(mockAPI, client, enterprisetest.NewLicenseChecker(client), nil, nil, accesscontrol.New(accesscontrol.PassthroughClient{}, nil, accesscontrol.NoMCPServerIDs, nil), &http.Client{}, nil)
  	botsService.SetBotsForTesting(botList)
 diff --git a/bots/bots.go b/bots/bots.go
-index 38f0aa2..0b1b969 100644
+index 6dcefde..565dc6f 100644
 --- a/bots/bots.go
 +++ b/bots/bots.go
-@@ -19,3 +19,3 @@ import (
+@@ -21,3 +21,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/config"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/bots/bots_test.go b/bots/bots_test.go
-index e5ca8b5..8450c96 100644
+index 8c99027..ed747eb 100644
 --- a/bots/bots_test.go
 +++ b/bots/bots_test.go
-@@ -15,4 +15,4 @@ import (
+@@ -16,4 +16,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/accesscontrol"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -88,3 +88,3 @@ func newTestMMBots(t *testing.T, cfg *mockConfig) *MMBots {
+@@ -95,3 +95,3 @@ func newTestMMBots(t *testing.T, cfg *mockConfig) *MMBots {
  	allowBotsLogging(mockAPI)
 -	licenseChecker := enterprise.NewLicenseChecker(client)
 +	licenseChecker := enterprisetest.NewLicenseChecker(client)
  	return New(mockAPI, client, licenseChecker, cfg, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -858,3 +858,3 @@ func TestEnsureBots(t *testing.T) {
+@@ -941,3 +941,3 @@ func TestEnsureBots(t *testing.T) {
  				mockAPI.On("GetConfig").Return(config).Maybe()
 -				mockAPI.On("GetLicense").Return((*model.License)(nil)).Maybe()
 +				mockAPI.On("GetLicense").Return(&model.License{}).Maybe()
  			}
-@@ -896,3 +896,3 @@ func TestEnsureBots(t *testing.T) {
+@@ -979,3 +979,3 @@ func TestEnsureBots(t *testing.T) {
  
 -			licenseChecker := enterprise.NewLicenseChecker(client)
 +			licenseChecker := enterprisetest.NewLicenseChecker(client)
  			cfg := &mockConfig{
-@@ -951,3 +951,3 @@ func newEnsureBotsHarness(t *testing.T, cfg *mockConfig, store AgentStore, licen
+@@ -1337,3 +1337,3 @@ func newEnsureBotsHarness(t *testing.T, cfg *mockConfig, store AgentStore, licen
  
 -	mmBots := New(mockAPI, client, enterprise.NewLicenseChecker(client), cfg, store, newPassthroughAccessChecker(), &http.Client{}, nil)
 +	mmBots := New(mockAPI, client, enterprisetest.NewLicenseChecker(client), cfg, store, newPassthroughAccessChecker(), &http.Client{}, nil)
  	t.Cleanup(mmBots.ShutdownServiceLLMs)
-@@ -982,3 +982,3 @@ func TestSnapshotBotsAndServicesDoesNotMutateConfigBots(t *testing.T) {
+@@ -1368,3 +1368,3 @@ func TestSnapshotBotsAndServicesDoesNotMutateConfigBots(t *testing.T) {
  	mockAPI.On("GetConfig").Return(&model.Config{}).Maybe()
 -	mockAPI.On("GetLicense").Return((*model.License)(nil)).Maybe()
 +	mockAPI.On("GetLicense").Return(&model.License{}).Maybe()
  	allowBotsLogging(mockAPI)
-@@ -1000,3 +1000,3 @@ func TestSnapshotBotsAndServicesDoesNotMutateConfigBots(t *testing.T) {
+@@ -1386,3 +1386,3 @@ func TestSnapshotBotsAndServicesDoesNotMutateConfigBots(t *testing.T) {
  	}
 -	mmBots := New(mockAPI, client, enterprise.NewLicenseChecker(client), cfg, agentStore, newPassthroughAccessChecker(), &http.Client{}, nil)
 +	mmBots := New(mockAPI, client, enterprisetest.NewLicenseChecker(client), cfg, agentStore, newPassthroughAccessChecker(), &http.Client{}, nil)
  
-@@ -1143,3 +1143,3 @@ func TestEnsureBotsFailsWhenListAgentsFails(t *testing.T) {
+@@ -1529,3 +1529,3 @@ func TestEnsureBotsFailsWhenListAgentsFails(t *testing.T) {
  
 -	licenseChecker := enterprise.NewLicenseChecker(client)
 +	licenseChecker := enterprisetest.NewLicenseChecker(client)
  	cfg := &mockConfig{
+diff --git a/bots/fallback_access.go b/bots/fallback_access.go
+index 270f914..91177ac 100644
+--- a/bots/fallback_access.go
++++ b/bots/fallback_access.go
+@@ -11,3 +11,3 @@ import (
+ 
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/bots/fallback_access_test.go b/bots/fallback_access_test.go
+index 57a5a74..6e1fbab 100644
+--- a/bots/fallback_access_test.go
++++ b/bots/fallback_access_test.go
+@@ -12,3 +12,3 @@ import (
+ 
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
+ 
 diff --git a/bots/license_test.go b/bots/license_test.go
-index d3b1295..8c49f07 100644
+index 68746a1..94e09e6 100644
 --- a/bots/license_test.go
 +++ b/bots/license_test.go
 @@ -9,4 +9,4 @@ import (
@@ -645,7 +719,7 @@ index d3b1295..8c49f07 100644
 +	mmBots := New(mockAPI, client, enterprisetest.NewLicenseChecker(client), cfg, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
  	require.NoError(t, mmBots.EnsureBots())
 diff --git a/bots/permissions_test.go b/bots/permissions_test.go
-index 9115ef8..a5a8016 100644
+index f5d6954..1c82544 100644
 --- a/bots/permissions_test.go
 +++ b/bots/permissions_test.go
 @@ -12,4 +12,4 @@ import (
@@ -660,11 +734,25 @@ index 9115ef8..a5a8016 100644
 -	licenseChecker := enterprise.NewLicenseChecker(client)
 +	licenseChecker := enterprisetest.NewLicenseChecker(client)
  	mmBots := New(mockAPI, client, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -534,3 +534,3 @@ func setupABACTestEnvironment(t *testing.T, stub abacStubClient) *TestEnvironmen
+@@ -628,3 +628,3 @@ func setupABACTestEnvironmentAtLevel(t *testing.T, stub abacStubClient, level en
  	checker := accesscontrol.New(stub, nil, accesscontrol.NoMCPServerIDs, nil)
 -	mmBots := New(mockAPI, client, enterprise.NewLicenseChecker(client), nil, nil, checker, &http.Client{}, nil)
 +	mmBots := New(mockAPI, client, enterprisetest.NewLicenseChecker(client), nil, nil, checker, &http.Client{}, nil)
  	return &TestEnvironment{bots: mmBots, client: client, mockAPI: mockAPI}
+diff --git a/bots/refresh_agent_test.go b/bots/refresh_agent_test.go
+index 3447cd3..54ba679 100644
+--- a/bots/refresh_agent_test.go
++++ b/bots/refresh_agent_test.go
+@@ -13,3 +13,3 @@ import (
+ 
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -175,3 +175,3 @@ func newRefreshAgentHarness(t *testing.T, store *stubAgentStore) (*MMBots, *botA
+ 	services := []llm.ServiceConfig{{ID: "svc1", Type: llm.ServiceTypeOpenAI, APIKey: "k", DefaultModel: "gpt-4o"}}
+-	mmBots := New(mockAPI, client, enterprise.NewLicenseChecker(client), &mockConfig{services: services}, store, newPassthroughAccessChecker(), &http.Client{}, nil)
++	mmBots := New(mockAPI, client, enterprisetest.NewLicenseChecker(client), &mockConfig{services: services}, store, newPassthroughAccessChecker(), &http.Client{}, nil)
+ 	t.Cleanup(mmBots.ShutdownServiceLLMs)
 diff --git a/config/agent_selection.go b/config/agent_selection.go
 index 86aa2a6..8df8143 100644
 --- a/config/agent_selection.go
@@ -684,7 +772,7 @@ index 2588e43..7489384 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/config/license_gates.go b/config/license_gates.go
-index ae1239f..691c091 100644
+index 1a71d26..20fa8ab 100644
 --- a/config/license_gates.go
 +++ b/config/license_gates.go
 @@ -9,3 +9,3 @@ import (
@@ -693,7 +781,7 @@ index ae1239f..691c091 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/config/license_gates_test.go b/config/license_gates_test.go
-index ac72c78..e11d47d 100644
+index 756c808..2fa8a40 100644
 --- a/config/license_gates_test.go
 +++ b/config/license_gates_test.go
 @@ -10,4 +10,4 @@ import (
@@ -704,7 +792,7 @@ index ac72c78..e11d47d 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/conversations/agent_mention_reminder.go b/conversations/agent_mention_reminder.go
-index fb3bb75..e01d72c 100644
+index 5c49727..541f524 100644
 --- a/conversations/agent_mention_reminder.go
 +++ b/conversations/agent_mention_reminder.go
 @@ -8,3 +8,3 @@ import (
@@ -713,7 +801,7 @@ index fb3bb75..e01d72c 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  
 diff --git a/conversations/agent_mention_reminder_test.go b/conversations/agent_mention_reminder_test.go
-index 726ea60..954011b 100644
+index 1e00b61..fbadc55 100644
 --- a/conversations/agent_mention_reminder_test.go
 +++ b/conversations/agent_mention_reminder_test.go
 @@ -12,5 +12,5 @@ import (
@@ -730,40 +818,47 @@ index 726ea60..954011b 100644
 +	licenseChecker := enterprisetest.NewLicenseChecker(pluginClient)
  
 diff --git a/conversations/ask_user_question_flow_test.go b/conversations/ask_user_question_flow_test.go
-index 6276123..3884b34 100644
+index 769ae95..5293347 100644
 --- a/conversations/ask_user_question_flow_test.go
 +++ b/conversations/ask_user_question_flow_test.go
-@@ -13,3 +13,3 @@ import (
+@@ -13,4 +13,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -130,3 +130,3 @@ func TestHandleToolCallAnswersUserQuestion(t *testing.T) {
+@@ -131,3 +131,3 @@ func TestHandleToolCallAnswersUserQuestion(t *testing.T) {
  			pluginAPI := pluginapi.NewClient(mockAPI, nil)
 -			licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
 +			licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
  			botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -256,3 +256,3 @@ func TestHandleToolCallMixedBatchInChannelAwaitsShareDecision(t *testing.T) {
+@@ -261,3 +261,3 @@ func TestHandleToolCallMixedBatchInChannelAwaitsShareDecision(t *testing.T) {
  	pluginAPI := pluginapi.NewClient(mockAPI, nil)
 -	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
 +	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
  	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -544,3 +544,3 @@ func TestHandleToolCallAutoExecutesPolicyEligiblePendingTools(t *testing.T) {
+@@ -315,3 +315,3 @@ func passthroughBotsService(bot *bots.Bot) *bots.MMBots {
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	botsService := bots.New(mockAPI, pluginAPI, enterprise.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
++	botsService := bots.New(mockAPI, pluginAPI, enterprisetest.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+ 	botsService.SetBotsForTesting([]*bots.Bot{bot})
+@@ -631,3 +631,3 @@ func TestHandleToolCallAutoExecutesPolicyEligiblePendingTools(t *testing.T) {
  			pluginAPI := pluginapi.NewClient(mockAPI, nil)
 -			licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
 +			licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
  			botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
 diff --git a/conversations/auto_reply.go b/conversations/auto_reply.go
-index 50306de..43d5fd1 100644
+index 988cd40..3cdb7d4 100644
 --- a/conversations/auto_reply.go
 +++ b/conversations/auto_reply.go
-@@ -10,3 +10,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/autoreply"
+@@ -12,3 +12,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/bots"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost/server/public/model"
 diff --git a/conversations/auto_reply_test.go b/conversations/auto_reply_test.go
-index b988e42..fe2df00 100644
+index f4954f9..48787a9 100644
 --- a/conversations/auto_reply_test.go
 +++ b/conversations/auto_reply_test.go
 @@ -14,5 +14,5 @@ import (
@@ -774,13 +869,13 @@ index b988e42..fe2df00 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -116,3 +116,3 @@ func setupAutoReplyTestEnv(t *testing.T, botConfigs []llm.BotConfig, llmResponse
+@@ -134,3 +134,3 @@ func setupAutoReplyTestEnvWithTools(
  	pluginClient := pluginapi.NewClient(mockAPI, nil)
 -	licenseChecker := enterprise.NewLicenseChecker(pluginClient)
 +	licenseChecker := enterprisetest.NewLicenseChecker(pluginClient)
  
 diff --git a/conversations/bot_channel_tool_filter.go b/conversations/bot_channel_tool_filter.go
-index 2a6e281..7c09bf4 100644
+index de9401f..a057220 100644
 --- a/conversations/bot_channel_tool_filter.go
 +++ b/conversations/bot_channel_tool_filter.go
 @@ -7,3 +7,3 @@ import (
@@ -789,14 +884,17 @@ index 2a6e281..7c09bf4 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/conversations/bot_channel_tool_filter_test.go b/conversations/bot_channel_tool_filter_test.go
-index fec7e8a..9d2c87b 100644
+index 22cc037..2f75688 100644
 --- a/conversations/bot_channel_tool_filter_test.go
 +++ b/conversations/bot_channel_tool_filter_test.go
-@@ -12,2 +12,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/bots"
+@@ -13,4 +13,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -114,4 +115,5 @@ func newChannelFollowUpTestBuilderWithLicense(t *testing.T, mcpTools []llm.Tool,
+@@ -121,4 +121,5 @@ func newChannelFollowUpTestBuilderWithLicense(t *testing.T, mcpTools []llm.Tool,
  
 -	return llmcontext.NewLLMContextBuilder(
 -		pluginapi.NewClient(mockAPI, nil),
@@ -804,80 +902,75 @@ index fec7e8a..9d2c87b 100644
 +	builder := llmcontext.NewLLMContextBuilder(
 +		client,
  		&channelFollowUpTestToolProvider{},
-@@ -120,2 +122,4 @@ func newChannelFollowUpTestBuilderWithLicense(t *testing.T, mcpTools []llm.Tool,
+@@ -127,2 +128,4 @@ func newChannelFollowUpTestBuilderWithLicense(t *testing.T, mcpTools []llm.Tool,
  	)
 +	builder.SetLicenseChecker(enterprisetest.NewLicenseChecker(client))
 +	return builder
  }
 diff --git a/conversations/conversations.go b/conversations/conversations.go
-index 2bcc283..9850b10 100644
+index c51cb68..5a9fabd 100644
 --- a/conversations/conversations.go
 +++ b/conversations/conversations.go
-@@ -11,4 +11,4 @@ import (
+@@ -14,4 +14,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
  	"github.com/mattermost/mattermost-plugin-agents/v2/i18n"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-diff --git a/conversations/conversations_test.go b/conversations/conversations_test.go
-index b9d4675..d6b6644 100644
---- a/conversations/conversations_test.go
-+++ b/conversations/conversations_test.go
-@@ -15,5 +15,5 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
--	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/evals"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/i18n"
-+	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -87,3 +87,3 @@ func TestConversationMentionHandling(t *testing.T) {
- 			mmClient := mocks.NewMockClient(t)
--			licenseChecker := enterprise.NewLicenseChecker(client)
-+			licenseChecker := enterprisetest.NewLicenseChecker(client)
- 			botService := bots.New(mockAPI, client, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-diff --git a/conversations/direct_message_eval_test.go b/conversations/direct_message_eval_test.go
-index c0ff0d7..2dd3a06 100644
---- a/conversations/direct_message_eval_test.go
-+++ b/conversations/direct_message_eval_test.go
-@@ -15,5 +15,5 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
--	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/evals"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/i18n"
-+	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -88,3 +88,3 @@ func TestDirectMessageConversations(t *testing.T) {
- 			mmClient := mocks.NewMockClient(t)
--			licenseChecker := enterprise.NewLicenseChecker(client)
-+			licenseChecker := enterprisetest.NewLicenseChecker(client)
- 			botService := bots.New(mockAPI, client, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
 diff --git a/conversations/dm_conversation_test.go b/conversations/dm_conversation_test.go
-index 95c8230..7fd3fd7 100644
+index b74a125..ba8579e 100644
 --- a/conversations/dm_conversation_test.go
 +++ b/conversations/dm_conversation_test.go
-@@ -17,4 +17,4 @@ import (
+@@ -19,4 +19,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
  	"github.com/mattermost/mattermost-plugin-agents/v2/i18n"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -395,3 +395,3 @@ func setupDMTestEnv(t *testing.T, llmResponses ...*llm.TextStreamResult) *dmTest
+@@ -618,3 +618,3 @@ func setupDMTestEnv(t *testing.T, llmResponses ...*llm.TextStreamResult) *dmTest
  	client := pluginapi.NewClient(mockAPI, nil)
 -	licenseChecker := enterprise.NewLicenseChecker(client)
 +	licenseChecker := enterprisetest.NewLicenseChecker(client)
  
+diff --git a/conversations/dynamic_mcp_workflow_test.go b/conversations/dynamic_mcp_workflow_test.go
+index 52584ea..2fc9beb 100644
+--- a/conversations/dynamic_mcp_workflow_test.go
++++ b/conversations/dynamic_mcp_workflow_test.go
+@@ -12,4 +12,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/conversations/eval_harness_test.go b/conversations/eval_harness_test.go
+index ec3e5bf..e9446fe 100644
+--- a/conversations/eval_harness_test.go
++++ b/conversations/eval_harness_test.go
+@@ -15,5 +15,5 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/evals"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/i18n"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -114,3 +114,3 @@ func respondAsAgent(t *evals.EvalT, scenario evalScenario, post *model.Post) str
+ 	pluginClient := pluginapi.NewClient(mockAPI, nil)
+-	licenseChecker := enterprise.NewLicenseChecker(pluginClient)
++	licenseChecker := enterprisetest.NewLicenseChecker(pluginClient)
+ 
 diff --git a/conversations/handle_messages.go b/conversations/handle_messages.go
-index 882a163..d80e9e7 100644
+index 5876756..64ecb20 100644
 --- a/conversations/handle_messages.go
 +++ b/conversations/handle_messages.go
-@@ -13,4 +13,4 @@ import (
+@@ -16,4 +16,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
  	"github.com/mattermost/mattermost-plugin-agents/v2/i18n"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/conversations/handle_messages_test.go b/conversations/handle_messages_test.go
-index 4647c32..1c67db2 100644
+index 2e79d47..ba897ae 100644
 --- a/conversations/handle_messages_test.go
 +++ b/conversations/handle_messages_test.go
 @@ -13,3 +13,3 @@ import (
@@ -885,47 +978,63 @@ index 4647c32..1c67db2 100644
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/mmapi/mocks"
-@@ -44,3 +44,3 @@ func SetupTestEnvironment(t *testing.T) *TestEnvironment {
+@@ -56,3 +56,3 @@ func SetupTestEnvironment(t *testing.T) *TestEnvironment {
  
 -	licenseChecker := enterprise.NewLicenseChecker(client)
 +	licenseChecker := enterprisetest.NewLicenseChecker(client)
  	botsService := bots.New(mockAPI, client, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
 diff --git a/conversations/loaded_state_flow_test.go b/conversations/loaded_state_flow_test.go
-index 1521766..1963651 100644
+index 76d1648..39cda80 100644
 --- a/conversations/loaded_state_flow_test.go
 +++ b/conversations/loaded_state_flow_test.go
-@@ -16,3 +16,3 @@ import (
+@@ -18,4 +18,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -725,3 +725,3 @@ func TestHandleToolCallExecutesApprovedToolRestoredFromLoadTurns(t *testing.T) {
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
++	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
+ 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+@@ -791,3 +791,3 @@ func TestHandleToolCallFailsSafelyWhenNoMatchingLoadTurn(t *testing.T) {
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
++	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
+ 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+@@ -860,3 +860,3 @@ func TestHandleToolCallRejectsServerOriginMismatchEvenAfterLoad(t *testing.T) {
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
++	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
+ 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+@@ -931,3 +931,3 @@ func TestHandleToolCallRestoresMultipleLoadsBeforeExecutingApprovedTool(t *testi
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
++	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
+ 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+@@ -1149,3 +1149,3 @@ func TestHandleToolResultScopesSharedToClickedPost(t *testing.T) {
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
++	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
+ 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+diff --git a/conversations/mcp_connection_request_flow_test.go b/conversations/mcp_connection_request_flow_test.go
+index a0437df..95d4cca 100644
+--- a/conversations/mcp_connection_request_flow_test.go
++++ b/conversations/mcp_connection_request_flow_test.go
+@@ -14,3 +14,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -420,3 +420,3 @@ func TestHandleToolCallExecutesApprovedToolRestoredFromLoadTurns(t *testing.T) {
- 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
--	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
-+	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
- 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -482,3 +482,3 @@ func TestHandleToolCallFailsSafelyWhenNoMatchingLoadTurn(t *testing.T) {
- 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
--	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
-+	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
- 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -548,3 +548,3 @@ func TestHandleToolCallRejectsServerOriginMismatchEvenAfterLoad(t *testing.T) {
- 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
--	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
-+	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
- 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -616,3 +616,3 @@ func TestHandleToolCallRestoresMultipleLoadsBeforeExecutingApprovedTool(t *testi
- 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
--	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
-+	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
- 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -825,3 +825,3 @@ func TestHandleToolResultScopesSharedToClickedPost(t *testing.T) {
+@@ -238,3 +238,3 @@ func newConnectionTestConversations(t *testing.T, provider llmcontext.MCPToolPro
  	pluginAPI := pluginapi.NewClient(mockAPI, nil)
 -	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
 +	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
  	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
 diff --git a/conversations/multiplayer_license_test.go b/conversations/multiplayer_license_test.go
-index d5b1b49..9f8fce4 100644
+index efa322e..cb64495 100644
 --- a/conversations/multiplayer_license_test.go
 +++ b/conversations/multiplayer_license_test.go
 @@ -10,4 +10,4 @@ import (
@@ -936,7 +1045,7 @@ index d5b1b49..9f8fce4 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/conversations/provider_web_search_license_test.go b/conversations/provider_web_search_license_test.go
-index 1293204..ee60f32 100644
+index d4ca84d..7c1021c 100644
 --- a/conversations/provider_web_search_license_test.go
 +++ b/conversations/provider_web_search_license_test.go
 @@ -9,4 +9,4 @@ import (
@@ -947,74 +1056,91 @@ index 1293204..ee60f32 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/conversations/regeneration.go b/conversations/regeneration.go
-index 8970248..28f4a80 100644
+index 4d68bd2..cfcc345 100644
 --- a/conversations/regeneration.go
 +++ b/conversations/regeneration.go
-@@ -12,3 +12,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
--	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
-+	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-diff --git a/conversations/regeneration_file_policy_test.go b/conversations/regeneration_file_policy_test.go
-index eb04ade..49128c2 100644
---- a/conversations/regeneration_file_policy_test.go
-+++ b/conversations/regeneration_file_policy_test.go
-@@ -13,3 +13,3 @@ import (
- 
--	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
-+	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
- 
-@@ -18,3 +18,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
--	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
-+	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -120,3 +120,3 @@ func TestHandleRegenerateDeniedByFilePolicy(t *testing.T) {
- 			pluginAPI := pluginapi.NewClient(mockAPI, nil)
--			licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
-+			licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
- 			botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, accesscontrol.New(accesscontrol.PassthroughClient{}, nil, accesscontrol.NoMCPServerIDs, nil), &http.Client{}, nil)
-diff --git a/conversations/regeneration_license_test.go b/conversations/regeneration_license_test.go
-index 7789abb..a0a8a8e 100644
---- a/conversations/regeneration_license_test.go
-+++ b/conversations/regeneration_license_test.go
-@@ -9,4 +9,4 @@ import (
- 
--	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
--	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
-+	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
-+	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
- 	"github.com/mattermost/mattermost/server/public/model"
-diff --git a/conversations/tool_approval.go b/conversations/tool_approval.go
-index 71837cc..05b8b7b 100644
---- a/conversations/tool_approval.go
-+++ b/conversations/tool_approval.go
-@@ -15,3 +15,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
--	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
-+	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-diff --git a/conversations/tool_approval_audit_test.go b/conversations/tool_approval_audit_test.go
-index adba4c5..4eeeeb2 100644
---- a/conversations/tool_approval_audit_test.go
-+++ b/conversations/tool_approval_audit_test.go
 @@ -14,3 +14,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/conversations/regeneration_license_test.go b/conversations/regeneration_license_test.go
+index c899312..ff70296 100644
+--- a/conversations/regeneration_license_test.go
++++ b/conversations/regeneration_license_test.go
+@@ -9,4 +9,5 @@ import (
+ 
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/conversations/regeneration_test.go b/conversations/regeneration_test.go
+index ce7b271..769aff8 100644
+--- a/conversations/regeneration_test.go
++++ b/conversations/regeneration_test.go
+@@ -17,4 +17,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -545,3 +545,3 @@ func TestHandleRegenerate(t *testing.T) {
+ 			pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-			botsService := bots.New(mockAPI, pluginAPI, enterprise.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
++			botsService := bots.New(mockAPI, pluginAPI, enterprisetest.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+ 			botsService.SetBotsForTesting([]*bots.Bot{bot, otherBot})
+@@ -695,3 +695,3 @@ func TestHandleRegenerateRequiresConversation(t *testing.T) {
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	botsService := bots.New(mockAPI, pluginAPI, enterprise.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
++	botsService := bots.New(mockAPI, pluginAPI, enterprisetest.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+ 	botsService.SetBotsForTesting([]*bots.Bot{loadedStateBot(&loadedStateLLM{})})
+@@ -823,3 +823,3 @@ func TestRegenerateChannelSummaryWaitsForRunningTool(t *testing.T) {
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	botsService := bots.New(mockAPI, pluginAPI, enterprise.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
++	botsService := bots.New(mockAPI, pluginAPI, enterprisetest.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+ 	botsService.SetBotsForTesting([]*bots.Bot{bot})
+diff --git a/conversations/tool_approval_audit_test.go b/conversations/tool_approval_audit_test.go
+index 1205b64..ea74a73 100644
+--- a/conversations/tool_approval_audit_test.go
++++ b/conversations/tool_approval_audit_test.go
+@@ -14,4 +14,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/mcp"
-@@ -115,3 +115,3 @@ func TestHandleToolCallAuditRecordsDecision(t *testing.T) {
+@@ -116,3 +116,3 @@ func TestHandleToolCallAuditRecordsDecision(t *testing.T) {
  			pluginAPI := pluginapi.NewClient(mockAPI, nil)
 -			licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
 +			licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
  			botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
-@@ -191,3 +191,3 @@ func TestHandleToolResultAuditRecordsDecision(t *testing.T) {
+@@ -194,3 +194,3 @@ func TestHandleToolResultAuditRecordsDecision(t *testing.T) {
  	pluginAPI := pluginapi.NewClient(mockAPI, nil)
 -	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
 +	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
  	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+diff --git a/conversations/tool_approval_claim_test.go b/conversations/tool_approval_claim_test.go
+index e1896eb..d4e236a 100644
+--- a/conversations/tool_approval_claim_test.go
++++ b/conversations/tool_approval_claim_test.go
+@@ -14,4 +14,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -37,3 +37,3 @@ func newClaimTestConversations(t *testing.T, convStore *loadedStateFlowStore, lm
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	botsService := bots.New(mockAPI, pluginAPI, enterprise.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
++	botsService := bots.New(mockAPI, pluginAPI, enterprisetest.NewLicenseChecker(pluginAPI), nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+ 	botsService.SetBotsForTesting([]*bots.Bot{loadedStateBot(lm)})
 diff --git a/conversations/tool_approval_license_test.go b/conversations/tool_approval_license_test.go
-index ec8b2dc..2bf5f77 100644
+index 51d9ccc..13751ac 100644
 --- a/conversations/tool_approval_license_test.go
 +++ b/conversations/tool_approval_license_test.go
 @@ -13,4 +13,4 @@ import (
@@ -1034,7 +1160,7 @@ index ec8b2dc..2bf5f77 100644
 -	return enterprise.NewLicenseChecker(pluginapi.NewClient(mockAPI, nil))
 +	return enterprisetest.NewLicenseChecker(pluginapi.NewClient(mockAPI, nil))
  }
-@@ -137,4 +137,5 @@ func toolLicenseTestBuilderAt(t *testing.T, level enterprise.Level) *llmcontext.
+@@ -141,4 +141,5 @@ func toolLicenseTestBuilderAt(t *testing.T, level enterprise.Level) *llmcontext.
  
 -	return llmcontext.NewLLMContextBuilder(
 -		pluginapi.NewClient(mockAPI, nil),
@@ -1042,28 +1168,107 @@ index ec8b2dc..2bf5f77 100644
 +	builder := llmcontext.NewLLMContextBuilder(
 +		client,
  		&toolLicenseBuiltinProvider{tools: builtinTools},
-@@ -143,2 +144,4 @@ func toolLicenseTestBuilderAt(t *testing.T, level enterprise.Level) *llmcontext.
+@@ -147,2 +148,4 @@ func toolLicenseTestBuilderAt(t *testing.T, level enterprise.Level) *llmcontext.
  	)
 +	builder.SetLicenseChecker(enterprisetest.NewLicenseChecker(client))
 +	return builder
  }
-diff --git a/conversations/tool_rejection_followup_test.go b/conversations/tool_rejection_followup_test.go
-index 7dcecb9..afe6787 100644
---- a/conversations/tool_rejection_followup_test.go
-+++ b/conversations/tool_rejection_followup_test.go
-@@ -15,3 +15,3 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+diff --git a/conversations/tool_policy_test.go b/conversations/tool_policy_test.go
+index 3738c69..c16f69b 100644
+--- a/conversations/tool_policy_test.go
++++ b/conversations/tool_policy_test.go
+@@ -9,4 +9,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/bots"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -396,3 +396,3 @@ func newRejectionFollowUpConversations(
+diff --git a/conversations/tool_rejection_followup_test.go b/conversations/tool_rejection_followup_test.go
+index 0e9ec9a..e8010fd 100644
+--- a/conversations/tool_rejection_followup_test.go
++++ b/conversations/tool_rejection_followup_test.go
+@@ -15,4 +15,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -397,3 +397,3 @@ func newRejectionFollowUpConversations(
  	pluginAPI := pluginapi.NewClient(mockAPI, nil)
 -	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
 +	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
  	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+diff --git a/conversations/turn_policy.go b/conversations/turn_policy.go
+index de2ca84..25abd21 100644
+--- a/conversations/turn_policy.go
++++ b/conversations/turn_policy.go
+@@ -11,3 +11,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/bots"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/conversations/turn_policy_test.go b/conversations/turn_policy_test.go
+index cad65fa..16d3737 100644
+--- a/conversations/turn_policy_test.go
++++ b/conversations/turn_policy_test.go
+@@ -19,3 +19,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/conversations/wakeup.go b/conversations/wakeup.go
+index e5b4c56..cf1489f 100644
+--- a/conversations/wakeup.go
++++ b/conversations/wakeup.go
+@@ -17,3 +17,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/mmapi"
+diff --git a/conversations/wakeup_test.go b/conversations/wakeup_test.go
+index 3f55886..d3801fb 100644
+--- a/conversations/wakeup_test.go
++++ b/conversations/wakeup_test.go
+@@ -19,4 +19,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -197,3 +197,3 @@ func newWakeEnv(t *testing.T, bot *bots.Bot) *wakeEnv {
+ 	pluginAPI := pluginapi.NewClient(mockAPI, nil)
+-	licenseChecker := enterprise.NewLicenseChecker(pluginAPI)
++	licenseChecker := enterprisetest.NewLicenseChecker(pluginAPI)
+ 	botsService := bots.New(mockAPI, pluginAPI, licenseChecker, nil, nil, newPassthroughAccessChecker(), &http.Client{}, nil)
+diff --git a/conversations/wakeup_tool_approval_test.go b/conversations/wakeup_tool_approval_test.go
+index 27f1663..32f9adb 100644
+--- a/conversations/wakeup_tool_approval_test.go
++++ b/conversations/wakeup_tool_approval_test.go
+@@ -20,5 +20,5 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/i18n"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/conversations/web_search_stream_test.go b/conversations/web_search_stream_test.go
+index 1878238..7ad6716 100644
+--- a/conversations/web_search_stream_test.go
++++ b/conversations/web_search_stream_test.go
+@@ -11,4 +11,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/license/license.go b/license/license.go
 new file mode 100644
-index 0000000..aec7cdd
+index 0000000..90479ee
 --- /dev/null
 +++ b/license/license.go
 @@ -0,0 +1,266 @@
@@ -1177,23 +1382,23 @@ index 0000000..aec7cdd
 +}
 +
 +var displayNames = map[Capability]string{
-+	CapMultiplayerChannels:  "Agents in channels",
-+	CapThreadSummarization:  "Thread summaries",
-+	CapChannelSummarization: "Channel and unread summaries",
-+	CapProviderWebSearch:    "Provider web search",
++	CapMultiplayerChannels:  "Multiplayer agents in channels",
++	CapThreadSummarization:  "Thread summarization",
++	CapChannelSummarization: "Channel and unread summarization",
++	CapProviderWebSearch:    "Provider-native web search",
 +	CapAgentAccessControls:  "Agent access controls",
-+	CapTokenAccounting:      "Token usage logging",
-+	CapSovereignWebSearch:   "Built-in web search",
++	CapTokenAccounting:      "Token accounting",
++	CapSovereignWebSearch:   "Sovereign web search",
 +	CapToolApprovalPolicies: "Tool approval policies",
-+	CapRemoteMCP:            "External MCP servers",
-+	CapSemanticSearch:       "Semantic and AI search",
-+	CapMeetings:             "Meeting summaries",
-+	CapMCPServiceAccount:    "MCP service account sign-in",
-+	CapSharedPrompts:        "Shared skills",
-+	CapMultipleLLMServices:  "More than one LLM service",
++	CapRemoteMCP:            "Remote and external MCP servers",
++	CapSemanticSearch:       "Semantic AI search",
++	CapMeetings:             "Meeting transcription and summaries",
++	CapMCPServiceAccount:    "MCP service-account authentication",
++	CapSharedPrompts:        "Shared prompt libraries",
++	CapMultipleLLMServices:  "Multiple LLM services",
 +	CapModelFallback:        "LLM fallback chains",
-+	CapStateChangingTools:   "Tools that change Mattermost data",
-+	CapChannelAutoReply:     "Channel auto-reply",
++	CapStateChangingTools:   "State-changing Mattermost tools",
++	CapChannelAutoReply:     "Channel agent auto-reply",
 +	CapAttributeBasedAccess: "Attribute-based access control",
 +}
 +
@@ -1693,7 +1898,7 @@ index 0000000..fcbab85
 +	}
 +}
 diff --git a/llmcontext/llm_context.go b/llmcontext/llm_context.go
-index 2f711ee..a7092cd 100644
+index 1b5fc44..86d1597 100644
 --- a/llmcontext/llm_context.go
 +++ b/llmcontext/llm_context.go
 @@ -13,3 +13,3 @@ import (
@@ -1701,7 +1906,7 @@ index 2f711ee..a7092cd 100644
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -68,2 +68,8 @@ func NewLLMContextBuilder(
+@@ -91,2 +91,8 @@ func NewLLMContextBuilder(
  
 +// SetLicenseChecker replaces the checker the builder asks. Tests use it to hold
 +// the builder at one tier. The plugin itself keeps the checker it was built with.
@@ -1711,7 +1916,7 @@ index 2f711ee..a7092cd 100644
 +
  func (b *Builder) SetMCPDynamicToolTelemetry(telemetry llm.MCPDynamicToolTelemetry) {
 diff --git a/llmcontext/llm_context_license_test.go b/llmcontext/llm_context_license_test.go
-index 21c1297..a0fe604 100644
+index 4f0a7d1..a9b60e0 100644
 --- a/llmcontext/llm_context_license_test.go
 +++ b/llmcontext/llm_context_license_test.go
 @@ -9,4 +9,4 @@ import (
@@ -1721,7 +1926,7 @@ index 21c1297..a0fe604 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
-@@ -55,8 +55,6 @@ func newLicenseTestBuilderAt(t *testing.T, level enterprise.Level, toolProvider
+@@ -56,8 +56,6 @@ func newLicenseTestBuilderAt(t *testing.T, level enterprise.Level, toolProvider
  
 -	return NewLLMContextBuilder(
 -		pluginapi.NewClient(mockAPI, nil),
@@ -1746,7 +1951,7 @@ index 8348a5b..46dd1ee 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	plugintest "github.com/mattermost/mattermost/server/public/plugin/plugintest"
 diff --git a/mcp/tool_policy_lookup_test.go b/mcp/tool_policy_lookup_test.go
-index 02616b8..6289af5 100644
+index 3c6525c..3ec5617 100644
 --- a/mcp/tool_policy_lookup_test.go
 +++ b/mcp/tool_policy_lookup_test.go
 @@ -8,4 +8,4 @@ import (
@@ -1757,7 +1962,7 @@ index 02616b8..6289af5 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/stretchr/testify/require"
 diff --git a/mcpserver/state_changing_tools_test.go b/mcpserver/state_changing_tools_test.go
-index 34c4b15..1d25736 100644
+index 7ca47b0..2c6ea98 100644
 --- a/mcpserver/state_changing_tools_test.go
 +++ b/mcpserver/state_changing_tools_test.go
 @@ -13,4 +13,4 @@ import (
@@ -1768,37 +1973,60 @@ index 34c4b15..1d25736 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/mcpserver"
 diff --git a/mcpserver/tools/provider.go b/mcpserver/tools/provider.go
-index e9ff4cf..a35ca27 100644
+index 453ca2d..86d5924 100644
 --- a/mcpserver/tools/provider.go
 +++ b/mcpserver/tools/provider.go
-@@ -13,3 +13,3 @@ import (
+@@ -14,3 +14,3 @@ import (
  	"github.com/google/jsonschema-go/jsonschema"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/meetings/license_test.go b/meetings/license_test.go
-index 5b7a2cd..90e988a 100644
+index 3e94ef0..987b676 100644
 --- a/meetings/license_test.go
 +++ b/meetings/license_test.go
-@@ -9,4 +9,4 @@ import (
+@@ -9,4 +9,5 @@ import (
  
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/subtitles"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/store"
+diff --git a/meetings/meeting_summarization_test.go b/meetings/meeting_summarization_test.go
+index e5e81b5..e7ccfff 100644
+--- a/meetings/meeting_summarization_test.go
++++ b/meetings/meeting_summarization_test.go
+@@ -22,4 +22,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/bots"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/meetings/service.go b/meetings/service.go
-index 2096ade..4a838b9 100644
+index 5d7789b..8df7b37 100644
 --- a/meetings/service.go
 +++ b/meetings/service.go
 @@ -8,4 +8,4 @@ import (
- 	"github.com/mattermost/mattermost-plugin-agents/v2/conversations"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
  	"github.com/mattermost/mattermost-plugin-agents/v2/i18n"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/meetings/summary_conversation_test.go b/meetings/summary_conversation_test.go
+index 45c4ce3..bcadf3f 100644
+--- a/meetings/summary_conversation_test.go
++++ b/meetings/summary_conversation_test.go
+@@ -18,4 +18,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/conversation"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/meetings/transcriptions_file_policy_test.go b/meetings/transcriptions_file_policy_test.go
-index 8652f3e..c18a735 100644
+index 9cf18f1..c128d94 100644
 --- a/meetings/transcriptions_file_policy_test.go
 +++ b/meetings/transcriptions_file_policy_test.go
 @@ -9,4 +9,4 @@ import (
@@ -1809,7 +2037,7 @@ index 8652f3e..c18a735 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  
 diff --git a/mmtools/web_search.go b/mmtools/web_search.go
-index f676288..6fbfa98 100644
+index bd2ef6e..b6a99d7 100644
 --- a/mmtools/web_search.go
 +++ b/mmtools/web_search.go
 @@ -26,3 +26,3 @@ import (
@@ -1818,10 +2046,21 @@ index f676288..6fbfa98 100644
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
 diff --git a/mmtools/web_search_test.go b/mmtools/web_search_test.go
-index a2768ad..0b88cf9 100644
+index 106a86c..176520c 100644
 --- a/mmtools/web_search_test.go
 +++ b/mmtools/web_search_test.go
 @@ -17,4 +17,4 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/config"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
++	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+diff --git a/mmtools/web_search_tracing_test.go b/mmtools/web_search_tracing_test.go
+index 1186ba1..4e3b622 100644
+--- a/mmtools/web_search_tracing_test.go
++++ b/mmtools/web_search_tracing_test.go
+@@ -19,4 +19,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/config"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
@@ -1857,7 +2096,7 @@ index 095bb05..b0a61d9 100644
 +	return enterprisetest.NewLicenseChecker(client)
  }
 diff --git a/search/license_test.go b/search/license_test.go
-index e64393f..edcc9db 100644
+index 2b1f58a..e03409b 100644
 --- a/search/license_test.go
 +++ b/search/license_test.go
 @@ -11,4 +11,4 @@ import (
@@ -1868,36 +2107,50 @@ index e64393f..edcc9db 100644
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/stretchr/testify/require"
 diff --git a/search/search.go b/search/search.go
-index d987b0d..bacc919 100644
+index 202c592..f6d8dcc 100644
 --- a/search/search.go
 +++ b/search/search.go
-@@ -15,4 +15,4 @@ import (
+@@ -12,4 +12,4 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/embeddings"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
  	"github.com/mattermost/mattermost-plugin-agents/v2/indexer"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
- 	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/mmapi"
 diff --git a/search/search_test.go b/search/search_test.go
-index 0b265df..5851cf8 100644
+index c5b0f36..31d440b 100644
 --- a/search/search_test.go
 +++ b/search/search_test.go
-@@ -16,5 +16,5 @@ import (
+@@ -14,5 +14,5 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/embeddings/mocks"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise/enterprisetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/indexer"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
 +	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/mmapi"
+diff --git a/server/cluster_events_test.go b/server/cluster_events_test.go
+index e2dc15b..cd281b8 100644
+--- a/server/cluster_events_test.go
++++ b/server/cluster_events_test.go
+@@ -16,3 +16,3 @@ import (
+ 	"github.com/mattermost/mattermost-plugin-agents/v2/config"
+-	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
++	enterprisetest "github.com/mattermost/mattermost-plugin-agents/v2/license/licensetest"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"
+@@ -620,3 +620,3 @@ func TestOnPluginClusterEventAgentUpdateRefreshesRenamedAgent(t *testing.T) {
+ 			accessChecker := accesscontrol.New(accesscontrol.PassthroughClient{}, nil, accesscontrol.NoMCPServerIDs, nil)
+-			mmBots := bots.New(mockAPI, client, enterprise.NewLicenseChecker(client), &cfg, store, accessChecker, &http.Client{}, nil)
++			mmBots := bots.New(mockAPI, client, enterprisetest.NewLicenseChecker(client), &cfg, store, accessChecker, &http.Client{}, nil)
+ 			t.Cleanup(mmBots.ShutdownServiceLLMs)
 diff --git a/server/main.go b/server/main.go
-index 36b380f..4bb4e76 100644
+index 1498f6c..3dcbce7 100644
 --- a/server/main.go
 +++ b/server/main.go
-@@ -23,3 +23,2 @@ import (
+@@ -25,3 +25,2 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/embeddings"
 -	"github.com/mattermost/mattermost-plugin-agents/v2/enterprise"
  	"github.com/mattermost/mattermost-plugin-agents/v2/files"
-@@ -27,2 +26,3 @@ import (
+@@ -29,2 +28,3 @@ import (
  	"github.com/mattermost/mattermost-plugin-agents/v2/indexer"
 +	enterprise "github.com/mattermost/mattermost-plugin-agents/v2/license"
  	"github.com/mattermost/mattermost-plugin-agents/v2/llm"

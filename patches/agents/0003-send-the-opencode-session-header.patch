@@ -27,11 +27,11 @@ index 8d8e8fd..62e67a3 100644
  
 +	// OpenCode's gateway refuses requests that carry no session id, so send a fixed one.
 +	if a.Provider == schemas.OpenAI && isOpenCodeURL(a.APIURL) {
-+		headers := make(map[string]string, len(networkConfig.ExtraHeaders)+1)
++		headers := make(map[string]schemas.SecretVar, len(networkConfig.ExtraHeaders)+1)
 +		for k, v := range networkConfig.ExtraHeaders {
 +			headers[k] = v
 +		}
-+		headers[openCodeSessionHeader] = "mattermost-agents"
++		headers[openCodeSessionHeader] = schemas.SecretVar{Val: "mattermost-agents"}
 +		networkConfig.ExtraHeaders = headers
 +	}
 +
@@ -79,10 +79,10 @@ index 0000000..18ce3d8
 +			got, ok := cfg.NetworkConfig.ExtraHeaders["x-opencode-session"]
 +			assert.Equal(t, tt.wantHeader, ok)
 +			if tt.wantHeader {
-+				assert.NotEmpty(t, got)
++				assert.NotEmpty(t, got.Val)
 +			}
 +			if tt.orgID != "" {
-+				assert.Equal(t, tt.orgID, cfg.NetworkConfig.ExtraHeaders["OpenAI-Organization"])
++				assert.Equal(t, tt.orgID, cfg.NetworkConfig.ExtraHeaders["OpenAI-Organization"].Val)
 +			}
 +		})
 +	}
