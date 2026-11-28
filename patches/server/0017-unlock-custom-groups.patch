@@ -1,0 +1,767 @@
+diff --git a/server/channels/api4/group.go b/server/channels/api4/group.go
+index 797699c8..9d3f34bc 100644
+--- a/server/channels/api4/group.go
++++ b/server/channels/api4/group.go
+@@ -107,3 +107,3 @@ func (api *API) InitGroup() {
+ func getGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -158,3 +158,3 @@ func getGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+ func createGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -220,3 +220,3 @@ func createGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+ func patchGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -770,3 +770,3 @@ func verifySchemeAdminAssignmentPermission(c *Context, syncableType model.GroupS
+ func getGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -920,3 +920,3 @@ func getGroupsByChannel(c *Context, w http.ResponseWriter, r *http.Request) {
+ func getGroupsByNames(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -943,2 +943,13 @@ func getGroupsByNames(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
++	// LDAP and plugin groups need a licence with the LDAP groups feature, so without it only custom
++	// groups may be resolved by name. Otherwise stale rows from an earlier licence would be listed.
++	if !ldapGroupsLicensed(c.App) {
++		if appErr := licensedAndConfiguredForGroupBySource(c.App, model.GroupSourceCustom); appErr != nil {
++			appErr.Where = "Api4.getGroupsByNames"
++			c.Err = appErr
++			return
++		}
++		opts.Source = model.GroupSourceCustom
++	}
++
+ 	groups, appErr := c.App.GetGroupsByNames(groupNames, opts)
+@@ -1125,3 +1136,3 @@ func getGroups(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -1132,2 +1143,6 @@ func getGroups(c *Context, w http.ResponseWriter, r *http.Request) {
+ 	source := c.Params.GroupSource
++	if source == "" && !ldapGroupsLicensed(c.App) {
++		// Without the LDAP groups feature only custom groups are visible.
++		source = model.GroupSourceCustom
++	}
+ 
+@@ -1270,3 +1285,10 @@ func getGroups(c *Context, w http.ResponseWriter, r *http.Request) {
+ 	if c.Params.IncludeTotalCount {
+-		totalCount, cerr := c.App.Srv().Store().Group().GroupCount()
++		// Count the same groups the list can return, so stale LDAP rows are not counted without the feature.
++		var totalCount int64
++		var cerr error
++		if ldapGroupsLicensed(c.App) {
++			totalCount, cerr = c.App.Srv().Store().Group().GroupCount()
++		} else {
++			totalCount, cerr = c.App.Srv().Store().Group().GroupCountBySource(model.GroupSourceCustom)
++		}
+ 		if cerr != nil {
+@@ -1295,3 +1317,3 @@ func getGroups(c *Context, w http.ResponseWriter, r *http.Request) {
+ func deleteGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -1349,3 +1371,3 @@ func deleteGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+ func restoreGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -1405,3 +1427,3 @@ func restoreGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+ func addGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -1473,3 +1495,3 @@ func addGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
+ func deleteGroupMembers(c *Context, w http.ResponseWriter, r *http.Request) {
+-	permissionErr := requireLicense(c)
++	permissionErr := requireLicenseOrCustomGroups(c)
+ 	if permissionErr != nil {
+@@ -1560,2 +1582,19 @@ func hasPermissionToReadGroupMembers(c *web.Context, groupID string) *model.AppE
+ 
++// requireLicenseOrCustomGroups is requireLicense for the handlers that serve custom groups. Custom
++// groups need no license, so an unlicensed server is let through while they are enabled. Anything
++// that is not a custom group is still refused later, by licensedAndConfiguredForGroupBySource.
++func requireLicenseOrCustomGroups(c *Context) *model.AppError {
++	if c.App.Channels().License() == nil && *c.App.Config().ServiceSettings.EnableCustomGroups {
++		return nil
++	}
++	return requireLicense(c)
++}
++
++// ldapGroupsLicensed reports whether the licence includes the LDAP groups feature, which also
++// covers plugin-sourced groups.
++func ldapGroupsLicensed(a *app.App) bool {
++	lic := a.Srv().License()
++	return lic != nil && lic.Features != nil && model.SafeDereference(lic.Features.LDAPGroups)
++}
++
+ // licensedAndConfiguredForGroupBySource returns an app error if not properly license or configured for the given group type. The returned app error
+@@ -1566,2 +1605,10 @@ func hasPermissionToReadGroupMembers(c *web.Context, groupID string) *model.AppE
+ func licensedAndConfiguredForGroupBySource(app *app.App, source model.GroupSource) *model.AppError {
++	// Custom groups are plain database rows, so only the setting decides them.
++	if source == model.GroupSourceCustom {
++		if !*app.Config().ServiceSettings.EnableCustomGroups {
++			return model.NewAppError("", "api.custom_groups.feature_disabled", nil, "", http.StatusBadRequest)
++		}
++		return nil
++	}
++
+ 	lic := app.Srv().License()
+@@ -1580,10 +1627,2 @@ func licensedAndConfiguredForGroupBySource(app *app.App, source model.GroupSourc
+ 
+-	if source == model.GroupSourceCustom && !model.MinimumProfessionalLicense(lic) {
+-		return model.NewAppError("", "api.custom_groups.license_error", nil, "", http.StatusBadRequest)
+-	}
+-
+-	if source == model.GroupSourceCustom && !*app.Config().ServiceSettings.EnableCustomGroups {
+-		return model.NewAppError("", "api.custom_groups.feature_disabled", nil, "", http.StatusBadRequest)
+-	}
+-
+ 	return nil
+diff --git a/server/channels/api4/group_test.go b/server/channels/api4/group_test.go
+index 2d2dc486..f064136c 100644
+--- a/server/channels/api4/group_test.go
++++ b/server/channels/api4/group_test.go
+@@ -7,2 +7,3 @@ import (
+ 	"context"
++	"encoding/json"
+ 	"fmt"
+@@ -35,3 +36,3 @@ func TestGetGroup(t *testing.T) {
+ 	require.Error(t, err)
+-	CheckNotImplementedStatus(t, response)
++	CheckForbiddenStatus(t, response)
+ 
+@@ -39,3 +40,3 @@ func TestGetGroup(t *testing.T) {
+ 	require.Error(t, err)
+-	CheckNotImplementedStatus(t, response)
++	CheckForbiddenStatus(t, response)
+ 
+@@ -225,2 +226,68 @@ func TestDeleteGroup(t *testing.T) {
+ 
++func TestCustomGroupsWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t)
++
++	th.App.Srv().SetLicense(nil)
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.ServiceSettings.EnableCustomGroups = true
++	})
++
++	id := model.NewId()
++	created, resp, err := th.SystemAdminClient.CreateGroup(context.Background(), &model.Group{
++		DisplayName:    "dn_" + id,
++		Name:           new("name" + id),
++		Source:         model.GroupSourceCustom,
++		AllowReference: true,
++	})
++	require.NoError(t, err)
++	CheckCreatedStatus(t, resp)
++
++	got, resp, err := th.SystemAdminClient.GetGroup(context.Background(), created.Id, "")
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	assert.Equal(t, created.Id, got.Id)
++
++	groups, resp, err := th.SystemAdminClient.GetGroups(context.Background(), model.GroupSearchOpts{
++		Source:   model.GroupSourceCustom,
++		PageOpts: &model.PageOpts{Page: 0, PerPage: 60},
++	})
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.Len(t, groups, 1)
++	assert.Equal(t, created.Id, groups[0].Id)
++
++	_, resp, err = th.SystemAdminClient.UpsertGroupMembers(context.Background(), created.Id, &model.GroupModifyMembers{UserIds: []string{th.BasicUser.Id}})
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++
++	_, resp, err = th.SystemAdminClient.DeleteGroup(context.Background(), created.Id)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++
++	t.Run("disabling the setting still refuses the custom source", func(t *testing.T) {
++		th.App.UpdateConfig(func(cfg *model.Config) {
++			*cfg.ServiceSettings.EnableCustomGroups = false
++		})
++		_, resp, err := th.SystemAdminClient.GetGroups(context.Background(), model.GroupSearchOpts{
++			Source:   model.GroupSourceCustom,
++			PageOpts: &model.PageOpts{Page: 0, PerPage: 60},
++		})
++		require.Error(t, err)
++		CheckNotImplementedStatus(t, resp)
++	})
++
++	t.Run("an LDAP group still needs the LDAP license", func(t *testing.T) {
++		th.App.UpdateConfig(func(cfg *model.Config) {
++			*cfg.ServiceSettings.EnableCustomGroups = true
++		})
++		_, resp, err := th.SystemAdminClient.GetGroups(context.Background(), model.GroupSearchOpts{
++			Source:   model.GroupSourceLdap,
++			PageOpts: &model.PageOpts{Page: 0, PerPage: 60},
++		})
++		require.Error(t, err)
++		CheckForbiddenStatus(t, resp)
++	})
++}
++
+ func TestUndeleteGroup(t *testing.T) {
+@@ -293,3 +360,3 @@ func TestPatchGroup(t *testing.T) {
+ 	require.Error(t, err)
+-	CheckNotImplementedStatus(t, response)
++	CheckForbiddenStatus(t, response)
+ 
+@@ -297,3 +364,3 @@ func TestPatchGroup(t *testing.T) {
+ 	require.Error(t, err)
+-	CheckNotImplementedStatus(t, response)
++	CheckForbiddenStatus(t, response)
+ 
+@@ -1936,3 +2003,3 @@ func TestGetGroups(t *testing.T) {
+ 		require.Error(t, err)
+-		CheckNotImplementedStatus(t, response)
++		CheckForbiddenStatus(t, response)
+ 		assert.Nil(t, groups)
+@@ -2284,5 +2351,5 @@ func TestGetGroupsByNames(t *testing.T) {
+ 		groups, resp, err := th.SystemAdminClient.GetGroupsByNames(context.Background(), []string{*groupName})
+-		require.Error(t, err)
+-		CheckNotImplementedStatus(t, resp)
+-		assert.Nil(t, groups)
++		require.NoError(t, err)
++		CheckOKStatus(t, resp)
++		assert.Empty(t, groups)
+ 	})
+@@ -2535,3 +2602,3 @@ func TestGetGroupMembers(t *testing.T) {
+ 		assert.Error(t, err)
+-		CheckNotImplementedStatus(t, response)
++		CheckForbiddenStatus(t, response)
+ 		assert.Nil(t, members)
+@@ -3737 +3804,83 @@ func TestLinkGroupTeam_AutoAddOnlyAddsGroupMembers(t *testing.T) {
+ }
++
++func TestGetGroupsByNamesWithoutLicenseCustomOnly(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	th.App.Srv().SetLicense(nil)
++	ldapID := model.NewId()
++	ldap, appErr := th.App.CreateGroup(&model.Group{DisplayName: "ldap_" + ldapID, Name: new("ldap" + ldapID), Source: model.GroupSourceLdap, RemoteId: new(model.NewId()), AllowReference: true})
++	require.Nil(t, appErr)
++	customID := model.NewId()
++	custom, appErr := th.App.CreateGroup(&model.Group{DisplayName: "custom_" + customID, Name: new("custom" + customID), Source: model.GroupSourceCustom, AllowReference: true})
++	require.Nil(t, appErr)
++	groups, resp, err := th.SystemAdminClient.GetGroupsByNames(context.Background(), []string{*ldap.Name, *custom.Name})
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.Len(t, groups, 1)
++	assert.Equal(t, custom.Id, groups[0].Id)
++}
++
++func TestListGroupsByNameWithLicenseWithoutLDAPGroups(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++
++	// A server downgraded from Enterprise keeps its LDAP rows. A licence without the LDAP groups
++	// feature must hide them exactly as no licence does.
++	lic := model.NewTestLicenseSKU(model.LicenseShortSkuProfessional)
++	*lic.Features.LDAPGroups = false
++	th.App.Srv().SetLicense(lic)
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableCustomGroups = true })
++
++	ldapID := model.NewId()
++	ldap, appErr := th.App.CreateGroup(&model.Group{DisplayName: "ldap_" + ldapID, Name: new("ldap" + ldapID), Source: model.GroupSourceLdap, RemoteId: new(model.NewId()), AllowReference: true})
++	require.Nil(t, appErr)
++	customID := model.NewId()
++	custom, appErr := th.App.CreateGroup(&model.Group{DisplayName: "custom_" + customID, Name: new("custom" + customID), Source: model.GroupSourceCustom, AllowReference: true})
++	require.Nil(t, appErr)
++
++	t.Run("names endpoint returns only the custom group", func(t *testing.T) {
++		groups, resp, err := th.Client.GetGroupsByNames(context.Background(), []string{*ldap.Name, *custom.Name})
++		require.NoError(t, err)
++		CheckOKStatus(t, resp)
++		require.Len(t, groups, 1)
++		assert.Equal(t, custom.Id, groups[0].Id)
++	})
++
++	t.Run("list endpoint returns no LDAP group", func(t *testing.T) {
++		groups, resp, err := th.Client.GetGroups(context.Background(), model.GroupSearchOpts{Q: ldapID, FilterAllowReference: true})
++		require.NoError(t, err)
++		CheckOKStatus(t, resp)
++		for _, g := range groups {
++			assert.NotEqual(t, ldap.Id, g.Id)
++		}
++	})
++
++	t.Run("an explicit LDAP source is forbidden", func(t *testing.T) {
++		_, resp, err := th.Client.GetGroups(context.Background(), model.GroupSearchOpts{Source: model.GroupSourceLdap})
++		require.Error(t, err)
++		CheckForbiddenStatus(t, resp)
++	})
++
++	t.Run("total count excludes LDAP groups", func(t *testing.T) {
++		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableCustomGroups = true })
++		customCount, err := th.App.Srv().Store().Group().GroupCountBySource(model.GroupSourceCustom)
++		require.NoError(t, err)
++		allCount, err := th.App.Srv().Store().Group().GroupCount()
++		require.NoError(t, err)
++		require.Greater(t, allCount, customCount, "the test needs an LDAP group to make the counts differ")
++
++		r, err := th.Client.DoAPIGet(context.Background(), "/groups?include_total_count=true", "")
++		require.NoError(t, err)
++		defer r.Body.Close()
++		var withCount model.GroupsWithCount
++		require.NoError(t, json.NewDecoder(r.Body).Decode(&withCount))
++		assert.Equal(t, customCount, withCount.TotalCount)
++	})
++
++	t.Run("names endpoint refuses custom names when custom groups are disabled", func(t *testing.T) {
++		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableCustomGroups = false })
++		_, resp, err := th.Client.GetGroupsByNames(context.Background(), []string{*custom.Name})
++		require.Error(t, err)
++		CheckBadRequestStatus(t, resp)
++	})
++}
+diff --git a/server/channels/app/notification.go b/server/channels/app/notification.go
+index 45523895..fd6d9fab 100644
+--- a/server/channels/app/notification.go
++++ b/server/channels/app/notification.go
+@@ -1506,3 +1506,5 @@ func (a *App) allowChannelMentions(rctx request.CTX, post *model.Post, numProfil
+ func (a *App) allowGroupMentions(rctx request.CTX, post *model.Post) bool {
+-	if !model.MinimumProfessionalLicense(a.Srv().License()) {
++	// With no licence and custom groups switched off there is no group that could be referenced,
++	// so skip the permission lookup and the group queries behind it.
++	if !model.SafeDereference(a.Config().ServiceSettings.EnableCustomGroups) && !model.MinimumProfessionalLicense(a.Srv().License()) {
+ 		return false
+@@ -1521,2 +1523,19 @@ func (a *App) allowGroupMentions(rctx request.CTX, post *model.Post) bool {
+ 
++// GroupSourceAllowedForReference returns whether groups from the given source may be referenced on
++// this server. Custom groups are plain database rows and need no license; every synced source does,
++// so an unlicensed server must not surface stale LDAP groups.
++func (a *App) GroupSourceAllowedForReference(source model.GroupSource) bool {
++	if source == model.GroupSourceCustom {
++		return model.SafeDereference(a.Config().ServiceSettings.EnableCustomGroups)
++	}
++	license := a.Srv().License()
++	if !model.MinimumProfessionalLicense(license) {
++		return false
++	}
++	if source == model.GroupSourceLdap || strings.HasPrefix(string(source), string(model.GroupSourcePluginPrefix)) {
++		return license.Features != nil && model.SafeDereference(license.Features.LDAPGroups)
++	}
++	return true
++}
++
+ // getGroupsAllowedForReferenceInChannel returns a map of groups allowed for reference in a given channel and team.
+@@ -1538,3 +1557,3 @@ func (a *App) getGroupsAllowedForReferenceInChannel(channel *model.Channel, team
+ 		for _, group := range groups {
+-			if group.Group.Name != nil {
++			if group.Group.Name != nil && a.GroupSourceAllowedForReference(group.Group.Source) {
+ 				groupsMap[group.Id] = &group.Group
+@@ -1550,3 +1569,3 @@ func (a *App) getGroupsAllowedForReferenceInChannel(channel *model.Channel, team
+ 		for _, group := range customgroups {
+-			if group.Name != nil {
++			if group.Name != nil && a.GroupSourceAllowedForReference(group.Source) {
+ 				groupsMap[group.Id] = group
+@@ -1562,3 +1581,3 @@ func (a *App) getGroupsAllowedForReferenceInChannel(channel *model.Channel, team
+ 	for _, group := range groups {
+-		if group.Name != nil {
++		if group.Name != nil && a.GroupSourceAllowedForReference(group.Source) {
+ 			groupsMap[group.Id] = group
+diff --git a/server/channels/app/notification_test.go b/server/channels/app/notification_test.go
+index 2ce5de55..3c534ea2 100644
+--- a/server/channels/app/notification_test.go
++++ b/server/channels/app/notification_test.go
+@@ -1809,3 +1809,3 @@ func TestAllowGroupMentions(t *testing.T) {
+ 
+-	t.Run("should return false without the correct license sku short name", func(t *testing.T) {
++	t.Run("should not depend on the license", func(t *testing.T) {
+ 		tests := map[string]struct {
+@@ -1814,4 +1814,4 @@ func TestAllowGroupMentions(t *testing.T) {
+ 		}{
+-			"no license":                        {nil, false},
+-			"license with wrong SKU short name": {getLicWithSkuShortName("foobar"), false},
++			"no license":                        {nil, true},
++			"license with wrong SKU short name": {getLicWithSkuShortName("foobar"), true},
+ 			"'professional' license":            {getLicWithSkuShortName(model.LicenseShortSkuProfessional), true},
+@@ -2965,2 +2965,5 @@ func TestGetGroupsAllowedForReferenceInChannel(t *testing.T) {
+ 	th := Setup(t).InitBasic(t)
++	// This fixture includes LDAP groups; verify the licensed path separately
++	// from TestGroupReferenceUnlicensedCustomOnly.
++	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
+ 
+@@ -3902 +3905,65 @@ func TestShouldAckWebsocketNotification(t *testing.T) {
+ }
++
++func TestGroupReferenceUnlicensedCustomOnly(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	th.App.Srv().SetLicense(nil)
++	ldap := th.CreateGroup(t)
++	ldap.AllowReference = true
++	ldap, appErr := th.App.UpdateGroup(ldap)
++	require.Nil(t, appErr)
++	customID := model.NewId()
++	custom, appErr := th.App.CreateGroup(&model.Group{DisplayName: customID, Name: new("name" + customID), Source: model.GroupSourceCustom, AllowReference: true})
++	require.Nil(t, appErr)
++	groups, err := th.App.getGroupsAllowedForReferenceInChannel(th.BasicChannel, th.BasicTeam)
++	require.NoError(t, err)
++	require.NotContains(t, groups, ldap.Id)
++	require.Contains(t, groups, custom.Id)
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableCustomGroups = false })
++	groups, err = th.App.getGroupsAllowedForReferenceInChannel(th.BasicChannel, th.BasicTeam)
++	require.NoError(t, err)
++	require.NotContains(t, groups, custom.Id)
++}
++
++func TestGroupMentionHighlightWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	th.App.Srv().SetLicense(nil)
++	th.App.UpdateConfig(func(c *model.Config) { *c.ServiceSettings.EnableCustomGroups = true })
++	th.RemovePermissionFromRole(t, model.PermissionUseGroupMentions.Id, model.ChannelUserRoleId)
++	th.RemovePermissionFromRole(t, model.PermissionUseGroupMentions.Id, model.ChannelAdminRoleId)
++	post := &model.Post{UserId: th.BasicUser.Id, ChannelId: th.BasicChannel.Id, Message: "hello @examplegroup"}
++	require.Nil(t, th.App.FillInPostProps(th.Context, post, th.BasicChannel))
++	require.Equal(t, true, post.GetProp(model.PostPropsGroupHighlightDisabled))
++}
++
++func TestGroupReferenceHonorsLDAPFeature(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	license := model.NewTestLicenseSKU(model.LicenseShortSkuProfessional)
++	*license.Features.LDAPGroups = false
++	th.App.Srv().SetLicense(license)
++	require.False(t, th.App.GroupSourceAllowedForReference(model.GroupSourceLdap))
++	require.False(t, th.App.GroupSourceAllowedForReference(model.GroupSource("plugin_example")))
++	*license.Features.LDAPGroups = true
++	th.App.Srv().SetLicense(license)
++	require.True(t, th.App.GroupSourceAllowedForReference(model.GroupSourceLdap))
++}
++
++func TestAllowGroupMentionsSkipsWorkWhenNothingCanBeReferenced(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	post := &model.Post{UserId: th.BasicUser.Id, ChannelId: th.BasicChannel.Id, Message: "hello"}
++
++	th.App.Srv().SetLicense(nil)
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableCustomGroups = false })
++	require.False(t, th.App.allowGroupMentions(th.Context, post), "no licence and custom groups off: nothing to reference")
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableCustomGroups = true })
++	require.True(t, th.App.allowGroupMentions(th.Context, post), "custom groups on")
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableCustomGroups = false })
++	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
++	require.True(t, th.App.allowGroupMentions(th.Context, post), "a Professional licence keeps the original behaviour")
++}
+diff --git a/server/channels/app/post.go b/server/channels/app/post.go
+index 9a1191d6..711771bb 100644
+--- a/server/channels/app/post.go
++++ b/server/channels/app/post.go
+@@ -679,3 +679,3 @@ func (a *App) FillInPostProps(rctx request.CTX, post *model.Post, channel *model
+ 	shouldAddProp := false
+-	if a.Srv().License() != nil && *a.Srv().License().Features.LDAPGroups && matched {
++	if (model.SafeDereference(a.Config().ServiceSettings.EnableCustomGroups) || (a.Srv().License() != nil && a.Srv().License().Features != nil && model.SafeDereference(a.Srv().License().Features.LDAPGroups))) && matched {
+ 		hasPermission, _ := a.HasPermissionToChannel(rctx, post.UserId, post.ChannelId, model.PermissionUseGroupMentions)
+diff --git a/server/channels/app/slashcommands/command_invite.go b/server/channels/app/slashcommands/command_invite.go
+index 30d88432..06004ac1 100644
+--- a/server/channels/app/slashcommands/command_invite.go
++++ b/server/channels/app/slashcommands/command_invite.go
+@@ -194,3 +194,3 @@ func (i *InviteProvider) getUsersFromMentionName(a *app.App, mentionName string)
+ 	group, appErr := a.GetGroupByName(mentionName, model.GroupSearchOpts{FilterAllowReference: true})
+-	if appErr != nil || group == nil {
++	if appErr != nil || group == nil || !a.GroupSourceAllowedForReference(group.Source) {
+ 		return nil, nil
+diff --git a/server/channels/app/slashcommands/command_invite_test.go b/server/channels/app/slashcommands/command_invite_test.go
+index 356065c6..491cc68f 100644
+--- a/server/channels/app/slashcommands/command_invite_test.go
++++ b/server/channels/app/slashcommands/command_invite_test.go
+@@ -341 +341,31 @@ func TestUserGroups(t *testing.T) {
+ }
++
++func TestInviteGroupSourceWithoutLicense(t *testing.T) {
++	th := setup(t).initBasic(t)
++	th.App.Srv().SetLicense(nil)
++	id := model.NewId()
++	ldap, err := th.App.CreateGroup(&model.Group{DisplayName: "LDAP" + id, Name: new("ldap" + id), Source: model.GroupSourceLdap, RemoteId: new(model.NewId()), AllowReference: true})
++	require.Nil(t, err)
++	id = model.NewId()
++	custom, err := th.App.CreateGroup(&model.Group{DisplayName: "Custom" + id, Name: new("custom" + id), Source: model.GroupSourceCustom, AllowReference: true})
++	require.Nil(t, err)
++	_, err = th.App.UpsertGroupMembers(ldap.Id, []string{th.BasicUser2.Id})
++	require.Nil(t, err)
++	_, err = th.App.UpsertGroupMembers(custom.Id, []string{th.BasicUser2.Id})
++	require.Nil(t, err)
++	provider := InviteProvider{}
++	users, group := provider.getUsersFromMentionName(th.App, *ldap.Name)
++	require.Nil(t, group)
++	require.Empty(t, users)
++	users, group = provider.getUsersFromMentionName(th.App, *custom.Name)
++	require.NotNil(t, group)
++	require.Len(t, users, 1)
++	th.App.UpdateConfig(func(c *model.Config) { *c.ServiceSettings.EnableCustomGroups = false })
++	users, group = provider.getUsersFromMentionName(th.App, *custom.Name)
++	require.Nil(t, group)
++	require.Empty(t, users)
++	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
++	users, group = provider.getUsersFromMentionName(th.App, *ldap.Name)
++	require.NotNil(t, group)
++	require.Len(t, users, 1)
++}
+diff --git a/server/channels/store/sqlstore/group_store.go b/server/channels/store/sqlstore/group_store.go
+index ebf692f9..02701397 100644
+--- a/server/channels/store/sqlstore/group_store.go
++++ b/server/channels/store/sqlstore/group_store.go
+@@ -316,2 +316,6 @@ func (s *SqlGroupStore) GetByNames(names []string, opts model.GroupSearchOpts) (
+ 
++	if opts.Source != "" {
++		query = query.Where(sq.Eq{"Source": opts.Source})
++	}
++
+ 	if err := s.GetReplica().SelectBuilder(&groups, query); err != nil {
+diff --git a/server/config/client.go b/server/config/client.go
+index d977af27..228fcec0 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -147,3 +147,3 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["CollapsedThreads"] = *c.ServiceSettings.CollapsedThreads
+-	props["EnableCustomGroups"] = "false"
++	props["EnableCustomGroups"] = strconv.FormatBool(*c.ServiceSettings.EnableCustomGroups)
+ 	props["PostPriority"] = strconv.FormatBool(*c.ServiceSettings.PostPriority)
+@@ -238,3 +238,2 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 		if model.MinimumProfessionalLicense(license) {
+-			props["EnableCustomGroups"] = strconv.FormatBool(*c.ServiceSettings.EnableCustomGroups)
+ 			props["PostAcknowledgements"] = "true"
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index fa55d0d6..324f82a8 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -210,3 +210,3 @@ func TestGetClientConfig(t *testing.T) {
+ 			map[string]string{
+-				"EnableCustomGroups": "false",
++				"EnableCustomGroups": "true",
+ 			},
+@@ -877,2 +877,17 @@ func TestGetClientConfig(t *testing.T) {
+ 
++func TestGetClientConfigEnableCustomGroupsWithoutLicense(t *testing.T) {
++	t.Parallel()
++
++	for name, enabled := range map[string]bool{"enabled": true, "disabled": false} {
++		t.Run(name, func(t *testing.T) {
++			cfg := &model.Config{}
++			cfg.SetDefaults()
++			*cfg.ServiceSettings.EnableCustomGroups = enabled
++
++			props := GenerateClientConfig(cfg, "", nil)
++			assert.Equal(t, fmt.Sprintf("%t", enabled), props["EnableCustomGroups"])
++		})
++	}
++}
++
+ func TestGenerateClientConfigLockProfileFieldsForEmailUsers(t *testing.T) {
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index b5af05dd..97b61605 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -2692,7 +2692,2 @@
+   },
+-  {
+-    "id": "api.custom_groups.license_error",
+-    "translation": "not licensed for custom groups",
+-    "description": "Lowercase API error when the server license does not include custom user groups."
+-  },
+   {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 8d94358b..0b09ccf7 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3165,5 +3165,2 @@ const AdminDefinition: AdminDefinitionType = {
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
+-                            isHidden: it.not(it.any(
+-                                it.minLicenseTier(LicenseSkus.Professional),
+-                            )),
+                         },
+diff --git a/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.test.tsx b/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.test.tsx
+index 8b34e5b9..c0503c75 100644
+--- a/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.test.tsx
++++ b/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.test.tsx
+@@ -13,3 +13,3 @@ import {renderWithContext} from 'tests/react_testing_utils';
+ import WysiwygMention from './wysiwyg_mention';
+-import WysiwygSuggestionList from './wysiwyg_suggestion_list';
++import WysiwygSuggestionList, {shouldAutocompleteGroups} from './wysiwyg_suggestion_list';
+ 
+@@ -382 +382,14 @@ describe('WysiwygSuggestionList', () => {
+ });
++
++
++describe('group autocomplete access', () => {
++    test.each([
++        [false, false, true, true, true],
++        [false, false, true, false, false],
++        [false, false, false, true, false],
++        [true, true, false, true, true],
++        [true, true, false, false, false],
++    ])('licensed=%s LDAP=%s custom=%s permission=%s', (licensed, ldap, custom, permission, expected) => {
++        expect(shouldAutocompleteGroups(licensed, ldap, custom, permission)).toBe(expected);
++    });
++});
+diff --git a/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.tsx b/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.tsx
+index b0bdf0fb..763f162b 100644
+--- a/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.tsx
++++ b/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.tsx
+@@ -17,2 +17,3 @@ import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general
+ import {getAssociatedGroupsForReference} from 'mattermost-redux/selectors/entities/groups';
++import {isCustomGroupsEnabled} from 'mattermost-redux/selectors/entities/preferences';
+ import {makeGetProfilesForThread} from 'mattermost-redux/selectors/entities/posts';
+@@ -45,2 +46,6 @@ const OPEN_COMMAND_IN_MODAL_ITEM_ID = Constants.Integrations.OPEN_COMMAND_IN_MOD
+ 
++export function shouldAutocompleteGroups(licensed: boolean, ldap: boolean, custom: boolean, permitted: boolean): boolean {
++    return permitted && ((licensed && ldap) || custom);
++}
++
+ interface Props {
+@@ -156,5 +161,4 @@ const WysiwygSuggestionList = ({editor, channelId, rootId, onSubmit}: Props) =>
+ 
+-    const useGroupMentions = license?.IsLicensed === 'true' && license?.LDAPGroups === 'true';
+     const autocompleteGroups = useSelector((state: GlobalState) => {
+-        if (useGroupMentions && haveIChannelPermission(state, currentTeamId, channelId, Permissions.USE_GROUP_MENTIONS)) {
++        if (shouldAutocompleteGroups(license?.IsLicensed === 'true', license?.LDAPGroups === 'true', isCustomGroupsEnabled(state), haveIChannelPermission(state, currentTeamId, channelId, Permissions.USE_GROUP_MENTIONS))) {
+             return getAssociatedGroupsForReference(state, currentTeamId, channelId);
+diff --git a/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_user_groups_menuitem.test.tsx b/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_user_groups_menuitem.test.tsx
+index a532f57c..999c0c13 100644
+--- a/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_user_groups_menuitem.test.tsx
++++ b/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_user_groups_menuitem.test.tsx
+@@ -276,2 +276,32 @@ describe('ProductSwitcherUserGroupsMenuItem', () => {
+     });
++
++    test('should enable menu item for unlicensed self-hosted when custom groups are enabled', () => {
++        const state: DeepPartial<GlobalState> = {
++            entities: {
++                ...initialState.entities,
++                general: {
++                    license: {
++                        IsLicensed: 'false',
++                        IsTrial: 'false',
++                    },
++                    config: {
++                        EnableCustomGroups: 'true',
++                    },
++                },
++            },
++        };
++
++        const {container} = renderWithContext(
++            <ProductSwitcherUserGroupsMenuItem
++                isCloudLicensed={false}
++                isEnterpriseReady={true}
++                isFreeTrialSubscription={false}
++            />,
++            state,
++        );
++
++        expect(screen.getByText('User Groups')).toBeInTheDocument();
++        expect(container.querySelector('[aria-disabled="true"]')).not.toBeInTheDocument();
++        expect(container.querySelector('.RestrictedIndicator__icon-tooltip-container')).not.toBeInTheDocument();
++    });
+ });
+diff --git a/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_user_groups_menuitem.tsx b/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_user_groups_menuitem.tsx
+index 088df6ff..515dff6a 100644
+--- a/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_user_groups_menuitem.tsx
++++ b/webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_user_groups_menuitem.tsx
+@@ -38,3 +38,6 @@ export default function ProductSwitcherUserGroupsMenuItem(props: Props) {
+ 
+-    const isSelfHostedStarter = props.isEnterpriseReady && (license.IsLicensed === 'false');
++    const isCustomUserGroupsEnabled = useSelector(isCustomGroupsEnabled);
++
++    // Custom groups work without a licence on self-hosted servers, so only the setting gates them there.
++    const isSelfHostedStarter = props.isEnterpriseReady && (license.IsLicensed === 'false') && !isCustomUserGroupsEnabled;
+     const isSelfHostedFreeTrial = license.IsTrial === 'true';
+@@ -44,4 +47,2 @@ export default function ProductSwitcherUserGroupsMenuItem(props: Props) {
+ 
+-    const isCustomUserGroupsEnabled = useSelector(isCustomGroupsEnabled);
+-
+     const isMenuItemVisible = isCustomUserGroupsEnabled || isStarterFree || isFreeTrial;
+diff --git a/webapp/channels/src/components/team_controller/actions/index.test.ts b/webapp/channels/src/components/team_controller/actions/index.test.ts
+index 5b2b1899..40e2437a 100644
+--- a/webapp/channels/src/components/team_controller/actions/index.test.ts
++++ b/webapp/channels/src/components/team_controller/actions/index.test.ts
+@@ -3,7 +3,9 @@
+ 
++import * as groupsActions from 'mattermost-redux/actions/groups';
+ import * as teamsActions from 'mattermost-redux/actions/teams';
+ 
++import * as statusActions from 'actions/status_actions';
+ import * as teamActions from 'actions/team_actions';
+ 
+-import {joinTeam} from 'components/team_controller/actions';
++import {initializeTeam, joinTeam} from 'components/team_controller/actions';
+ 
+@@ -35,2 +37,39 @@ describe('components/team_controller/actions', () => {
+ 
++    describe('initializeTeam', () => {
++        const stateWith = (license: Record<string, string>, config: Record<string, string>) => ({
++            ...initialState,
++            entities: {
++                ...initialState.entities,
++                general: {license, config},
++            },
++        });
++
++        beforeEach(() => {
++            jest.spyOn(statusActions, 'addVisibleUsersInCurrentChannelAndSelfToStatusPoll').mockImplementation(() => () => Promise.resolve({data: true}));
++            jest.spyOn(teamsActions, 'selectTeam').mockImplementation(() => () => Promise.resolve({data: true}));
++            jest.spyOn(groupsActions, 'getGroups').mockImplementation(() => () => Promise.resolve({data: []}));
++            jest.spyOn(groupsActions, 'getGroupsByUserIdPaginated').mockImplementation(() => () => Promise.resolve({data: []}));
++        });
++
++        afterEach(() => {
++            jest.restoreAllMocks();
++        });
++
++        test('should load custom groups without a license when they are enabled', async () => {
++            const store = mockStore(stateWith({IsLicensed: 'false'}, {EnableCustomGroups: 'true'}));
++            await store.dispatch(initializeTeam(testTeam));
++
++            expect(groupsActions.getGroupsByUserIdPaginated).toHaveBeenCalled();
++            expect(groupsActions.getGroups).toHaveBeenCalled();
++        });
++
++        test('should not load groups when neither custom groups nor LDAP groups are available', async () => {
++            const store = mockStore(stateWith({IsLicensed: 'false'}, {EnableCustomGroups: 'false'}));
++            await store.dispatch(initializeTeam(testTeam));
++
++            expect(groupsActions.getGroupsByUserIdPaginated).not.toHaveBeenCalled();
++            expect(groupsActions.getGroups).not.toHaveBeenCalled();
++        });
++    });
++
+     describe('joinTeam', () => {
+diff --git a/webapp/channels/src/components/team_controller/actions/index.ts b/webapp/channels/src/components/team_controller/actions/index.ts
+index f7591ca6..a8acc26a 100644
+--- a/webapp/channels/src/components/team_controller/actions/index.ts
++++ b/webapp/channels/src/components/team_controller/actions/index.ts
+@@ -39,5 +39,4 @@ export function initializeTeam(team: Team): ActionFuncAsync<Team> {
+         const customGroupEnabled = isCustomGroupsEnabled(state);
+-        if (license &&
+-            license.IsLicensed === 'true' &&
+-            (license.LDAPGroups === 'true' || customGroupEnabled)) {
++        const isLDAPGroupsLicensed = license?.IsLicensed === 'true' && license?.LDAPGroups === 'true';
++        if (isLDAPGroupsLicensed || customGroupEnabled) {
+             const groupsParams: GetGroupsParams = {
+@@ -59,3 +58,3 @@ export function initializeTeam(team: Team): ActionFuncAsync<Team> {
+ 
+-            if (license.LDAPGroups === 'true') {
++            if (isLDAPGroupsLicensed) {
+                 dispatch(getAllGroupsAssociatedToChannelsInTeam(team.id, true));
+@@ -63,3 +62,3 @@ export function initializeTeam(team: Team): ActionFuncAsync<Team> {
+ 
+-            if (team.group_constrained && license.LDAPGroups === 'true') {
++            if (team.group_constrained && isLDAPGroupsLicensed) {
+                 dispatch(getAllGroupsAssociatedToTeam(team.id, true));
