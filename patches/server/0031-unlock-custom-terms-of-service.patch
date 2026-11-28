@@ -1,0 +1,251 @@
+diff --git a/server/channels/api4/terms_of_service.go b/server/channels/api4/terms_of_service.go
+index cfbfb24e..b1e86953 100644
+--- a/server/channels/api4/terms_of_service.go
++++ b/server/channels/api4/terms_of_service.go
+@@ -37,7 +37,2 @@ func createTermsOfService(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+-	if license := c.App.Channels().License(); license == nil || !*license.Features.CustomTermsOfService {
+-		c.Err = model.NewAppError("createTermsOfService", "api.create_terms_of_service.custom_terms_of_service_disabled.app_error", nil, "", http.StatusBadRequest)
+-		return
+-	}
+-
+ 	auditRec := c.MakeAuditRecord(model.AuditEventCreateTermsOfService, model.AuditStatusFail)
+diff --git a/server/channels/api4/terms_of_service_test.go b/server/channels/api4/terms_of_service_test.go
+index cd130bae..b9c95c45 100644
+--- a/server/channels/api4/terms_of_service_test.go
++++ b/server/channels/api4/terms_of_service_test.go
+@@ -11,4 +11,2 @@ import (
+ 	"github.com/stretchr/testify/require"
+-
+-	"github.com/mattermost/mattermost/server/public/model"
+ )
+@@ -46,9 +44,4 @@ func TestCreateTermsOfServiceAdminUser(t *testing.T) {
+ 
+-	termsOfService, _, err := client.CreateTermsOfService(context.Background(), "terms of service new", th.SystemAdminUser.Id)
+-	CheckErrorID(t, err, "api.create_terms_of_service.custom_terms_of_service_disabled.app_error")
+-	assert.Nil(t, termsOfService)
+-
+-	th.App.Srv().SetLicense(model.NewTestLicense("EnableCustomTermsOfService"))
+-
+-	termsOfService, _, err = client.CreateTermsOfService(context.Background(), "terms of service new_2", th.SystemAdminUser.Id)
++	// No license is installed.
++	termsOfService, _, err := client.CreateTermsOfService(context.Background(), "terms of service new_2", th.SystemAdminUser.Id)
+ 	require.NoError(t, err)
+@@ -58,2 +51,6 @@ func TestCreateTermsOfServiceAdminUser(t *testing.T) {
+ 	assert.Equal(t, th.SystemAdminUser.Id, termsOfService.UserId)
++
++	latest, _, err := client.GetTermsOfService(context.Background(), "")
++	require.NoError(t, err)
++	assert.Equal(t, termsOfService.Id, latest.Id)
+ }
+diff --git a/server/config/client.go b/server/config/client.go
+index 54cc30c0..fb9c8004 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -21,2 +21,4 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["EnableUserDeactivation"] = strconv.FormatBool(*c.TeamSettings.EnableUserDeactivation)
++	props["EnableCustomTermsOfService"] = strconv.FormatBool(*c.SupportSettings.CustomTermsOfServiceEnabled)
++	props["CustomTermsOfServiceReAcceptancePeriod"] = strconv.FormatInt(int64(*c.SupportSettings.CustomTermsOfServiceReAcceptancePeriod), 10)
+ 	props["RestrictDirectMessage"] = *c.TeamSettings.RestrictDirectMessage
+@@ -391,7 +393,2 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+ 
+-		if *license.Features.CustomTermsOfService {
+-			props["EnableCustomTermsOfService"] = strconv.FormatBool(*c.SupportSettings.CustomTermsOfServiceEnabled)
+-			props["CustomTermsOfServiceReAcceptancePeriod"] = strconv.FormatInt(int64(*c.SupportSettings.CustomTermsOfServiceReAcceptancePeriod), 10)
+-		}
+-
+ 		if *license.Features.MFA {
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index 57f08ef3..f3bb396f 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -937,2 +937,19 @@ func TestGetClientConfigContentFlaggingWithoutLicense(t *testing.T) {
+ 
++func TestGetClientConfigCustomTermsOfServiceWithoutLicense(t *testing.T) {
++	t.Parallel()
++
++	for name, enabled := range map[string]bool{"enabled": true, "disabled": false} {
++		t.Run(name, func(t *testing.T) {
++			cfg := &model.Config{}
++			cfg.SetDefaults()
++			*cfg.SupportSettings.CustomTermsOfServiceEnabled = enabled
++			*cfg.SupportSettings.CustomTermsOfServiceReAcceptancePeriod = 30
++
++			props := GenerateClientConfig(cfg, "", nil)
++			assert.Equal(t, fmt.Sprintf("%t", enabled), props["EnableCustomTermsOfService"])
++			assert.Equal(t, "30", props["CustomTermsOfServiceReAcceptancePeriod"])
++		})
++	}
++}
++
+ func TestGenerateClientConfigLockProfileFieldsForEmailUsers(t *testing.T) {
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index 2ef5d6f1..4769c1cc 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -2662,7 +2662,2 @@
+   },
+-  {
+-    "id": "api.create_terms_of_service.custom_terms_of_service_disabled.app_error",
+-    "translation": "Custom terms of service feature is disabled.",
+-    "description": "API error when creating custom Terms of Service while that (enterprise) feature is disabled; admin-facing."
+-  },
+   {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 4ecfb867..fc6d5579 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -66,3 +66,3 @@ import CustomEnableDisableGuestAccountsSetting from './custom_enable_disable_gue
+ import CustomTermsOfServiceSettings from './custom_terms_of_service_settings';
+-import {messages as customTermsOfServiceMessages, searchableStrings as customTermsOfServiceSearchableStrings} from './custom_terms_of_service_settings/custom_terms_of_service_settings';
++import {searchableStrings as customTermsOfServiceSearchableStrings} from './custom_terms_of_service_settings/custom_terms_of_service_settings';
+ import CustomURLSchemesSetting from './custom_url_schemes_setting';
+@@ -77,3 +77,2 @@ import {
+     ComplianceExportFeatureDiscovery,
+-    CustomTermsOfServiceFeatureDiscovery,
+     DataRetentionFeatureDiscovery,
+@@ -6548,6 +6547,3 @@ const AdminDefinition: AdminDefinitionType = {
+                 searchableStrings: customTermsOfServiceSearchableStrings,
+-                isHidden: it.any(
+-                    it.not(it.licensedForFeature('CustomTermsOfService')),
+-                    it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE)),
+-                ),
++                isHidden: it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE)),
+                 isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE)),
+@@ -6557,24 +6553,2 @@ const AdminDefinition: AdminDefinitionType = {
+                 },
+-                restrictedIndicator: getRestrictedIndicator(),
+-            },
+-            custom_terms_of_service_feature_discovery: {
+-                url: 'compliance/custom_terms_of_service',
+-                isDiscovery: true,
+-                title: defineMessage({id: 'admin.sidebar.customTermsOfService', defaultMessage: 'Custom Terms of Service'}),
+-                isHidden: it.any(
+-                    it.licensedForFeature('CustomTermsOfService'),
+-                ),
+-                schema: {
+-                    id: 'TermsOfServiceSettings',
+-                    name: customTermsOfServiceMessages.termsOfServiceTitle,
+-                    settings: [
+-                        {
+-                            type: 'custom',
+-                            component: CustomTermsOfServiceFeatureDiscovery,
+-                            key: 'CustomTermsOfServiceFeatureDiscovery',
+-                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE)),
+-                        },
+-                    ],
+-                },
+-                restrictedIndicator: getRestrictedIndicator(true, LicenseSkus.Enterprise),
+             },
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_custom_terms_of_service.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_custom_terms_of_service.test.tsx
+new file mode 100644
+index 00000000..32613aab
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_custom_terms_of_service.test.tsx
+@@ -0,0 +1,54 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {AdminConfig, ClientLicense} from '@mattermost/types/config';
++
++import {RESOURCE_KEYS} from 'mattermost-redux/constants/permissions_sysconsole';
++
++import {LicenseSkus} from 'utils/constants';
++
++import AdminDefinition from './admin_definition';
++import type {AdminDefinitionSubSection, Check, ConsoleAccess} from './types';
++
++const config = {} as Partial<AdminConfig>;
++
++const canRead = {
++    read: {[RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE]: true},
++    write: {[RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE]: true},
++} as ConsoleAccess;
++
++const cannotRead = {
++    read: {[RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE]: false},
++    write: {[RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE]: false},
++} as ConsoleAccess;
++
++const licenses: Record<string, ClientLicense> = {
++    'no license': {IsLicensed: 'false'} as ClientLicense,
++    'an empty license record': {} as ClientLicense,
++    Professional: {IsLicensed: 'true', SkuShortName: LicenseSkus.Professional, CustomTermsOfService: 'false'} as ClientLicense,
++};
++
++const subsections = AdminDefinition.compliance.subsections as Record<string, AdminDefinitionSubSection>;
++
++function isHidden(subsection: AdminDefinitionSubSection, license: ClientLicense, access: ConsoleAccess) {
++    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
++    return check(config, {}, license, true, access);
++}
++
++describe('AdminDefinition - Custom Terms of Service', () => {
++    test('has no feature discovery (upsell) page', () => {
++        expect('custom_terms_of_service_feature_discovery' in subsections).toBe(false);
++    });
++
++    test('is not marked as a restricted feature', () => {
++        expect(subsections.custom_terms_of_service.restrictedIndicator).toBeUndefined();
++    });
++
++    test.each(Object.keys(licenses))('is visible with %s', (name) => {
++        expect(isHidden(subsections.custom_terms_of_service, licenses[name], canRead)).toBe(false);
++    });
++
++    test('is hidden from admins without read access', () => {
++        expect(isHidden(subsections.custom_terms_of_service, licenses['no license'], cannotRead)).toBe(true);
++    });
++});
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
+index 67280909..d98158e6 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
+@@ -811,3 +811,3 @@ describe('Selectors.Users', () => {
+ 
+-        // Test unlicensed
++        // Test unlicensed: the feature does not depend on a license
+         expect(Selectors.shouldShowTermsOfService({
+@@ -830,3 +830,21 @@ describe('Selectors.Users', () => {
+             },
+-        } as unknown as GlobalState)).toEqual(false);
++        } as unknown as GlobalState)).toEqual(true);
++
++        // Test no license record at all
++        expect(Selectors.shouldShowTermsOfService({
++            entities: {
++                general: {
++                    config: {
++                        CustomTermsOfServiceId: '1',
++                        EnableCustomTermsOfService: 'true',
++                    },
++                },
++                users: {
++                    currentUserId: userId,
++                    profiles: {
++                        [userId]: {id: userId, username: 'user', first_name: 'First', last_name: 'Last'},
++                    },
++                },
++            },
++        } as unknown as GlobalState)).toEqual(true);
+ 
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.ts
+index 9e90d51b..11674301 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.ts
+@@ -26,3 +26,3 @@ import {
+ } from 'mattermost-redux/selectors/entities/common';
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ import {getDirectShowPreferences, getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
+@@ -572,4 +572,3 @@ export const shouldShowTermsOfService: (state: GlobalState) => boolean = createS
+     getCurrentUser,
+-    getLicense,
+-    (config, user, license) => {
++    (config, user) => {
+         // Defaults to false if the user is not logged in or the setting doesn't exist
+@@ -578,3 +577,3 @@ export const shouldShowTermsOfService: (state: GlobalState) => boolean = createS
+ 
+-        const featureEnabled = license.IsLicensed === 'true' && config.EnableCustomTermsOfService === 'true';
++        const featureEnabled = config.EnableCustomTermsOfService === 'true';
+         const reacceptanceTime = parseInt(config.CustomTermsOfServiceReAcceptancePeriod!, 10) * 1000 * 60 * 60 * 24;
