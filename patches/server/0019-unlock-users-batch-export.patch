@@ -1,0 +1,166 @@
+diff --git a/server/channels/app/report.go b/server/channels/app/report.go
+index 23cfd7af..b68d1a51 100644
+--- a/server/channels/app/report.go
++++ b/server/channels/app/report.go
+@@ -203,6 +203,2 @@ func (a *App) GetUserCountForReport(filter *model.UserReportOptions) (*int64, *m
+ func (a *App) StartUsersBatchExport(rctx request.CTX, ro *model.UserReportOptions, startAt int64, endAt int64) *model.AppError {
+-	if !model.MinimumProfessionalLicense(a.Srv().License()) {
+-		return model.NewAppError("StartUsersBatchExport", "app.report.start_users_batch_export.license_error", nil, "", http.StatusBadRequest)
+-	}
+-
+ 	options := map[string]string{
+diff --git a/server/channels/app/report_test.go b/server/channels/app/report_test.go
+index 81f13a7c..82e7afcf 100644
+--- a/server/channels/app/report_test.go
++++ b/server/channels/app/report_test.go
+@@ -273,2 +273,16 @@ func TestCheckForExistingJobs(t *testing.T) {
+ 
++func TestStartUsersBatchExportWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	th.App.Srv().SetLicense(nil)
++
++	rctx := th.Context.WithSession(&model.Session{UserId: th.BasicUser.Id})
++
++	appErr := th.App.StartUsersBatchExport(rctx, &model.UserReportOptions{
++		ReportingBaseOptions: model.ReportingBaseOptions{DateRange: model.ReportDurationAllTime},
++		SearchTerm:           "no-license-" + model.NewId(),
++	}, 0, model.GetMillis())
++	require.Nil(t, appErr)
++}
++
+ func TestStartUsersBatchExport(t *testing.T) {
+diff --git a/webapp/channels/src/components/admin_console/system_users/system_users_export/index.test.tsx b/webapp/channels/src/components/admin_console/system_users/system_users_export/index.test.tsx
+new file mode 100644
+index 00000000..655793fa
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/system_users/system_users_export/index.test.tsx
+@@ -0,0 +1,54 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import * as modalActions from 'actions/views/modals';
++
++import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
++import {ModalIdentifiers} from 'utils/constants';
++
++import {SystemUsersExport} from './index';
++
++describe('components/admin_console/system_users/system_users_export', () => {
++    const baseState = {
++        entities: {
++            general: {
++                license: {IsLicensed: 'false'},
++            },
++            preferences: {
++                myPreferences: {},
++            },
++        },
++        views: {
++            admin: {
++                adminConsoleUserManagementTableProperties: {},
++            },
++        },
++    };
++
++    beforeEach(() => {
++        jest.spyOn(modalActions, 'openModal').mockImplementation(() => () => ({data: true}));
++    });
++
++    afterEach(() => {
++        jest.restoreAllMocks();
++    });
++
++    test('should offer the export without a license', async () => {
++        const {container} = renderWithContext(
++            <SystemUsersExport
++                currentUserId='user_id'
++                usersLenght={3}
++            />,
++            baseState,
++        );
++
++        expect(container.querySelector('.system-users-export__keyIndicator')).not.toBeInTheDocument();
++
++        await userEvent.click(screen.getByRole('button', {name: 'Export'}));
++
++        expect(modalActions.openModal).toHaveBeenCalledWith(expect.objectContaining({modalId: ModalIdentifiers.EXPORT_USER_DATA_MODAL}));
++        expect(modalActions.openModal).not.toHaveBeenCalledWith(expect.objectContaining({modalId: ModalIdentifiers.UPGRADE_EXPORT_DATA_MODAL}));
++    });
++});
+diff --git a/webapp/channels/src/components/admin_console/system_users/system_users_export/index.tsx b/webapp/channels/src/components/admin_console/system_users/system_users_export/index.tsx
+index ff1f7ea7..35c76e02 100644
+--- a/webapp/channels/src/components/admin_console/system_users/system_users_export/index.tsx
++++ b/webapp/channels/src/components/admin_console/system_users/system_users_export/index.tsx
+@@ -4,3 +4,3 @@
+ import React from 'react';
+-import {FormattedMessage, useIntl} from 'react-intl';
++import {FormattedMessage} from 'react-intl';
+ import {useDispatch, useSelector} from 'react-redux';
+@@ -8,3 +8,2 @@ import {useDispatch, useSelector} from 'react-redux';
+ import {Button} from '@mattermost/shared/components/button';
+-import {WithTooltip} from '@mattermost/shared/components/tooltip';
+ import {ReportDuration} from '@mattermost/types/reports';
+@@ -15,3 +14,2 @@ import {savePreferences} from 'mattermost-redux/actions/preferences';
+ import {Preferences} from 'mattermost-redux/constants';
+-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+ import {get} from 'mattermost-redux/selectors/entities/preferences';
+@@ -23,3 +21,2 @@ import {getAdminConsoleUserManagementTableProperties} from 'selectors/views/admi
+ import {ModalIdentifiers} from 'utils/constants';
+-import {isMinimumProfessionalLicense} from 'utils/license_utils';
+ 
+@@ -27,3 +24,2 @@ import {ExportErrorModal} from './export_error_modal';
+ import {ExportUserDataModal} from './export_user_data_modal';
+-import {UpgradeExportDataModal} from './upgrade_export_data_modal';
+ 
+@@ -39,4 +35,2 @@ interface Props {
+ export function SystemUsersExport(props: Props) {
+-    const {formatMessage} = useIntl();
+-
+     const dispatch = useDispatch();
+@@ -50,5 +44,2 @@ export function SystemUsersExport(props: Props) {
+ 
+-    const license = useSelector(getLicense);
+-    const isLicensed = license.IsLicensed === 'true' && isMinimumProfessionalLicense(license);
+-
+     async function doExport(checked?: boolean) {
+@@ -78,11 +69,2 @@ export function SystemUsersExport(props: Props) {
+         }
+-        if (!isLicensed) {
+-            dispatch(openModal({
+-                modalId: ModalIdentifiers.UPGRADE_EXPORT_DATA_MODAL,
+-                dialogType: UpgradeExportDataModal,
+-                dialogProps: {},
+-            }));
+-            return;
+-        }
+-
+         if (skipDialog) {
+@@ -99,3 +81,3 @@ export function SystemUsersExport(props: Props) {
+ 
+-    const button = (
++    return (
+         <Button
+@@ -113,20 +95,2 @@ export function SystemUsersExport(props: Props) {
+     );
+-
+-    if (!isLicensed) {
+-        return (
+-            <>
+-                <WithTooltip
+-                    title={formatMessage({id: 'admin.system_users.exportButton.notLicensed.title', defaultMessage: 'Professional feature'})}
+-                    hint={formatMessage({id: 'admin.system_users.exportButton.notLicensed.hint', defaultMessage: 'This feature is available on the professional plan'})}
+-                >
+-                    {button}
+-                </WithTooltip>
+-                <div className='system-users-export__keyIndicator'>
+-                    <i className='icon icon-key-variant'/>
+-                </div>
+-            </>
+-        );
+-    }
+-
+-    return button;
+ }
