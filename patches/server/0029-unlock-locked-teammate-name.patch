@@ -1,0 +1,95 @@
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 4abda15b..d5c68fa8 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3038,3 +3038,2 @@ const AdminDefinition: AdminDefinitionType = {
+                             },
+-                            isHidden: it.not(it.licensedForFeature('LockTeammateNameDisplay')),
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
+diff --git a/webapp/channels/src/components/user_settings/display/index.ts b/webapp/channels/src/components/user_settings/display/index.ts
+index e6122bc0..2edf13b2 100644
+--- a/webapp/channels/src/components/user_settings/display/index.ts
++++ b/webapp/channels/src/components/user_settings/display/index.ts
+@@ -14,3 +14,3 @@ import {patchUser, updateMe} from 'mattermost-redux/actions/users';
+ import {General} from 'mattermost-redux/constants';
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ import {
+@@ -48,3 +48,3 @@ export function makeMapStateToProps() {
+         const enableThemeSelection = config.EnableThemeSelection === 'true';
+-        const lockTeammateNameDisplay = getLicense(state).LockTeammateNameDisplay === 'true' && config.LockTeammateNameDisplay === 'true';
++        const lockTeammateNameDisplay = config.LockTeammateNameDisplay === 'true';
+         const configTeammateNameDisplay = config.TeammateNameDisplay as string;
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/preferences.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/preferences.ts
+index af47b629..4a13a496 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/preferences.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/preferences.ts
+@@ -101,5 +101,4 @@ export const getTeammateNameDisplaySetting: (state: GlobalState) => string = cre
+     (state) => getPreferenceObject(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.NAME_NAME_FORMAT),
+-    getLicense,
+-    (config, teammateNameDisplayPreference, license) => {
+-        const useAdminTeammateNameDisplaySetting = (license && license.LockTeammateNameDisplay === 'true') && config.LockTeammateNameDisplay === 'true';
++    (config, teammateNameDisplayPreference) => {
++        const useAdminTeammateNameDisplaySetting = config.LockTeammateNameDisplay === 'true';
+         if (teammateNameDisplayPreference && !useAdminTeammateNameDisplaySetting) {
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
+index 504f37af..67280909 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
+@@ -676,3 +676,3 @@ describe('Selectors.Users', () => {
+         });
+-        it('Should show full name since license is false', () => {
++        it('Should show username since LockTeammateNameDisplay is true, even when license is false', () => {
+             const newTestState = {
+@@ -698,6 +698,6 @@ describe('Selectors.Users', () => {
+             } as unknown as GlobalState;
+-            expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('First Last');
+-            expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('First Last');
++            expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('username');
++            expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('username');
+         });
+-        it('Should show full name since license is not available', () => {
++        it('Should show username since LockTeammateNameDisplay is true, even with no license', () => {
+             const newTestState = {
+@@ -720,4 +720,4 @@ describe('Selectors.Users', () => {
+             } as GlobalState;
+-            expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('First Last');
+-            expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('First Last');
++            expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('username');
++            expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('username');
+         });
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_lock_teammate_name.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_lock_teammate_name.test.tsx
+new file mode 100644
+index 00000000..5fd9dd6c
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_lock_teammate_name.test.tsx
+@@ -0,0 +1,29 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {AdminConfig, ClientLicense} from '@mattermost/types/config';
++
++import AdminDefinition from './admin_definition';
++import type {AdminDefinitionSetting, AdminDefinitionSubSection, Check} from './types';
++
++const licenses: Record<string, ClientLicense> = {
++    'no license': {IsLicensed: 'false'} as ClientLicense,
++    'an empty license record': {} as ClientLicense,
++    'a license without the feature': {IsLicensed: 'true', LockTeammateNameDisplay: 'false'} as ClientLicense,
++};
++
++describe('AdminDefinition - Lock Teammate Name Display', () => {
++    const users = AdminDefinition.site.subsections.users_and_teams as AdminDefinitionSubSection;
++    const settings = (users.schema as {settings: AdminDefinitionSetting[]}).settings;
++    const setting = settings.find((s) => s.key === 'TeamSettings.LockTeammateNameDisplay') as AdminDefinitionSetting;
++
++    test('exists', () => {
++        expect(setting).toBeDefined();
++    });
++
++    test.each(Object.keys(licenses))('is visible with %s', (name) => {
++        const hidden = setting.isHidden;
++        const result = typeof hidden === 'function' ? (hidden as Extract<Check, (...args: any[]) => boolean>)({} as Partial<AdminConfig>, {}, licenses[name], true, {}) : Boolean(hidden);
++        expect(result).toBe(false);
++    });
++});
