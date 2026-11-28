@@ -1,0 +1,224 @@
+diff --git a/server/channels/api4/channel_bookmark.go b/server/channels/api4/channel_bookmark.go
+index 3dcc6dad..5955d983 100644
+--- a/server/channels/api4/channel_bookmark.go
++++ b/server/channels/api4/channel_bookmark.go
+@@ -56,7 +56,2 @@ func (api *API) InitChannelBookmarks() {
+ func createChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("createChannelBookmark", "api.channel.bookmark.channel_bookmark.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	connectionID := r.Header.Get(model.ConnectionId)
+@@ -152,7 +147,2 @@ func createChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
+ func updateChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("updateChannelBookmark", "api.channel.bookmark.channel_bookmark.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	connectionID := r.Header.Get(model.ConnectionId)
+@@ -275,7 +265,2 @@ func updateChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
+ func updateChannelBookmarkSortOrder(c *Context, w http.ResponseWriter, r *http.Request) {
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("updateChannelBookmarkSortOrder", "api.channel.bookmark.channel_bookmark.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	connectionID := r.Header.Get(model.ConnectionId)
+@@ -381,7 +366,2 @@ func updateChannelBookmarkSortOrder(c *Context, w http.ResponseWriter, r *http.R
+ func deleteChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("deleteChannelBookmark", "api.channel.bookmark.channel_bookmark.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	connectionID := r.Header.Get(model.ConnectionId)
+@@ -487,7 +467,2 @@ func deleteChannelBookmark(c *Context, w http.ResponseWriter, r *http.Request) {
+ func listChannelBookmarksForChannel(c *Context, w http.ResponseWriter, r *http.Request) {
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("listChannelBookmarksForChannel", "api.channel.bookmark.channel_bookmark.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	c.RequireChannelId()
+diff --git a/server/channels/api4/channel_bookmark_test.go b/server/channels/api4/channel_bookmark_test.go
+index 39d6dcdd..b9b421d1 100644
+--- a/server/channels/api4/channel_bookmark_test.go
++++ b/server/channels/api4/channel_bookmark_test.go
+@@ -25,15 +25,2 @@ func TestCreateChannelBookmark(t *testing.T) {
+ 
+-	t.Run("should not work without a license", func(t *testing.T) {
+-		channelBookmark := &model.ChannelBookmark{
+-			ChannelId:   th.BasicChannel.Id,
+-			DisplayName: "Link bookmark test",
+-			LinkUrl:     "https://mattermost.com",
+-			Type:        model.ChannelBookmarkLink,
+-			Emoji:       ":smile:",
+-		}
+-
+-		_, _, err := th.Client.CreateChannelBookmark(context.Background(), channelBookmark)
+-		CheckErrorID(t, err, "api.channel.bookmark.channel_bookmark.license.error")
+-	})
+-
+ 	// enable guest accounts and add the license
+@@ -286,7 +273,2 @@ func TestEditChannelBookmark(t *testing.T) {
+ 
+-	t.Run("should not work without a license", func(t *testing.T) {
+-		_, _, err := th.Client.UpdateChannelBookmark(context.Background(), th.BasicChannel.Id, model.NewId(), &model.ChannelBookmarkPatch{})
+-		CheckErrorID(t, err, "api.channel.bookmark.channel_bookmark.license.error")
+-	})
+-
+ 	// enable guest accounts and add the license
+@@ -718,7 +700,2 @@ func TestUpdateChannelBookmarkSortOrder(t *testing.T) {
+ 
+-	t.Run("should not work without a license", func(t *testing.T) {
+-		_, _, err := th.Client.UpdateChannelBookmarkSortOrder(context.Background(), th.BasicChannel.Id, model.NewId(), 1)
+-		CheckErrorID(t, err, "api.channel.bookmark.channel_bookmark.license.error")
+-	})
+-
+ 	// enable guest accounts and add the license
+@@ -1104,7 +1081,2 @@ func TestDeleteChannelBookmark(t *testing.T) {
+ 
+-	t.Run("should not work without a license", func(t *testing.T) {
+-		_, _, err := th.Client.DeleteChannelBookmark(context.Background(), th.BasicChannel.Id, model.NewId())
+-		CheckErrorID(t, err, "api.channel.bookmark.channel_bookmark.license.error")
+-	})
+-
+ 	// enable guest accounts and add the license
+@@ -1474,7 +1446,2 @@ func TestListChannelBookmarksForChannel(t *testing.T) {
+ 
+-	t.Run("should not work without a license", func(t *testing.T) {
+-		_, _, err := th.Client.DeleteChannelBookmark(context.Background(), th.BasicChannel.Id, model.NewId())
+-		CheckErrorID(t, err, "api.channel.bookmark.channel_bookmark.license.error")
+-	})
+-
+ 	// enable guest accounts and add the license
+@@ -2137 +2104,62 @@ func TestChannelBookmarkWriteEndpointsFileInfoABAC(t *testing.T) {
+ }
++
++func TestChannelBookmarksWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	require.NoError(t, th.App.SetPhase2PermissionsMigrationStatus(true))
++	th.App.Srv().SetLicense(nil)
++	require.Nil(t, th.App.Srv().License())
++
++	ctx := context.Background()
++	newBookmark := func(name string) *model.ChannelBookmark {
++		return &model.ChannelBookmark{
++			ChannelId:   th.BasicChannel.Id,
++			DisplayName: name,
++			LinkUrl:     "https://example.com",
++			Type:        model.ChannelBookmarkLink,
++		}
++	}
++
++	first, resp, err := th.Client.CreateChannelBookmark(ctx, newBookmark("first"))
++	require.NoError(t, err)
++	CheckCreatedStatus(t, resp)
++	require.Equal(t, "first", first.DisplayName)
++
++	second, _, err := th.Client.CreateChannelBookmark(ctx, newBookmark("second"))
++	require.NoError(t, err)
++
++	renamed := "renamed"
++	updated, resp, err := th.Client.UpdateChannelBookmark(ctx, th.BasicChannel.Id, first.Id, &model.ChannelBookmarkPatch{DisplayName: &renamed})
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.Equal(t, renamed, updated.Updated.DisplayName)
++
++	reordered, resp, err := th.Client.UpdateChannelBookmarkSortOrder(ctx, th.BasicChannel.Id, second.Id, 0)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.Len(t, reordered, 2)
++	require.Equal(t, second.Id, reordered[0].Id)
++
++	listed, resp, err := th.Client.ListChannelBookmarksForChannel(ctx, th.BasicChannel.Id, 0)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++	require.Len(t, listed, 2)
++
++	_, resp, err = th.Client.DeleteChannelBookmark(ctx, th.BasicChannel.Id, first.Id)
++	require.NoError(t, err)
++	CheckOKStatus(t, resp)
++
++	listed, _, err = th.Client.ListChannelBookmarksForChannel(ctx, th.BasicChannel.Id, 0)
++	require.NoError(t, err)
++	require.Len(t, listed, 1)
++	require.Equal(t, second.Id, listed[0].Id)
++
++	t.Run("permissions still apply without a license", func(t *testing.T) {
++		th.RemovePermissionFromRole(t, model.PermissionAddBookmarkPublicChannel.Id, model.ChannelUserRoleId)
++		defer th.AddPermissionToRole(t, model.PermissionAddBookmarkPublicChannel.Id, model.ChannelUserRoleId)
++
++		_, resp, err := th.Client.CreateChannelBookmark(ctx, newBookmark("denied"))
++		require.Error(t, err)
++		CheckForbiddenStatus(t, resp)
++	})
++}
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index 97b61605..a6099280 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -381,7 +381,2 @@
+   },
+-  {
+-    "id": "api.channel.bookmark.channel_bookmark.license.error",
+-    "translation": "Your license does not support channel bookmarks.",
+-    "description": "API error when using channel bookmarks (saved links pinned to a channel) without a license that includes them."
+-  },
+   {
+diff --git a/webapp/channels/src/components/channel_bookmarks/utils.test.ts b/webapp/channels/src/components/channel_bookmarks/utils.test.ts
+index fee8bae3..8c7296fb 100644
+--- a/webapp/channels/src/components/channel_bookmarks/utils.test.ts
++++ b/webapp/channels/src/components/channel_bookmarks/utils.test.ts
+@@ -4,2 +4,3 @@
+ import type {ChannelBookmark} from '@mattermost/types/channel_bookmarks';
++import type {GlobalState} from '@mattermost/types/store';
+ 
+@@ -10,3 +11,3 @@ import {copyToClipboard} from 'utils/utils';
+ 
+-import {bookmarkHasLinkUrl, copyBookmarkLink, shouldOpenBookmarkInNewTab} from './utils';
++import {bookmarkHasLinkUrl, copyBookmarkLink, getIsChannelBookmarksEnabled, shouldOpenBookmarkInNewTab} from './utils';
+ 
+@@ -120 +121,19 @@ describe('copyBookmarkLink', () => {
+ });
++
++describe('getIsChannelBookmarksEnabled', () => {
++    const stateWithLicense = (license: Record<string, string>) => ({
++        entities: {general: {license}},
++    }) as unknown as GlobalState;
++
++    test('is enabled when no licence is installed', () => {
++        expect(getIsChannelBookmarksEnabled(stateWithLicense({IsLicensed: 'false'}))).toBe(true);
++    });
++
++    test('is enabled when the licence record is empty', () => {
++        expect(getIsChannelBookmarksEnabled(stateWithLicense({}))).toBe(true);
++    });
++
++    test('is enabled with a licence', () => {
++        expect(getIsChannelBookmarksEnabled(stateWithLicense({IsLicensed: 'true'}))).toBe(true);
++    });
++});
+diff --git a/webapp/channels/src/components/channel_bookmarks/utils.ts b/webapp/channels/src/components/channel_bookmarks/utils.ts
+index 29586cb0..fc498801 100644
+--- a/webapp/channels/src/components/channel_bookmarks/utils.ts
++++ b/webapp/channels/src/components/channel_bookmarks/utils.ts
+@@ -13,3 +13,3 @@ import {getChannelBookmarks} from 'mattermost-redux/selectors/entities/channel_b
+ import {getChannel, getMyChannelMember} from 'mattermost-redux/selectors/entities/channels';
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
+@@ -119,7 +119,5 @@ export const useCanGetLinkPreviews = () => {
+ 
+-export const getIsChannelBookmarksEnabled = (state: GlobalState) => {
+-    const license = getLicense(state);
+-
+-    return license?.IsLicensed === 'true';
+-};
++// Channel bookmarks are available on every server, licensed or not.
++// eslint-disable-next-line @typescript-eslint/no-unused-vars
++export const getIsChannelBookmarksEnabled = (_state: GlobalState) => true;
+ 
