@@ -1,0 +1,70 @@
+diff --git a/server/channels/api4/delivery_tracking.go b/server/channels/api4/delivery_tracking.go
+index daa21535..dd62ae9c 100644
+--- a/server/channels/api4/delivery_tracking.go
++++ b/server/channels/api4/delivery_tracking.go
+@@ -23,7 +23,2 @@ func (api *API) InitDeliveryTracking() {
+ func requireDeliveryTrackingAvailable(c *Context) {
+-	if !model.MinimumEnterpriseAdvancedLicense(c.App.License()) {
+-		c.Err = model.NewAppError("requireDeliveryTrackingAvailable", "api.delivery_tracking.error.license", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	if !c.App.Config().FeatureFlags.PostDeliveryTracking {
+diff --git a/server/channels/api4/delivery_tracking_test.go b/server/channels/api4/delivery_tracking_test.go
+index 1afcf310..5050e590 100644
+--- a/server/channels/api4/delivery_tracking_test.go
++++ b/server/channels/api4/delivery_tracking_test.go
+@@ -23,3 +23,4 @@ func deliveryTrackingFlagOn(cfg *model.Config) {
+ 
+-// licenseDeliveryTracking adds the Enterprise Advanced license the endpoints require.
++// licenseDeliveryTracking installs a test license. The endpoints work without one, so this
++// only keeps most of these tests on the licensed path; the unlicensed path has its own tests.
+ func licenseDeliveryTracking(t *testing.T, th *TestHelper) {
+@@ -49,9 +50,10 @@ func TestGetDeliveryTrackingConfig(t *testing.T) {
+ 
+-	t.Run("returns 501 without an Enterprise Advanced license", func(t *testing.T) {
++	t.Run("works without a license", func(t *testing.T) {
+ 		th.RemoveLicense(t)
++		require.Nil(t, th.App.Srv().License())
+ 
+-		_, resp, err := th.SystemAdminClient.GetDeliveryTrackingConfig(context.Background())
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.delivery_tracking.error.license")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
++		config, resp, err := th.SystemAdminClient.GetDeliveryTrackingConfig(context.Background())
++		require.NoError(t, err)
++		require.Equal(t, http.StatusOK, resp.StatusCode)
++		require.NotNil(t, config)
+ 	})
+@@ -100,4 +102,5 @@ func TestUpdateDeliveryTrackingConfig(t *testing.T) {
+ 
+-	t.Run("returns 501 without an Enterprise Advanced license", func(t *testing.T) {
++	t.Run("works without a license", func(t *testing.T) {
+ 		th.RemoveLicense(t)
++		require.Nil(t, th.App.Srv().License())
+ 
+@@ -106,5 +109,9 @@ func TestUpdateDeliveryTrackingConfig(t *testing.T) {
+ 		})
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "api.delivery_tracking.error.license")
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
++		require.NoError(t, err)
++		require.Equal(t, http.StatusOK, resp.StatusCode)
++
++		config, _, err := th.SystemAdminClient.GetDeliveryTrackingConfig(context.Background())
++		require.NoError(t, err)
++		assert.True(t, *config.Enable)
++		assert.True(t, *config.EnableForAllChannels)
+ 	})
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index 8c0eafb6..10d3e2cf 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -2792,7 +2792,2 @@
+   },
+-  {
+-    "id": "api.delivery_tracking.error.license",
+-    "translation": "Your license does not support post delivery audit logging.",
+-    "description": "API error when a post delivery audit logging endpoint is called on a server whose license does not include the feature."
+-  },
+   {
